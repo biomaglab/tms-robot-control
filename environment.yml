@@ -1,0 +1,12 @@
+channels:
+- conda-forge
+dependencies:
+- python-socketio==5.3.0
+- uvicorn
+- nest-asyncio
+- requests
+- websocket-client
+- websockets
+- numpy
+- opencv-python
+- wxPython
