@@ -38,6 +38,9 @@ class RemoteControl:
             print("Connecting...")
             time.sleep(1.0)
 
+    def send_message(self, topic, data={}):
+        self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
+
 
 if __name__ == '__main__':
     buffer = [{}]
@@ -47,4 +50,10 @@ if __name__ == '__main__':
         print('Sleeping for 5 sec ...')
         time.sleep(5.0)
         print('Checking the buffer. It contains %s' % str(buffer[0]))
+        print('Sleeping for 5 sec ...')
+        time.sleep(5.0)
+        topic = 'Delete all markers'
+        print('Emitting a message, topic : %s' % topic)
+        rc.send_message(topic)
+
 
