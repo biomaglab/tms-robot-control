@@ -2,6 +2,7 @@
 
 import time
 import socketio
+from threading import Lock
 
 
 class RemoteControl:
@@ -14,6 +15,7 @@ class RemoteControl:
         self.__sio.on('connect', self.__on_connect)
         self.__sio.on('disconnect', self.__on_disconnect)
         self.__sio.on('to_robot', self.__on_message_receive)
+        self.__lock = Lock()
 
     def __on_connect(self):
         print("Connected to {}".format(self.__remote_host))
@@ -24,11 +26,15 @@ class RemoteControl:
         self.__connected = False
 
     def __on_message_receive(self, msg):
+        self.__lock.acquire()
         self.__buffer.append(msg)
+        self.__lock.release()
 
     def get_buffer(self):
+        self.__lock.acquire()
         res = self.__buffer.copy()
         self.__buffer = []
+        self.__lock.release()
         return res
 
     def connect(self):
