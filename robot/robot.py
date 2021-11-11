@@ -29,33 +29,6 @@ import coordinates as coordinates
 import elfin_processing as elfin_process
 
 
-class QueueCustom(queue.Queue):
-    """
-    A custom queue subclass that provides a :meth:`clear` method.
-    https://stackoverflow.com/questions/6517953/clear-all-items-from-the-queue
-    Modified to a LIFO Queue type (Last-in-first-out). Seems to make sense for the navigation
-    threads, as the last added coordinate should be the first to be processed.
-    In the first tests in a short run, seems to increase the coord queue size considerably,
-    possibly limiting the queue size is good.
-    """
-
-    def clear(self):
-        """
-        Clears all items from the queue.
-        """
-
-        with self.mutex:
-            unfinished = self.unfinished_tasks - len(self.queue)
-            if unfinished <= 0:
-                if unfinished < 0:
-                    raise ValueError('task_done() called too many times')
-                self.all_tasks_done.notify_all()
-            self.unfinished_tasks = unfinished
-            self.queue.clear()
-            self.not_full.notify_all()
-
-
-
 def __on_connect():
     global __connected
     print("Connected to {}".format(__remote_host))
@@ -69,10 +42,6 @@ def __on_message_receive(msg):
     __lock.acquire()
     __buffer.append(msg)
     __lock.release()
-    # if data is None:
-    #     data = {}
-    #
-    # __buffer[0] = {'topic': topic, 'data': data}
 
 def get_buffer():
     global __buffer
@@ -91,13 +60,6 @@ def connect():
 def send_message(self, topic, data={}):
     __sio.emit('from_robot', {'topic': topic, 'data': data})
 
-# def __bind_events(self):
-#     Publisher.subscribe(self.OnRobotConnection, 'Connect to robot')
-#     Publisher.subscribe(self.OnUpdateRobotTransformationMatrix, 'Update robot transformation matrix')
-#     Publisher.subscribe(self.OnUpdateRobotTargetMatrix, 'Robot target matrix')
-#     Publisher.subscribe(self.OnResetProcessTracker, 'Reset robot process')
-#     Publisher.subscribe(self.OnUpdateCoordinates, 'Update tracker coordinates')
-#     Publisher.subscribe(self.OnUpdateTrackerFiducialsMatrix, 'Update tracker fiducials matrix')
 
 def OnRobotConnection(data):
     robot_IP = data["robot_IP"]
@@ -277,8 +239,6 @@ process_tracker = elfin_process.TrackerProcessing()
 
 thread_robot = None
 matrix_tracker_fiducials = None
-# robot_target_queue = QueueCustom(maxsize=1)
-# event_robot = threading.Event()
 
 
 robot_coordinates = coordinates.RobotCoordinates(__sio)
@@ -304,9 +264,6 @@ previous_robot_status = False
 
 if __name__ == '__main__':
     while True:
-        #print('Checking the buffer. It contains %s' % str(buffer[0]))
-        #print(buffer[0])
-        #sleep(0.1)
         buf = get_buffer()
         if len(buf) == 0:
             pass
