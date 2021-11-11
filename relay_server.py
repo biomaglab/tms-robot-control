@@ -36,5 +36,11 @@ def from_neuronavigation(sid, msg):
     if msg["topic"] in const.PUB_MESSAGES:
         Publisher.sendMessage(msg["topic"], data=msg["data"])
 
+@sio.event
+def from_robot(sid, msg):
+    asyncio.create_task(sio.emit('to_neuronavigation', msg))
+    print('Forwarding neuronavigation -> robot: %s' % str(msg))
+
+
 if __name__ == '__main__':
     uvicorn.run(app, port=port, host='0.0.0.0', loop='asyncio')

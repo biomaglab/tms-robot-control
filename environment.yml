@@ -8,5 +8,5 @@ dependencies:
 - websocket-client
 - websockets
 - numpy
-- opencv-python
+- opencv
 - wxPython
