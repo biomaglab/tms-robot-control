@@ -3,7 +3,7 @@ import time
 import numpy as np
 import socketio
 
-import elfin_processing as elfin_process
+import robot.elfin_processing as elfin_process
 
 
 class RobotCoordinates:
@@ -11,12 +11,14 @@ class RobotCoordinates:
     Class to set/send robot coordinates.
     The class is required to avoid acquisition conflict with different threads (coordinates and navigation)
     """
-    def __init__(self, __sio):
-        self.__sio = __sio
+    def __init__(self, rc):
+        self.rc = rc
 
     def SetRobotCoordinates(self, coord):
         try:
-            self.__sio.emit('from_robot', {'topic': 'Update Robot Coordinates', 'data': {'coord': coord.tolist()}})
+            topic = 'Update Robot Coordinates'
+            data = {'coord': coord.tolist()}
+            self.rc.send_message(topic, data)
             time.sleep(0.2)
         except socketio.exceptions.BadNamespaceError:
             print("skip")

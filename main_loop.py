@@ -4,6 +4,8 @@ import time
 import socketio
 from threading import Lock
 
+import constants as const
+import robot.robot as Robot
 
 class RemoteControl:
     def __init__(self, remote_host):
@@ -51,15 +53,34 @@ class RemoteControl:
 if __name__ == '__main__':
     rc = RemoteControl('http://127.0.0.1:5000')
     rc.connect()
+    robot = Robot.RobotControl(rc)
+    previous_robot_status = False
     while True:
-        print('Sleeping for 5 sec ...')
-        time.sleep(5.0)
         buf = rc.get_buffer()
-        print('Checking the buffer. It contains %i messages' % len(buf))
-        print('Sleeping for 5 sec ...')
-        time.sleep(5.0)
-        topic = 'Delete all markers'
-        print('Emitting a message, topic : %s' % topic)
-        rc.send_message(topic)
+        if len(buf) == 0:
+            pass
+        elif any(item in [d['topic'] for d in buf] for item in const.PUB_MESSAGES):
+            topic = [d['topic'] for d in buf]
 
+            for i in range(len(buf)):
+                if topic[i] in const.PUB_MESSAGES:
+                    get_function = {const.FUNCTION_CONNECT_TO_ROBOT: robot.OnRobotConnection,
+                                    const.FUNCTION_ROBOT_TRANSFORMATION_MATRIX: robot.OnUpdateRobotTransformationMatrix,
+                                    const.FUNCTION_ROBOT_TARGET_MATRIX: robot.OnUpdateRobotTargetMatrix,
+                                    const.FUNCTION_RESET_ROBOT_PROCESS: robot.OnResetProcessTracker,
+                                    const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot.OnUpdateCoordinates,
+                                    const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot.OnUpdateTrackerFiducialsMatrix}
+                    get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
+
+        if robot.trck_init_robot:
+            current_tracker_coordinates, current_robot_coordinates, markers_flag = robot.get_coordinates_from_tracker_devices()
+            robot_status = robot.robot_control(current_tracker_coordinates, current_robot_coordinates, markers_flag)
+
+            if previous_robot_status != robot_status:
+                topic = 'Update robot status'
+                data = {'robot_status': robot_status}
+                rc.send_message(topic, data)
+                previous_robot_status = robot_status
+
+        time.sleep(const.SLEEP_ROBOT)
 
