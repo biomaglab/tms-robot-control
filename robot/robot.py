@@ -214,6 +214,7 @@ def robot_control(current_tracker_coordinates_in_robot, current_robot_coordinate
                     robot_status = robot_move_decision(distance_target, new_robot_coordinates, current_robot_coordinates, current_head_filtered)
                     coord_inv_old = new_robot_coordinates
         else:
+            print("Head marker is not visible")
             trck_init_robot.StopRobot()
 
     return robot_status
@@ -237,10 +238,6 @@ connect()
 trk_init = None
 process_tracker = elfin_process.TrackerProcessing()
 
-thread_robot = None
-matrix_tracker_fiducials = None
-
-
 robot_coordinates = coordinates.RobotCoordinates(__sio)
 tracker_coordinates = coordinates.TrackerCoordinates()
 
@@ -251,9 +248,6 @@ coord_inv_old = None
 
 process_tracker = process_tracker
 trck_init_robot = None
-
-# robot_target_queue = robot_target_queue
-# event_robot = event_robot
 
 arc_motion_flag = False
 arc_motion_step_flag = None

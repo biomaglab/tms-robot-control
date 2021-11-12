@@ -8,24 +8,18 @@ import elfin_processing as elfin_process
 
 class RobotCoordinates:
     """
-    Class to set/get robot coordinates. Robot coordinates are acquired in ControlRobot thread.
+    Class to set/send robot coordinates.
     The class is required to avoid acquisition conflict with different threads (coordinates and navigation)
     """
     def __init__(self, __sio):
-        self.coord = None
         self.__sio = __sio
-
 
     def SetRobotCoordinates(self, coord):
         try:
             self.__sio.emit('from_robot', {'topic': 'Update Robot Coordinates', 'data': {'coord': coord.tolist()}})
-            time.sleep(0.1)
+            time.sleep(0.2)
         except socketio.exceptions.BadNamespaceError:
             print("skip")
-        self.coord = coord
-
-    def GetRobotCoordinates(self):
-        return self.coord
 
 class TrackerCoordinates:
     """
