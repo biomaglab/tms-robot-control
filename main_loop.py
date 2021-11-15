@@ -65,16 +65,20 @@ if __name__ == '__main__':
             for i in range(len(buf)):
                 if topic[i] in const.PUB_MESSAGES:
                     get_function = {const.FUNCTION_CONNECT_TO_ROBOT: robot.OnRobotConnection,
-                                    const.FUNCTION_ROBOT_TRANSFORMATION_MATRIX: robot.OnUpdateRobotTransformationMatrix,
+                                    const.FUNCTION_ROBOT_NAVIGATION_MODE: robot.OnUpdateRobotNavigationMode,
                                     const.FUNCTION_ROBOT_TARGET_MATRIX: robot.OnUpdateRobotTargetMatrix,
                                     const.FUNCTION_RESET_ROBOT_PROCESS: robot.OnResetProcessTracker,
                                     const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot.OnUpdateCoordinates,
-                                    const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot.OnUpdateTrackerFiducialsMatrix}
+                                    const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot.OnUpdateTrackerFiducialsMatrix,
+                                    const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot.OnCreatePoint,
+                                    const.FUNCTION_RESET_ROBOT_MATRIX: robot.OnResetRobotMatrix,
+                                    const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot.OnRobotMatrixEstimation,
+                                    const.FUNCTION_LOAD_ROBOT_MATRIX: robot.OnLoadRobotMatrix}
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot.trck_init_robot:
-            current_tracker_coordinates, current_robot_coordinates, markers_flag = robot.get_coordinates_from_tracker_devices()
-            robot_status = robot.robot_control(current_tracker_coordinates, current_robot_coordinates, markers_flag)
+            robot.update_robot_coordinates()
+            robot_status = robot.robot_control()
 
             if previous_robot_status != robot_status:
                 topic = 'Update robot status'

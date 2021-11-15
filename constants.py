@@ -18,15 +18,24 @@ ROBOT_MOVE_STATE = {"free to move": 0,
 
 #Publisher messages
 PUB_MESSAGES = ['Connect to robot',
-                'Update robot transformation matrix',
+                'Robot navigation mode',
                 'Robot target matrix',
                 'Reset robot process',
                 'Update tracker coordinates',
-                'Update tracker fiducials matrix']
+                'Update tracker fiducials matrix',
+                'Collect coordinates for the robot transformation matrix',
+                'Reset coordinates collection for the robot transformation matrix',
+                'Robot transformation matrix estimation',
+                'Load robot transformation matrix']
 
 FUNCTION_CONNECT_TO_ROBOT = 0
-FUNCTION_ROBOT_TRANSFORMATION_MATRIX = 1
+FUNCTION_ROBOT_NAVIGATION_MODE = 1
 FUNCTION_ROBOT_TARGET_MATRIX = 2
 FUNCTION_RESET_ROBOT_PROCESS = 3
 FUNCTION_UPDATE_TRACKER_COORDINATES = 4
 FUNCTION_UPDATE_TRACKER_FIDUCIALS = 5
+FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX = 6
+FUNCTION_RESET_ROBOT_MATRIX = 7
+FUNCTION_ROBOT_MATRIX_ESTIMATION = 8
+FUNCTION_LOAD_ROBOT_MATRIX = 9
+

@@ -19,14 +19,18 @@
 import numpy as np
 
 import constants as const
+import transformations as tr
 
 import robot.elfin as elfin
 import robot.coordinates as coordinates
 import robot.elfin_processing as elfin_process
 
 
+
 class RobotControl:
     def __init__(self, rc):
+        self.rc = rc
+
         self.trk_init = None
         self.process_tracker = elfin_process.TrackerProcessing()
 
@@ -34,6 +38,13 @@ class RobotControl:
         self.tracker_coordinates = coordinates.TrackerCoordinates()
 
         self.trck_init_robot = None
+        self.robot_mode_status = False
+
+        self.tracker_coord = []
+        self.tracker_angles = []
+        self.robot_coord = []
+        self.robot_angles = []
+        self.matrix_tracker_to_robot = []
 
         self.robot_tracker_flag = False
         self.target_flag = False
@@ -51,10 +62,8 @@ class RobotControl:
         robot_IP = data["robot_IP"]
         self.ElfinRobot(robot_IP)
 
-    def OnUpdateRobotTransformationMatrix(self, data):
-        m_tracker_to_robot = data["m_tracker_to_robot"]
-        self.tracker_coordinates.SetTrackerToRobotMatrix(m_tracker_to_robot)
-        print("Matrix tracker to robot:", m_tracker_to_robot)
+    def OnUpdateRobotNavigationMode(self, data):
+        self.robot_mode_status = data["robot_mode"]
 
     def OnUpdateRobotTargetMatrix(self, data):
         self.robot_tracker_flag = data["robot_tracker_flag"]
@@ -73,21 +82,60 @@ class RobotControl:
         self.matrix_tracker_fiducials = np.array(data["matrix_tracker_fiducials"])
         self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
 
+    def OnCreatePoint(self, data):
+        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
+        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
+        coord_raw_tracker_obj = coord_raw[2]
+
+        if markers_flag[2]:
+            self.tracker_coord.append(coord_raw_tracker_obj[:3])
+            self.tracker_angles.append(coord_raw_tracker_obj[3:])
+            self.robot_coord.append(coord_raw_robot[:3])
+            self.robot_angles.append(coord_raw_robot[3:])
+            topic = 'Coordinates for the robot transformation matrix collected'
+            data = {}
+            self.rc.send_message(topic, data)
+        else:
+            print('Cannot detect the coil markers, pls try again')
+
+    def OnResetRobotMatrix(self, data):
+        self.tracker_coord = []
+        self.tracker_angles = []
+        self.robot_coord = []
+        self.robot_angles = []
+        self.matrix_tracker_to_robot = []
+
+    def OnRobotMatrixEstimation(self, data):
+        tracker_coord = np.array(self.tracker_coord)
+        robot_coord = np.array(self.robot_coord)
+
+        matrix_robot_to_tracker = self.AffineTransformation(tracker_coord, robot_coord)
+        matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
+
+        self.matrix_tracker_to_robot = matrix_tracker_to_robot
+
+        topic = 'Update robot transformation matrix'
+        data = {'data': self.matrix_tracker_to_robot.tolist()}
+        self.rc.send_message(topic, data)
+
+    def OnLoadRobotMatrix(self, data):
+        self.matrix_tracker_to_robot = np.array(data["data"])
+        self.tracker_coordinates.SetTrackerToRobotMatrix(self.m_tracker_to_robot)
+
+    def AffineTransformation(self, tracker, robot):
+        m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,
+                                                shear=False, scale=False, usesvd=False)
+        return m_change
+
     def ElfinRobot(self, robot_IP):
         print("Trying to connect Robot via: ", robot_IP)
         self.trck_init_robot = elfin.Elfin_Server(robot_IP, const.ROBOT_ElFIN_PORT)
         self.trck_init_robot.Initialize()
         print('Connect to elfin robot tracking device.')
 
-    def get_coordinates_from_tracker_devices(self):
+    def update_robot_coordinates(self):
         coord_robot_raw = self.trck_init_robot.Run()
-        coord_robot = np.array(coord_robot_raw)
-        coord_robot[3], coord_robot[5] = coord_robot[5], coord_robot[3]
-        self.robot_coordinates.SetRobotCoordinates(coord_robot)
-
-        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
-
-        return coord_raw, coord_robot_raw, markers_flag
+        self.robot_coordinates.SetRobotCoordinates(coord_robot_raw)
 
     def robot_motion_reset(self):
         self.trck_init_robot.StopRobot()
@@ -162,7 +210,10 @@ class RobotControl:
 
         return robot_status
 
-    def robot_control(self, current_tracker_coordinates_in_robot, current_robot_coordinates, markers_flag):
+    def robot_control(self):
+        current_tracker_coordinates_in_robot, markers_flag = self.tracker_coordinates.GetCoordinates()
+        current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
+
         coord_head_tracker_in_robot = current_tracker_coordinates_in_robot[1]
         marker_head_flag = markers_flag[1]
         #coord_obj_tracker_in_robot = current_tracker_coordinates_in_robot[2]
