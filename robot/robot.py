@@ -16,6 +16,7 @@
 #    PARTICULAR. Consulte a Licenca Publica Geral GNU para obter mais
 #    detalhes.
 #--------------------------------------------------------------------------
+import dataclasses
 import numpy as np
 
 import constants as const
@@ -47,8 +48,9 @@ class RobotControl:
         self.matrix_tracker_to_robot = []
 
         self.robot_tracker_flag = False
+        self.target_index = None
         self.target_flag = False
-        self.m_change_robot_to_head = None
+        self.m_change_robot_to_head = [None] * 9
         self.coord_inv_old = None
 
         self.arc_motion_flag = False
@@ -57,6 +59,22 @@ class RobotControl:
         self.target_linear_in = None
         self.target_arc = None
         self.previous_robot_status = False
+
+        self.robot_markers = []
+
+    @dataclasses.dataclass
+    class Robot_Marker:
+        """Class for storing robot target."""
+        m_robot_target : list = None
+        id: int = 1
+
+        @property
+        def robot_target_matrix(self):
+            return self.m_robot_target
+
+        @robot_target_matrix.setter
+        def robot_target_matrix(self, new_m_robot_target):
+            self.m_robot_target = new_m_robot_target
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
@@ -67,7 +85,11 @@ class RobotControl:
 
     def OnUpdateRobotTargetMatrix(self, data):
         self.robot_tracker_flag = data["robot_tracker_flag"]
-        self.m_change_robot_to_head = np.array(data["m_change_robot_to_head"])
+        self.target_index = data["target_index"]
+        if self.robot_tracker_flag:
+            self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
+        else:
+            self.m_change_robot_to_head = [None] * 9
 
     def OnResetProcessTracker(self, data):
         self.process_tracker.__init__()
@@ -113,6 +135,7 @@ class RobotControl:
         matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
 
         self.matrix_tracker_to_robot = matrix_tracker_to_robot
+        self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
         topic = 'Update robot transformation matrix'
         data = {'data': self.matrix_tracker_to_robot.tolist()}
@@ -120,7 +143,28 @@ class RobotControl:
 
     def OnLoadRobotMatrix(self, data):
         self.matrix_tracker_to_robot = np.array(data["data"])
-        self.tracker_coordinates.SetTrackerToRobotMatrix(self.m_tracker_to_robot)
+        self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
+
+    def OnAddRobotMarker(self, data):
+        if data["data"]:
+            head_coordinates = self.tracker_coordinates.GetCoordinates()[0][1]
+            robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
+            current_robot_target_matrix = elfin_process.compute_robot_to_head_matrix(head_coordinates, robot_coordinates)
+        else:
+            current_robot_target_matrix = [None]
+
+        new_robot_marker = self.Robot_Marker()
+        new_robot_marker.robot_target_matrix = current_robot_target_matrix
+
+        self.robot_markers.append(new_robot_marker)
+
+    def OnDeleteAllRobotMarker(self, data):
+        self.robot_markers = []
+
+    def OnDeleteRobotMarker(self, data):
+        index = data["index"]
+        for i in reversed(index):
+            del self.robot_markers[i]
 
     def AffineTransformation(self, tracker, robot):
         m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,

@@ -66,14 +66,17 @@ if __name__ == '__main__':
                 if topic[i] in const.PUB_MESSAGES:
                     get_function = {const.FUNCTION_CONNECT_TO_ROBOT: robot.OnRobotConnection,
                                     const.FUNCTION_ROBOT_NAVIGATION_MODE: robot.OnUpdateRobotNavigationMode,
-                                    const.FUNCTION_ROBOT_TARGET_MATRIX: robot.OnUpdateRobotTargetMatrix,
+                                    const.FUNCTION_UPDATE_ROBOT_TARGET: robot.OnUpdateRobotTargetMatrix,
                                     const.FUNCTION_RESET_ROBOT_PROCESS: robot.OnResetProcessTracker,
                                     const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot.OnUpdateCoordinates,
                                     const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot.OnUpdateTrackerFiducialsMatrix,
                                     const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot.OnCreatePoint,
                                     const.FUNCTION_RESET_ROBOT_MATRIX: robot.OnResetRobotMatrix,
                                     const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot.OnRobotMatrixEstimation,
-                                    const.FUNCTION_LOAD_ROBOT_MATRIX: robot.OnLoadRobotMatrix}
+                                    const.FUNCTION_LOAD_ROBOT_MATRIX: robot.OnLoadRobotMatrix,
+                                    const.FUNCTION_ADD_MARKER: robot.OnAddRobotMarker,
+                                    const.FUNCTION_REMOVE_MULTIPLE_MARKERS: robot.OnDeleteRobotMarker,
+                                    const.FUNCTION_REMOVE_ALL_MARKERS: robot.OnDeleteAllRobotMarker}
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot.trck_init_robot:

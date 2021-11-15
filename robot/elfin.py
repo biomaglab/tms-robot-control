@@ -56,6 +56,7 @@ class Elfin:
         self.end_msg = ",;"
 
     def connect(self, server_ip, port_number, message_size, robot_id):
+        #TODO: try execept to chek connection
         mySocket = socket(AF_INET, SOCK_STREAM)
         mySocket.connect((server_ip, port_number))
 

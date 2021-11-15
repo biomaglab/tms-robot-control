@@ -88,7 +88,32 @@ def transform_tracker_to_robot(m_tracker_to_robot, coord_tracker):
         ref_tracker_in_robot = coord_tracker[1]
         #obj_tracker_in_robot = coord_tracker[2]
 
-    return np.vstack([probe_tracker_in_robot, ref_tracker_in_robot])
+    return np.vstack([probe_tracker_in_robot, ref_tracker_in_robot, coord_tracker[2]])
+
+def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
+    """
+    :param head: nx6 array of head coordinates from tracking device in robot space
+    :param robot: nx6 array of robot coordinates
+
+    :return: target_robot_matrix: 3x3 array representing change of basis from robot to head in robot system
+    """
+    # compute head target matrix
+    m_head_target = coordinates_to_transformation_matrix(
+        position=head_coordinates[:3],
+        orientation=head_coordinates[3:],
+        axes='rzyx',
+    )
+
+    # compute robot target matrix
+    m_robot_target = coordinates_to_transformation_matrix(
+        position=robot_coordinates[:3],
+        orientation=robot_coordinates[3:],
+        axes='rzyx',
+    )
+    robot_to_head_matrix = np.linalg.inv(m_head_target) @ m_robot_target
+
+    return robot_to_head_matrix
+
 
 
 class KalmanTracker:
