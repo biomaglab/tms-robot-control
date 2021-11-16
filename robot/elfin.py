@@ -18,8 +18,8 @@ class Elfin_Server():
         message_size = 1024
         robot_id = 0
         self.cobot = Elfin()
-        self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
-        print("connected!")
+        status_connection = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
+        return status_connection
 
     def Run(self):
         return self.cobot.ReadPcsActualPos()
@@ -56,13 +56,18 @@ class Elfin:
         self.end_msg = ",;"
 
     def connect(self, server_ip, port_number, message_size, robot_id):
-        #TODO: try execept to chek connection
-        mySocket = socket(AF_INET, SOCK_STREAM)
-        mySocket.connect((server_ip, port_number))
+        try:
+            mySocket = socket(AF_INET, SOCK_STREAM)
+            mySocket.connect((server_ip, port_number))
 
-        self.message_size = message_size
-        self.robot_id = str(robot_id)
-        self.mySocket = mySocket
+            self.message_size = message_size
+            self.robot_id = str(robot_id)
+            self.mySocket = mySocket
+
+            return True
+
+        except:
+            return False
 
     def send(self, message):
         self.mySocket.sendall(message.encode('utf-8'))

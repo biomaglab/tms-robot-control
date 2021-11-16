@@ -131,7 +131,7 @@ class RobotControl:
         tracker_coord = np.array(self.tracker_coord)
         robot_coord = np.array(self.robot_coord)
 
-        matrix_robot_to_tracker = self.AffineTransformation(tracker_coord, robot_coord)
+        matrix_robot_to_tracker = elfin_process.AffineTransformation(tracker_coord, robot_coord)
         matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
 
         self.matrix_tracker_to_robot = matrix_tracker_to_robot
@@ -166,16 +166,19 @@ class RobotControl:
         for i in reversed(index):
             del self.robot_markers[i]
 
-    def AffineTransformation(self, tracker, robot):
-        m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,
-                                                shear=False, scale=False, usesvd=False)
-        return m_change
-
     def ElfinRobot(self, robot_IP):
         print("Trying to connect Robot via: ", robot_IP)
         self.trck_init_robot = elfin.Elfin_Server(robot_IP, const.ROBOT_ElFIN_PORT)
-        self.trck_init_robot.Initialize()
-        print('Connect to elfin robot tracking device.')
+        status_connection = self.trck_init_robot.Initialize()
+        if status_connection:
+            print('Connect to elfin robot tracking device.')
+        else:
+            self.trck_init_robot = None
+            print('Not possible to connect to elfin robot.')
+
+        topic = 'Robot connection status'
+        data = {'data': status_connection}
+        self.rc.send_message(topic, data)
 
     def update_robot_coordinates(self):
         coord_robot_raw = self.trck_init_robot.Run()
