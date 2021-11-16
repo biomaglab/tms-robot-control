@@ -114,7 +114,7 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
 
     return robot_to_head_matrix
 
-def AffineTransformation(self, tracker, robot):
+def AffineTransformation(tracker, robot):
     m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,
                                             shear=False, scale=False, usesvd=False)
     return m_change

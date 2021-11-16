@@ -219,32 +219,32 @@ class RobotControl:
                 if not self.arc_motion_flag:
                     head_center_coordinates = self.process_tracker.estimate_head_center(current_head_filtered).tolist()
 
-                    target_linear_out, target_arc = self.process_tracker.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
+                    self.target_linear_out, self.target_arc = self.process_tracker.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
                                                                                                       new_robot_coordinates)
                     self.arc_motion_flag = True
                     self.arc_motion_step_flag = const.ROBOT_MOTIONS["linear out"]
 
                 if self.arc_motion_flag and self.arc_motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
-                    coord = target_linear_out
-                    if np.allclose(np.array(actual_point), np.array(target_linear_out), 0, 1):
+                    coord = self.target_linear_out
+                    if np.allclose(np.array(actual_point), np.array(self.target_linear_out), 0, 1):
                         self.arc_motion_step_flag = const.ROBOT_MOTIONS["arc"]
-                        coord = target_arc
+                        coord = self.target_arc
 
                 elif self.arc_motion_flag and self.arc_motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     head_center_coordinates = self.process_tracker.estimate_head_center(current_head_filtered).tolist()
 
                     _, new_target_arc = self.process_tracker.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
                                                                                 new_robot_coordinates)
-                    if np.allclose(np.array(new_target_arc[3:-1]), np.array(target_arc[3:-1]), 0, 1):
+                    if np.allclose(np.array(new_target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, 1):
                         None
                     else:
                         if self.process_tracker.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= \
                                 const.ROBOT_ARC_THRESHOLD_DISTANCE*0.8:
-                            target_arc = new_target_arc
+                            self.target_arc = new_target_arc
 
-                    coord = target_arc
+                    coord = self.target_arc
 
-                    if np.allclose(np.array(actual_point), np.array(target_arc[3:-1]), 0, 10):
+                    if np.allclose(np.array(actual_point), np.array(self.target_arc[3:-1]), 0, 10):
                         self.arc_motion_flag = False
                         self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
                         coord = new_robot_coordinates
