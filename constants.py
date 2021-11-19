@@ -1,7 +1,6 @@
 #Robot
 SLEEP_ROBOT = 0.01
 
-ROBOT_ElFIN_IP = ['143.107.220.251', '169.254.153.251', '127.0.0.1']
 ROBOT_ElFIN_PORT = 10003
 
 ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2}

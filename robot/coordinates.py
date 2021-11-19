@@ -18,14 +18,7 @@ class RobotCoordinates:
     def SetRobotCoordinates(self, coord):
         self.robot_coord = coord
         coord_robot = np.array(coord)
-        coord_robot[3], coord_robot[5] = coord_robot[5], coord_robot[3]
-        try:
-            topic = 'Update Robot Coordinates'
-            data = {'coord': coord_robot.tolist()}
-            self.rc.send_message(topic, data)
-            time.sleep(0.2)
-        except socketio.exceptions.BadNamespaceError:
-            print("skip")
+        #coord_robot[3], coord_robot[5] = coord_robot[5], coord_robot[3]
 
     def GetRobotCoordinates(self):
         return self.robot_coord

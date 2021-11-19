@@ -81,7 +81,7 @@ def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
 def transform_tracker_to_robot(m_tracker_to_robot, coord_tracker):
     probe_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[0])
     ref_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[1])
-    #obj_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[3])
+    #obj_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[2])
 
     if probe_tracker_in_robot is None:
         probe_tracker_in_robot = coord_tracker[0]

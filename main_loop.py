@@ -89,5 +89,5 @@ if __name__ == '__main__':
                 rc.send_message(topic, data)
                 previous_robot_status = robot_status
 
-        time.sleep(const.SLEEP_ROBOT)
+        #time.sleep(const.SLEEP_ROBOT)
 
