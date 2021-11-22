@@ -1,7 +1,4 @@
-import time
-
 import numpy as np
-import socketio
 
 import robot.elfin_processing as elfin_process
 
@@ -13,7 +10,7 @@ class RobotCoordinates:
     """
     def __init__(self, rc):
         self.rc = rc
-        self.robot_coord = None
+        self.robot_coord = [None]*6
 
     def SetRobotCoordinates(self, coord):
         coord_robot = np.array(coord)
@@ -30,7 +27,7 @@ class TrackerCoordinates:
     The class is required to avoid acquisition conflict with different threads
     """
     def __init__(self):
-        self.coord = [None, None, None]
+        self.coord = [None]*6
         self.markers_flag = [False, False, False]
         self.m_tracker_to_robot = np.array([])
 

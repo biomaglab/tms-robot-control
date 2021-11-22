@@ -110,7 +110,7 @@ class RobotControl:
         coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
         coord_raw_tracker_obj = coord_raw[2]
 
-        if markers_flag[2]:
+        if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
             self.tracker_coord.append(coord_raw_tracker_obj[:3])
             self.tracker_angles.append(coord_raw_tracker_obj[3:])
             self.robot_coord.append(coord_raw_robot[:3])
@@ -119,7 +119,7 @@ class RobotControl:
             data = {}
             self.rc.send_message(topic, data)
         else:
-            print('Cannot detect the coil markers, pls try again')
+            print('Cannot collect the coil markers, please try again')
 
     def OnResetRobotMatrix(self, data):
         self.tracker_coord = []
@@ -174,6 +174,9 @@ class RobotControl:
         if status_connection:
             print('Connect to elfin robot tracking device.')
         else:
+            topic = 'Dialog robot destroy'
+            data = {}
+            self.rc.send_message(topic, data)
             self.trck_init_robot = None
             print('Not possible to connect to elfin robot.')
 
