@@ -66,7 +66,6 @@ class RobotControl:
     class Robot_Marker:
         """Class for storing robot target."""
         m_robot_target : list = None
-        id: int = 1
 
         @property
         def robot_target_matrix(self):
@@ -88,8 +87,10 @@ class RobotControl:
         self.target_index = data["target_index"]
         if self.robot_tracker_flag:
             self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
+            print("Setting robot target")
         else:
             self.m_change_robot_to_head = [None] * 9
+            print("Invalid robot target")
 
     def OnResetProcessTracker(self, data):
         self.process_tracker.__init__()
@@ -267,7 +268,7 @@ class RobotControl:
         #marker_obj_flag = markers_flag[2]
         robot_status = False
 
-        if self.robot_tracker_flag:
+        if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             current_head = coord_head_tracker_in_robot
             if current_head is not None and marker_head_flag:
                 current_head_filtered = self.process_tracker.kalman_filter(current_head)
