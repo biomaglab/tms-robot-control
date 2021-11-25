@@ -26,7 +26,8 @@ import robot.elfin as elfin
 import robot.coordinates as coordinates
 import robot.elfin_processing as elfin_process
 
-
+import csv
+import time
 
 class RobotControl:
     def __init__(self, rc):
@@ -61,6 +62,17 @@ class RobotControl:
         self.previous_robot_status = False
 
         self.robot_markers = []
+
+        self.time_start = time.time()
+        self.fieldnames = ["time",
+                           "x_robot", "y_robot", "z_robot", "a_robot", "b_robot", "c_robot",
+                           "x_head_tracker_in_robot", "y_head_tracker_in_robot", "z_head_tracker_in_robot", "a_head_tracker_in_robot", "b_head_tracker_in_robot", "c_head_tracker_in_robot", "marker_head_flag",
+                           "x_obj_tracker_in_robot",  "y_obj_tracker_in_robot", "z_obj_tracker_in_robot", "a_obj_tracker_in_robot", "b_obj_tracker_in_robot", "c_obj_tracker_in_robot", "marker_obj_flag"]
+        with open('data_robot_and_tracker_in_robot.csv', 'w', newline='') as csv_file:
+            csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames, lineterminator='\r')
+            csv_writer.writeheader()
+
+        self.last_time = self.time_start
 
     @dataclasses.dataclass
     class Robot_Marker:
@@ -267,8 +279,8 @@ class RobotControl:
 
         coord_head_tracker_in_robot = current_tracker_coordinates_in_robot[1]
         marker_head_flag = markers_flag[1]
-        #coord_obj_tracker_in_robot = current_tracker_coordinates_in_robot[2]
-        #marker_obj_flag = markers_flag[2]
+        coord_obj_tracker_in_robot = current_tracker_coordinates_in_robot[2]
+        marker_obj_flag = markers_flag[2]
         robot_status = False
 
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
@@ -296,5 +308,35 @@ class RobotControl:
             else:
                 print("Head marker is not visible")
                 self.trck_init_robot.StopRobot()
+        time_step = time.time() - self.last_time
+        if np.all(coord_head_tracker_in_robot) and np.all(coord_obj_tracker_in_robot) and time_step >= 0.05:
+            with open('data_robot_and_tracker_in_robot.csv', 'a', newline='') as csv_file:
+                csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
+                self.last_time = time.time()
+                info = {
+                    "time": time.time() - self.time_start,
+                    "x_robot": current_robot_coordinates[0],
+                    "y_robot": current_robot_coordinates[1],
+                    "z_robot": current_robot_coordinates[2],
+                    "a_robot": current_robot_coordinates[3],
+                    "b_robot": current_robot_coordinates[4],
+                    "c_robot": current_robot_coordinates[5],
+                    "x_head_tracker_in_robot": coord_head_tracker_in_robot[0],
+                    "y_head_tracker_in_robot": coord_head_tracker_in_robot[1],
+                    "z_head_tracker_in_robot": coord_head_tracker_in_robot[2],
+                    "a_head_tracker_in_robot": coord_head_tracker_in_robot[3],
+                    "b_head_tracker_in_robot": coord_head_tracker_in_robot[4],
+                    "c_head_tracker_in_robot": coord_head_tracker_in_robot[5],
+                    "marker_head_flag": marker_head_flag,
+                    "x_obj_tracker_in_robot": coord_obj_tracker_in_robot[0],
+                    "y_obj_tracker_in_robot": coord_obj_tracker_in_robot[1],
+                    "z_obj_tracker_in_robot": coord_obj_tracker_in_robot[2],
+                    "a_obj_tracker_in_robot": coord_obj_tracker_in_robot[3],
+                    "b_obj_tracker_in_robot": coord_obj_tracker_in_robot[4],
+                    "c_obj_tracker_in_robot": coord_obj_tracker_in_robot[5],
+                    "marker_obj_flag": marker_obj_flag,
+                }
+
+                csv_writer.writerow(info)
 
         return robot_status
