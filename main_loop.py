@@ -49,6 +49,9 @@ class RemoteControl:
     def send_message(self, topic, data={}):
         self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
 
+def reset_robot(data):
+    robot.__init__(rc)
+    print("Resetting robot control")
 
 if __name__ == '__main__':
     rc = RemoteControl('http://127.0.0.1:5000')
@@ -76,7 +79,8 @@ if __name__ == '__main__':
                                     const.FUNCTION_LOAD_ROBOT_MATRIX: robot.OnLoadRobotMatrix,
                                     const.FUNCTION_ADD_MARKER: robot.OnAddRobotMarker,
                                     const.FUNCTION_REMOVE_MULTIPLE_MARKERS: robot.OnDeleteRobotMarker,
-                                    const.FUNCTION_REMOVE_ALL_MARKERS: robot.OnDeleteAllRobotMarker}
+                                    const.FUNCTION_REMOVE_ALL_MARKERS: robot.OnDeleteAllRobotMarker,
+                                    const.FUNCTION_RESET_ROBOT: reset_robot}
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot.trck_init_robot:
