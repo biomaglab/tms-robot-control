@@ -28,7 +28,8 @@ PUB_MESSAGES = ['Connect to robot',
                 'Load robot transformation matrix',
                 'Add marker to robot control',
                 'Remove multiple markers',
-                'Remove all markers']
+                'Remove all markers',
+                'Reset robot']
 
 FUNCTION_CONNECT_TO_ROBOT = 0
 FUNCTION_ROBOT_NAVIGATION_MODE = 1
@@ -43,4 +44,5 @@ FUNCTION_LOAD_ROBOT_MATRIX = 9
 FUNCTION_ADD_MARKER = 10
 FUNCTION_REMOVE_MULTIPLE_MARKERS = 11
 FUNCTION_REMOVE_ALL_MARKERS = 12
+FUNCTION_RESET_ROBOT = 13
 
