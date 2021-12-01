@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
 
-import sys
 from time import sleep
 from socket import socket, AF_INET, SOCK_STREAM
-import constants as const
+import robot.constants as const
 
 class Elfin_Server():
     """

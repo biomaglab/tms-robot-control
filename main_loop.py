@@ -4,8 +4,8 @@ import time
 import socketio
 from threading import Lock
 
-import constants as const
-import robot.robot as Robot
+import robot.constants as const
+import robot.control.robot as Robot
 
 class RemoteControl:
     def __init__(self, remote_host):
