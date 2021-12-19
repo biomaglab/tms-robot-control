@@ -175,6 +175,16 @@ class RobotControl:
         self.arc_motion_flag = False
         self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
 
+    def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
+                                         marker_obj_flag):
+        if marker_obj_flag:
+            if not np.allclose(np.array(current_tracker_coordinates_in_robot), np.array(coord_obj_tracker_in_robot), 0,
+                               const.ROBOT_TRANSFORMATION_MATRIX_THRESHOLD):
+                topic = 'Request new robot transformation matrix'
+                data = {}
+                self.rc.send_message(topic, data)
+                print('Request new robot transformation matrix')
+
     def robot_move_decision(self, distance_target, new_robot_coordinates, current_robot_coordinates, current_head_filtered):
         """
         There are two types of robot movements.
@@ -252,6 +262,8 @@ class RobotControl:
         coord_obj_tracker_in_robot = current_tracker_coordinates_in_robot[2]
         marker_obj_flag = markers_flag[2]
         robot_status = False
+
+        self.check_robot_tracker_registration(current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot, marker_obj_flag)
 
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             current_head = coord_head_tracker_in_robot
