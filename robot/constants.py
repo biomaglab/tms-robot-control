@@ -3,11 +3,12 @@ SLEEP_ROBOT = 0.01
 
 ROBOT_ElFIN_PORT = 10003
 
-ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2}
+ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3}
 ROBOT_HEAD_VELOCITY_THRESHOLD = 10 #mm/s
 ROBOT_ARC_THRESHOLD_DISTANCE = 100 #mm
 ROBOT_VERSOR_SCALE_FACTOR = 70
 ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm
+ROBOT_FORCE_SENSOR_THRESHOLD = 5 #N
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
 ROBOT_WORKING_SPACE = 760 #mm

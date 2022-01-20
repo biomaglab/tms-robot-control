@@ -36,6 +36,21 @@ class Elfin_Server():
         elif status == const.ROBOT_MOVE_STATE["error"]:
             self.StopRobot()
 
+    def GetForceSensorData(self):
+        return self.cobot.ReadForceSensorData()[2]
+
+    def CompensateForce(self, flag):
+        print("compensate force")
+        status = self.cobot.ReadMoveState()
+        if status == const.ROBOT_MOVE_STATE["free to move"]:
+            if not flag:
+                self.StopRobot()
+            self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+            self.cobot.SetOverride(0.03)  # Setting robot's movement speed
+            CompenDistance = [2, 0, 7]  # [directionID; direction (0:negative, 1:positive); distance]
+            self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            self.cobot.SetToolCoordinateMotion(0)
+
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
@@ -206,6 +221,31 @@ class Elfin:
         target = (",".join(target))
         message = "MoveL," + self.robot_id + ',' + target + self.end_msg
         return self.send(message)
+
+    def MoveRelL(self, distance):
+        """"
+        Function: Robot moves a certain distance from the specified spatial coordinate directional
+        Note: there is a singular point in space motion
+        :param: target:[directionID; direction (0:negative, 1:positive); distance]
+        :return:
+        """
+        distance = [str(s) for s in distance]
+        distance = (",".join(distance))
+        message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
+        return self.send(message)
+
+    def ReadForceSensorData(self):
+        """Function: Read force sensor data
+        :return: ” ReadForceSensorData, OK, Fx, Fy, Fz, Mx, My, Mz,;”
+        Fail
+        :return: ”ReadForceSensorData, Fail, ErrorCode,;”
+        """
+        message = "ReadForceSensorData" + self.end_msg
+        status = self.send(message)
+        if status:
+            return [float(s) for s in status]
+        #print("Error code: ", status)
+        return 0
 
     def SetToolCoordinateMotion(self, status):
         """
