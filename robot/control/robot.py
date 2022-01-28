@@ -1,6 +1,7 @@
 
 import dataclasses
 import numpy as np
+import pandas as pd
 
 import robot.constants as const
 import robot.transformations as tr
@@ -101,8 +102,8 @@ class RobotControl:
         self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
 
     def OnCreatePoint(self, data):
-        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
-        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
+        coord_raw, markers_flag, _ = self.tracker_coordinates.GetCoordinates()
+        coord_raw_robot, _ = self.robot_coordinates.GetRobotCoordinates()
         coord_raw_tracker_obj = coord_raw[2]
 
         if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
@@ -125,7 +126,18 @@ class RobotControl:
 
     def OnRobotMatrixEstimation(self, data):
         tracker_coord = np.array(self.tracker_coord)
+        tracker_angles = np.array(self.tracker_angles)
         robot_coord = np.array(self.robot_coord)
+        robot_angles = np.array(self.robot_angles)
+
+        df = pd.DataFrame(tracker_coord)
+        df.to_csv('tracker_coord.csv', index=False)
+        df = pd.DataFrame(tracker_angles)
+        df.to_csv('tracker_angles.csv', index=False)
+        df = pd.DataFrame(robot_coord)
+        df.to_csv('robot_coord.csv', index=False)
+        df = pd.DataFrame(robot_angles)
+        df.to_csv('robot_angles.csv', index=False)
 
         matrix_robot_to_tracker = elfin_process.AffineTransformation(tracker_coord, robot_coord)
         matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
@@ -143,8 +155,8 @@ class RobotControl:
 
     def OnAddRobotMarker(self, data):
         if data["data"]:
-            head_coordinates = self.tracker_coordinates.GetCoordinates()[0][1]
-            robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
+            head_coordinates, _ = self.tracker_coordinates.GetCoordinates()[0][1]
+            robot_coordinates, _ = self.robot_coordinates.GetRobotCoordinates()
             current_robot_target_matrix = elfin_process.compute_robot_to_head_matrix(head_coordinates, robot_coordinates)
         else:
             current_robot_target_matrix = [None]
@@ -268,9 +280,20 @@ class RobotControl:
         return robot_status
 
     def robot_control(self):
-        current_tracker_coordinates_in_robot, markers_flag = self.tracker_coordinates.GetCoordinates()
-        current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
+        current_tracker_coordinates_in_robot, markers_flag, coord_coil_list = self.tracker_coordinates.GetCoordinates()
+        current_robot_coordinates, robot_coord_list = self.robot_coordinates.GetRobotCoordinates()
+
+        # Batch Processing
+        if len(coord_coil_list)>10 and len(robot_coord_list)>10:
+            coord_coil_list = np.stack(coord_coil_list.copy(), axis=2)
+            robot_coord_list = np.stack(robot_coord_list.copy(), axis=2)
+            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(coord_coil_list[-10:], robot_coord_list[-10:])
+            print(X_est)
+            #print(Y_est)
+
+
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
+        #print(self.new_force_sensor_data)
 
         coord_head_tracker_in_robot = current_tracker_coordinates_in_robot[1]
         marker_head_flag = markers_flag[1]
@@ -278,7 +301,7 @@ class RobotControl:
         marker_obj_flag = markers_flag[2]
         robot_status = False
 
-        self.check_robot_tracker_registration(current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot, marker_obj_flag)
+        #self.check_robot_tracker_registration(current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot, marker_obj_flag)
         if self.new_force_sensor_data < const.ROBOT_FORCE_SENSOR_THRESHOLD:
             if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
                 current_head = coord_head_tracker_in_robot
