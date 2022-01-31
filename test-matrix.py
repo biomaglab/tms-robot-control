@@ -75,7 +75,7 @@ class Batch_Processing:
         Y_est[0:3, 3] = t_est[3:6].T
         # verify Y_est using rigid_registration
         Y_est_check, ErrorStats = Batch_Processing.__rigid_registration(A, X_est, B)
-        return X_est, Y_est, Y_est_check, ErrorStats
+        return X, Y, X_est, Y_est, Y_est_check, ErrorStats
 
     def __rigid_registration(A, X, B):
         # nxnx4
@@ -420,14 +420,16 @@ euler_GT = Tools.mat2euler(X[:3, :3])
 print("GT[euler_rpy(deg) , pos(mm)]:", np.array(euler_GT) * 180 / np.pi, X[:3, 3].T * 100)
 
 # Batch Processing
-X_est, Y_est, Y_est_check, ErrorStats = Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
+robot_coord_list = np.stack(robot_coord_list[1:], axis=2)
+coord_coil_list = np.stack(coord_coil_list[1:], axis=2)
+X, Y, X_est, Y_est, Y_est_check, ErrorStats = Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
 print('\n')
 print('.....Batch Processing Results')
 euler_batch = Tools.mat2euler(X_est[:3, :3])
 batch_euler_err = np.array(euler_batch) * 180 / np.pi - np.array(euler_GT) * 180 / np.pi
-batch_pos_err = X_est[:3, 3].T * 100 - X[:3, 3].T * 100
+#batch_pos_err = X_est[:3, 3].T * 100 - X[:3, 3].T * 100
 print("Batch[euler_rpy(deg) , pos(mm)]:", np.array(euler_batch) * 180 / np.pi, X_est[:3, 3].T * 100)
-print("Error[euler_rpy(deg) , pos(mm)]:", batch_euler_err, batch_pos_err)
+#print("Error[euler_rpy(deg) , pos(mm)]:", batch_euler_err, batch_pos_err)
 
 # EKF
 ekf = EKF()

@@ -48,6 +48,9 @@ class RobotControl:
 
         self.robot_markers = []
 
+        self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
+        self.coord_coil_list = np.zeros((4, 4))[np.newaxis]
+
     @dataclasses.dataclass
     class Robot_Marker:
         """Class for storing robot target."""
@@ -102,8 +105,8 @@ class RobotControl:
         self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
 
     def OnCreatePoint(self, data):
-        coord_raw, markers_flag, _ = self.tracker_coordinates.GetCoordinates()
-        coord_raw_robot, _ = self.robot_coordinates.GetRobotCoordinates()
+        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
+        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
         coord_raw_tracker_obj = coord_raw[2]
 
         if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
@@ -111,6 +114,22 @@ class RobotControl:
             self.tracker_angles.append(coord_raw_tracker_obj[3:])
             self.robot_coord.append(coord_raw_robot[:3])
             self.robot_angles.append(coord_raw_robot[3:])
+
+            # Batch Processing
+            new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
+                position=coord_raw_robot[:3],
+                orientation=coord_raw_robot[3:],
+                axes='rzyx',
+            )
+            new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
+                position=coord_raw[2][:3],
+                orientation=coord_raw[2][3:],
+                axes='rzyx',
+            ))
+
+            self.robot_coord_list = np.vstack([self.robot_coord_list.copy(), new_robot_coord_list[np.newaxis]])
+            self.coord_coil_list = np.vstack([self.coord_coil_list.copy(), new_coord_coil_list[np.newaxis]])
+
             topic = 'Coordinates for the robot transformation matrix collected'
             data = {}
             self.rc.send_message(topic, data)
@@ -142,6 +161,12 @@ class RobotControl:
         matrix_robot_to_tracker = elfin_process.AffineTransformation(tracker_coord, robot_coord)
         matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
 
+        try:
+            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(self.robot_coord_list[:4,:4,1:], self.coord_coil_list[:4,:4,1:])
+            print(self.robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ self.coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
+        except np.linalg.LinAlgError:
+            print("numpy.linalg.LinAlgError")
+
         self.matrix_tracker_to_robot = matrix_tracker_to_robot
         self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
@@ -156,8 +181,12 @@ class RobotControl:
     def OnAddRobotMarker(self, data):
         if data["data"]:
             head_coordinates, _ = self.tracker_coordinates.GetCoordinates()[0][1]
+            if self.m_tracker_to_robot.any():
+                head_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, head_coordinates)
+            else:
+                head_coordinates_in_robot = head_coordinates
             robot_coordinates, _ = self.robot_coordinates.GetRobotCoordinates()
-            current_robot_target_matrix = elfin_process.compute_robot_to_head_matrix(head_coordinates, robot_coordinates)
+            current_robot_target_matrix = elfin_process.compute_robot_to_head_matrix(head_coordinates_in_robot, robot_coordinates)
         else:
             current_robot_target_matrix = [None]
 
@@ -280,20 +309,49 @@ class RobotControl:
         return robot_status
 
     def robot_control(self):
-        current_tracker_coordinates_in_robot, markers_flag, coord_coil_list = self.tracker_coordinates.GetCoordinates()
-        current_robot_coordinates, robot_coord_list = self.robot_coordinates.GetRobotCoordinates()
+        current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
+        current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
+
 
         # Batch Processing
-        if len(coord_coil_list)>10 and len(robot_coord_list)>10:
-            coord_coil_list = np.stack(coord_coil_list.copy(), axis=2)
-            robot_coord_list = np.stack(robot_coord_list.copy(), axis=2)
-            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(coord_coil_list[-10:], robot_coord_list[-10:])
-            print(X_est)
-            #print(Y_est)
+        # if not all(v is None for v in list(np.concatenate(current_tracker_coordinates).flat)) and not all(v is None for v in list(np.concatenate(current_tracker_coordinates).flat)):
+        #     new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
+        #         position=current_robot_coordinates[:3],
+        #         orientation=current_robot_coordinates[3:],
+        #         axes='rzyx',
+        #     )
+        #     self.robot_coord_list = np.vstack([self.robot_coord_list.copy(), new_robot_coord_list[np.newaxis]])
+        #     if len(self.robot_coord_list) > 2000:
+        #         self.robot_coord_list = np.delete(self.robot_coord_list.copy(), 0, axis=0)
+        #
+        #     new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
+        #         position=current_tracker_coordinates[2][:3],
+        #         orientation=current_tracker_coordinates[2][3:],
+        #         axes='rzyx',
+        #     ))
+        #
+        #     self.coord_coil_list = np.vstack([self.coord_coil_list.copy(), new_coord_coil_list[np.newaxis]])
+        #     if len(self.coord_coil_list)>2000:
+        #         self.coord_coil_list = np.delete(self.coord_coil_list.copy(), 0, axis=0)
+        #
+        #     if len(self.coord_coil_list)>1000 and len(self.robot_coord_list)>1000:
+        #         coord_coil_list = np.stack(self.coord_coil_list.copy(), axis=2)
+        #         robot_coord_list = np.stack(self.robot_coord_list.copy(), axis=2)
+        #         try:
+        #             X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(robot_coord_list[:4,:4,-10:], coord_coil_list[:4,:4,-10:])
+        #             print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
+        #         except np.linalg.LinAlgError:
+        #             print("numpy.linalg.LinAlgError")
+                #print(Y_est)
 
 
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
         #print(self.new_force_sensor_data)
+
+        if self.tracker_coordinates.m_tracker_to_robot.any():
+            current_tracker_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, current_tracker_coordinates)
+        else:
+            current_tracker_coordinates_in_robot = current_tracker_coordinates
 
         coord_head_tracker_in_robot = current_tracker_coordinates_in_robot[1]
         marker_head_flag = markers_flag[1]
