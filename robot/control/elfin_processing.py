@@ -49,12 +49,13 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     return m_probe
 
 def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
+    X, Y = m_tracker_to_robot
     M_tracker = coordinates_to_transformation_matrix(
         position=tracker_coord[:3],
         orientation=tracker_coord[3:6],
         axes='rzyx',
     )
-    M_tracker_in_robot = m_tracker_to_robot @ M_tracker
+    M_tracker_in_robot = Y @ M_tracker @ tr.inverse_matrix(X)
 
     translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
     tracker_in_robot = list(translation) + list(angles_as_deg)
@@ -124,13 +125,13 @@ class Batch_Processing:
         U, S, Vt = np.linalg.svd(T)
         xp = Vt.T[:, 0]
         yp = U[:, 0]
-        X = np.reshape(xp, (3, 3), order="F")  # F: fortran/matlab reshape order
+        X = np.reshape(xp, (3, 3), order="F")
         Xn = (np.sign(np.linalg.det(X)) / np.abs(np.linalg.det(X)) ** (1 / 3)) * X
         # re-orthogonalize to guarantee that they are indeed rotations.
         U_n, S_n, Vt_n = np.linalg.svd(Xn)
         X = np.matmul(U_n, Vt_n)
 
-        Y = np.reshape(yp, (3, 3), order="F")  # F: fortran/matlab reshape order
+        Y = np.reshape(yp, (3, 3), order="F")
         Yn = (np.sign(np.linalg.det(Y)) / np.abs(np.linalg.det(Y)) ** (1 / 3)) * Y
         U_yn, S_yn, Vt_yn = np.linalg.svd(Yn)
         Y = np.matmul(U_yn, Vt_yn)
@@ -250,7 +251,6 @@ class TrackerProcessing:
         self.velocity_vector = []
         self.kalman_coord_vector = []
         self.velocity_std = 0
-        self.m_tracker_to_robot = None
         self.matrix_tracker_fiducials = 3*[None]
 
         self.tracker_stabilizers = [KalmanTracker(

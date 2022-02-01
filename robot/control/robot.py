@@ -1,7 +1,6 @@
 
 import dataclasses
 import numpy as np
-import pandas as pd
 
 import robot.constants as const
 import robot.transformations as tr
@@ -149,43 +148,43 @@ class RobotControl:
         robot_coord = np.array(self.robot_coord)
         robot_angles = np.array(self.robot_angles)
 
-        df = pd.DataFrame(tracker_coord)
-        df.to_csv('tracker_coord.csv', index=False)
-        df = pd.DataFrame(tracker_angles)
-        df.to_csv('tracker_angles.csv', index=False)
-        df = pd.DataFrame(robot_coord)
-        df.to_csv('robot_coord.csv', index=False)
-        df = pd.DataFrame(robot_angles)
-        df.to_csv('robot_angles.csv', index=False)
-
         matrix_robot_to_tracker = elfin_process.AffineTransformation(tracker_coord, robot_coord)
         matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
 
+        robot_coord_list = np.stack(self.robot_coord_list[1:], axis=2)
+        coord_coil_list = np.stack(self.coord_coil_list[1:], axis=2)
+
         try:
-            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(self.robot_coord_list[:4,:4,1:], self.coord_coil_list[:4,:4,1:])
-            print(self.robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ self.coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
+            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
+            print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
+            print(Y_est)
+            print(Y_est_check)
+            print(ErrorStats)
+            self.matrix_tracker_to_robot = X_est, Y_est
+            self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
+
+            topic = 'Update robot transformation matrix'
+            data = {'data': np.array(self.matrix_tracker_to_robot).tolist()}
+            self.rc.send_message(topic, data)
+
         except np.linalg.LinAlgError:
             print("numpy.linalg.LinAlgError")
+            print("Try a new acquisition")
 
-        self.matrix_tracker_to_robot = matrix_tracker_to_robot
-        self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-        topic = 'Update robot transformation matrix'
-        data = {'data': self.matrix_tracker_to_robot.tolist()}
-        self.rc.send_message(topic, data)
 
     def OnLoadRobotMatrix(self, data):
-        self.matrix_tracker_to_robot = np.array(data["data"])
+        self.matrix_tracker_to_robot = np.split(np.vstack(np.array(data["data"])).reshape(2, 4, 4), 2, axis=1)
         self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
     def OnAddRobotMarker(self, data):
         if data["data"]:
-            head_coordinates, _ = self.tracker_coordinates.GetCoordinates()[0][1]
-            if self.m_tracker_to_robot.any():
-                head_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, head_coordinates)
+            coordinates = self.tracker_coordinates.GetCoordinates()[0]
+            if self.tracker_coordinates.m_tracker_to_robot is not None:
+                head_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coordinates)[1]
             else:
-                head_coordinates_in_robot = head_coordinates
-            robot_coordinates, _ = self.robot_coordinates.GetRobotCoordinates()
+                head_coordinates_in_robot = coordinates[1]
+            robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
             current_robot_target_matrix = elfin_process.compute_robot_to_head_matrix(head_coordinates_in_robot, robot_coordinates)
         else:
             current_robot_target_matrix = [None]
@@ -348,7 +347,7 @@ class RobotControl:
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
         #print(self.new_force_sensor_data)
 
-        if self.tracker_coordinates.m_tracker_to_robot.any():
+        if self.tracker_coordinates.m_tracker_to_robot is not None:
             current_tracker_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, current_tracker_coordinates)
         else:
             current_tracker_coordinates_in_robot = current_tracker_coordinates

@@ -30,10 +30,10 @@ class TrackerCoordinates:
     def __init__(self):
         self.coord = [[None]*6, [None]*6, [None]*6]
         self.markers_flag = [False, False, False]
-        self.m_tracker_to_robot = np.array([])
+        self.m_tracker_to_robot = None
 
     def SetTrackerToRobotMatrix(self, m_tracker_to_robot):
-        self.m_tracker_to_robot = np.array(m_tracker_to_robot)
+        self.m_tracker_to_robot = m_tracker_to_robot
 
     def SetCoordinates(self, coord, markers_flag):
         self.coord = coord

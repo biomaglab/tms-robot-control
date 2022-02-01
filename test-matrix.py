@@ -75,7 +75,7 @@ class Batch_Processing:
         Y_est[0:3, 3] = t_est[3:6].T
         # verify Y_est using rigid_registration
         Y_est_check, ErrorStats = Batch_Processing.__rigid_registration(A, X_est, B)
-        return X, Y, X_est, Y_est, Y_est_check, ErrorStats
+        return X_est, Y_est, Y_est_check, ErrorStats
 
     def __rigid_registration(A, X, B):
         # nxnx4
@@ -422,7 +422,7 @@ print("GT[euler_rpy(deg) , pos(mm)]:", np.array(euler_GT) * 180 / np.pi, X[:3, 3
 # Batch Processing
 robot_coord_list = np.stack(robot_coord_list[1:], axis=2)
 coord_coil_list = np.stack(coord_coil_list[1:], axis=2)
-X, Y, X_est, Y_est, Y_est_check, ErrorStats = Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
+X_est, Y_est, Y_est_check, ErrorStats = Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
 print('\n')
 print('.....Batch Processing Results')
 euler_batch = Tools.mat2euler(X_est[:3, :3])
