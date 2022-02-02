@@ -143,38 +143,29 @@ class RobotControl:
         self.matrix_tracker_to_robot = []
 
     def OnRobotMatrixEstimation(self, data):
-        tracker_coord = np.array(self.tracker_coord)
-        tracker_angles = np.array(self.tracker_angles)
-        robot_coord = np.array(self.robot_coord)
-        robot_angles = np.array(self.robot_angles)
-
-        matrix_robot_to_tracker = elfin_process.AffineTransformation(tracker_coord, robot_coord)
-        matrix_tracker_to_robot = tr.inverse_matrix(matrix_robot_to_tracker)
-
-        robot_coord_list = np.stack(self.robot_coord_list[1:], axis=2)
-        coord_coil_list = np.stack(self.coord_coil_list[1:], axis=2)
-
         try:
+            robot_coord_list = np.stack(self.robot_coord_list[1:], axis=2)
+            coord_coil_list = np.stack(self.coord_coil_list[1:], axis=2)
             X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
             print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
-            print(Y_est)
-            print(Y_est_check)
+            # print(X_est)
+            # print(Y_est)
+            # print(Y_est_check)
             print(ErrorStats)
             self.matrix_tracker_to_robot = X_est, Y_est
             self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
             topic = 'Update robot transformation matrix'
-            data = {'data': np.array(self.matrix_tracker_to_robot).tolist()}
+            data = {'data': np.hstack(np.concatenate((X_est, Y_est))).tolist()}
             self.rc.send_message(topic, data)
 
         except np.linalg.LinAlgError:
             print("numpy.linalg.LinAlgError")
             print("Try a new acquisition")
 
-
-
     def OnLoadRobotMatrix(self, data):
-        self.matrix_tracker_to_robot = np.split(np.vstack(np.array(data["data"])).reshape(2, 4, 4), 2, axis=1)
+        X_est, Y_est = np.split(np.array(data["data"]).reshape(8, 4), 2, axis=0)
+        self.matrix_tracker_to_robot = X_est, Y_est
         self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
     def OnAddRobotMarker(self, data):
