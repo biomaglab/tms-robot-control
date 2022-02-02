@@ -98,14 +98,9 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
 
     return robot_to_head_matrix
 
-def AffineTransformation(tracker, robot):
-    m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,
-                                            shear=False, scale=False, usesvd=False)
-    return m_change
 
-class Batch_Processing:
-    def pose_estimation(A, B):
-
+class Transformation_matrix:
+    def matrices_estimation(A, B):
         n = A.shape[2];
         T = np.zeros([9, 9]);
         X_est = np.eye(4)
@@ -152,7 +147,7 @@ class Batch_Processing:
         Y_est[0:3, 0:3] = Y
         Y_est[0:3, 3] = t_est[3:6].T
         # verify Y_est using rigid_registration
-        Y_est_check, ErrorStats = Batch_Processing.__rigid_registration(A, X_est, B)
+        Y_est_check, ErrorStats = Transformation_matrix.__rigid_registration(A, X_est, B)
         return X_est, Y_est, Y_est_check, ErrorStats
 
     def __rigid_registration(A, X, B):

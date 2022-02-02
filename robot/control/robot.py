@@ -109,20 +109,14 @@ class RobotControl:
         coord_raw_tracker_obj = coord_raw[2]
 
         if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
-            self.tracker_coord.append(coord_raw_tracker_obj[:3])
-            self.tracker_angles.append(coord_raw_tracker_obj[3:])
-            self.robot_coord.append(coord_raw_robot[:3])
-            self.robot_angles.append(coord_raw_robot[3:])
-
-            # Batch Processing
             new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
                 position=coord_raw_robot[:3],
                 orientation=coord_raw_robot[3:],
                 axes='rzyx',
             )
             new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
-                position=coord_raw[2][:3],
-                orientation=coord_raw[2][3:],
+                position=coord_raw_tracker_obj[:3],
+                orientation=coord_raw_tracker_obj[3:],
                 axes='rzyx',
             ))
 
@@ -136,17 +130,15 @@ class RobotControl:
             print('Cannot collect the coil markers, please try again')
 
     def OnResetRobotMatrix(self, data):
-        self.tracker_coord = []
-        self.tracker_angles = []
-        self.robot_coord = []
-        self.robot_angles = []
+        self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
+        self.coord_coil_list = np.zeros((4, 4))[np.newaxis]
         self.matrix_tracker_to_robot = []
 
     def OnRobotMatrixEstimation(self, data):
         try:
             robot_coord_list = np.stack(self.robot_coord_list[1:], axis=2)
             coord_coil_list = np.stack(self.coord_coil_list[1:], axis=2)
-            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(robot_coord_list, coord_coil_list)
+            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Transformation_matrix.matrices_estimation(robot_coord_list, coord_coil_list)
             print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
             # print(X_est)
             # print(Y_est)
