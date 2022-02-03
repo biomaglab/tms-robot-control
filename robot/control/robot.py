@@ -39,7 +39,7 @@ class RobotControl:
         self.coord_inv_old = None
 
         self.arc_motion_flag = False
-        self.arc_motion_step_flag = None
+        self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
         self.target_linear_out = None
         self.target_linear_in = None
         self.target_arc = None
@@ -104,37 +104,17 @@ class RobotControl:
         self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
 
     def OnCreatePoint(self, data):
-        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
-        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
-        coord_raw_tracker_obj = coord_raw[2]
-
-        if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
-            new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
-                position=coord_raw_robot[:3],
-                orientation=coord_raw_robot[3:],
-                axes='rzyx',
-            )
-            new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
-                position=coord_raw_tracker_obj[:3],
-                orientation=coord_raw_tracker_obj[3:],
-                axes='rzyx',
-            ))
-
-            self.robot_coord_list = np.vstack([self.robot_coord_list.copy(), new_robot_coord_list[np.newaxis]])
-            self.coord_coil_list = np.vstack([self.coord_coil_list.copy(), new_coord_coil_list[np.newaxis]])
-
-            topic = 'Coordinates for the robot transformation matrix collected'
-            data = {}
-            self.rc.send_message(topic, data)
-        else:
-            print('Cannot collect the coil markers, please try again')
+        self.create_calibration_point()
+        topic = 'Coordinates for the robot transformation matrix collected'
+        data = {}
+        self.rc.send_message(topic, data)
 
     def OnResetRobotMatrix(self, data):
         self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_list = np.zeros((4, 4))[np.newaxis]
         self.matrix_tracker_to_robot = []
 
-    def OnRobotMatrixEstimation(self, data):
+    def OnRobotMatrixEstimation(self, data=None):
         try:
             robot_coord_list = np.stack(self.robot_coord_list[1:], axis=2)
             coord_coil_list = np.stack(self.coord_coil_list[1:], axis=2)
@@ -212,10 +192,32 @@ class RobotControl:
         self.arc_motion_flag = False
         self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
 
+    def create_calibration_point(self):
+        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
+        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
+        coord_raw_tracker_obj = coord_raw[2]
+
+        if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
+            new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
+                position=coord_raw_robot[:3],
+                orientation=coord_raw_robot[3:],
+                axes='rzyx',
+            )
+            new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
+                position=coord_raw_tracker_obj[:3],
+                orientation=coord_raw_tracker_obj[3:],
+                axes='rzyx',
+            ))
+
+            self.robot_coord_list = np.vstack([self.robot_coord_list.copy(), new_robot_coord_list[np.newaxis]])
+            self.coord_coil_list = np.vstack([self.coord_coil_list.copy(), new_coord_coil_list[np.newaxis]])
+        else:
+            print('Cannot collect the coil markers, please try again')
+
     def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
                                          marker_obj_flag):
         if marker_obj_flag:
-            if not np.allclose(np.array(current_tracker_coordinates_in_robot), np.array(coord_obj_tracker_in_robot), 0,
+            if not np.allclose(np.array(current_tracker_coordinates_in_robot)[:3], np.array(coord_obj_tracker_in_robot)[:3], 0,
                                const.ROBOT_TRANSFORMATION_MATRIX_THRESHOLD):
                 topic = 'Request new robot transformation matrix'
                 data = {}
@@ -294,39 +296,6 @@ class RobotControl:
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
 
-
-        # Batch Processing
-        # if not all(v is None for v in list(np.concatenate(current_tracker_coordinates).flat)) and not all(v is None for v in list(np.concatenate(current_tracker_coordinates).flat)):
-        #     new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
-        #         position=current_robot_coordinates[:3],
-        #         orientation=current_robot_coordinates[3:],
-        #         axes='rzyx',
-        #     )
-        #     self.robot_coord_list = np.vstack([self.robot_coord_list.copy(), new_robot_coord_list[np.newaxis]])
-        #     if len(self.robot_coord_list) > 2000:
-        #         self.robot_coord_list = np.delete(self.robot_coord_list.copy(), 0, axis=0)
-        #
-        #     new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
-        #         position=current_tracker_coordinates[2][:3],
-        #         orientation=current_tracker_coordinates[2][3:],
-        #         axes='rzyx',
-        #     ))
-        #
-        #     self.coord_coil_list = np.vstack([self.coord_coil_list.copy(), new_coord_coil_list[np.newaxis]])
-        #     if len(self.coord_coil_list)>2000:
-        #         self.coord_coil_list = np.delete(self.coord_coil_list.copy(), 0, axis=0)
-        #
-        #     if len(self.coord_coil_list)>1000 and len(self.robot_coord_list)>1000:
-        #         coord_coil_list = np.stack(self.coord_coil_list.copy(), axis=2)
-        #         robot_coord_list = np.stack(self.robot_coord_list.copy(), axis=2)
-        #         try:
-        #             X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Batch_Processing.pose_estimation(robot_coord_list[:4,:4,-10:], coord_coil_list[:4,:4,-10:])
-        #             print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
-        #         except np.linalg.LinAlgError:
-        #             print("numpy.linalg.LinAlgError")
-                #print(Y_est)
-
-
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
         #print(self.new_force_sensor_data)
 
@@ -340,8 +309,7 @@ class RobotControl:
         coord_obj_tracker_in_robot = current_tracker_coordinates_in_robot[2]
         marker_obj_flag = markers_flag[2]
         robot_status = False
-
-        #self.check_robot_tracker_registration(current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot, marker_obj_flag)
+        #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
         if self.new_force_sensor_data < const.ROBOT_FORCE_SENSOR_THRESHOLD:
             if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
                 current_head = coord_head_tracker_in_robot
@@ -359,9 +327,9 @@ class RobotControl:
                         if self.new_force_sensor_data >= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * 0.2)):
                             self.trck_init_robot.CompensateForce(self.compensate_force_flag)
                             self.compensate_force_flag = True
+                            print("Compensatíng Force")
                         else:
                             self.compensate_force_flag = False
-                            print("force OK")
                         if np.allclose(np.array(new_robot_coordinates), np.array(current_robot_coordinates), 0, 0.01):
                             #avoid small movements (0.01 mm)
                             pass
