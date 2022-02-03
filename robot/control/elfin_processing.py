@@ -291,25 +291,24 @@ class TrackerProcessing:
         return versor_factor
 
     def compute_arc_motion(self, current_robot_coordinates, head_center_coordinates, new_robot_coordinates):
-        head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2], \
-                      new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
+        head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2]
 
-        versor_factor_move_out = self.compute_versors(head_center, current_robot_coordinates)
+        versor_factor_move_out = self.compute_versors(head_center, current_robot_coordinates[:3])
         init_move_out_point = current_robot_coordinates[0] + versor_factor_move_out[0], \
                               current_robot_coordinates[1] + versor_factor_move_out[1], \
                               current_robot_coordinates[2] + versor_factor_move_out[2], \
-                              current_robot_coordinates[3], current_robot_coordinates[4], current_robot_coordinates[5]
+                              current_robot_coordinates[5], current_robot_coordinates[4], current_robot_coordinates[3]
 
         middle_point = ((new_robot_coordinates[0] + current_robot_coordinates[0]) / 2,
                         (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
-                        (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2,
-                        0, 0, 0)
-        versor_factor_middle_arc = (np.array(self.compute_versors(head_center, middle_point))) * 2
+                        (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
+
+        versor_factor_middle_arc = (np.array(self.compute_versors(head_center, middle_point))) * 1.5
         middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
                            middle_point[1] + versor_factor_middle_arc[1], \
                            middle_point[2] + versor_factor_middle_arc[2]
 
-        versor_factor_arc = self.compute_versors(head_center, new_robot_coordinates)
+        versor_factor_arc = self.compute_versors(head_center, new_robot_coordinates[:3])
         final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
                               new_robot_coordinates[1] + versor_factor_arc[1], \
                               new_robot_coordinates[2] + versor_factor_arc[2], \
@@ -360,7 +359,7 @@ class TrackerProcessing:
 
         return new_robot_position
 
-    def estimate_head_center(self, current_head):
+    def estimate_head_center(self, m_tracker_to_robot, current_head):
         """
         Estimates the actual head center position using fiducials
         """
@@ -370,7 +369,13 @@ class TrackerProcessing:
         m_ear_left_new = m_current_head @ m_probe_head_left
         m_ear_right_new = m_current_head @ m_probe_head_right
 
-        return (m_ear_left_new[:3, -1] + m_ear_right_new[:3, -1])/2
+        X, Y = m_tracker_to_robot
+        m_ear_left_new_in_robot = Y @ m_ear_left_new @ tr.inverse_matrix(X)
+        m_ear_right_new_in_robot = Y @ m_ear_right_new @ tr.inverse_matrix(X)
+
+        center_head_in_robot = (m_ear_left_new_in_robot[:3, -1] + m_ear_right_new_in_robot[:3, -1])/2
+
+        return center_head_in_robot
 
     def correction_distance_calculation_target(self, coord_inv, actual_point):
         """
