@@ -82,13 +82,19 @@ class RobotControl:
     def OnUpdateRobotTargetMatrix(self, data):
         self.robot_tracker_flag = data["robot_tracker_flag"]
         self.target_index = data["target_index"]
-        if self.robot_tracker_flag:
-            self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
-            self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
+        target = data["target"]
+        if target is not None:
+            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates,
+                                                                                     self.robot_coordinates, target)
             print("Setting robot target")
         else:
-            self.m_change_robot_to_head = [None] * 9
-            print("Invalid robot target")
+            if self.robot_tracker_flag:
+                self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
+                self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
+                print("Setting robot target")
+            else:
+                self.m_change_robot_to_head = [None] * 9
+                print("Invalid robot target")
 
     def OnResetProcessTracker(self, data):
         self.process_tracker.__init__()
@@ -244,7 +250,7 @@ class RobotControl:
 
         """
         #Check if the target is inside the working space
-        if self.process_tracker.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
+        if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
             #Check the target distance to define the motion mode
             if distance_target < const.ROBOT_ARC_THRESHOLD_DISTANCE and not self.arc_motion_flag:
                 self.trck_init_robot.SendCoordinates(new_robot_coordinates, const.ROBOT_MOTIONS["normal"])
@@ -254,7 +260,7 @@ class RobotControl:
                 if not self.arc_motion_flag:
                     head_center_coordinates = self.process_tracker.estimate_head_center(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
 
-                    self.target_linear_out, self.target_arc = self.process_tracker.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
+                    self.target_linear_out, self.target_arc = elfin_process.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
                                                                                                       new_robot_coordinates)
                     self.arc_motion_flag = True
                     self.arc_motion_step_flag = const.ROBOT_MOTIONS["linear out"]
@@ -268,10 +274,10 @@ class RobotControl:
                 elif self.arc_motion_flag and self.arc_motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     head_center_coordinates = self.process_tracker.estimate_head_center(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
 
-                    _, new_target_arc = self.process_tracker.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
+                    _, new_target_arc = elfin_process.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
                                                                                 new_robot_coordinates)
                     if not np.allclose(np.array(new_target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, 20):
-                        if self.process_tracker.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= \
+                        if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= \
                                 const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = new_target_arc
 
@@ -315,7 +321,7 @@ class RobotControl:
                 if current_head is not None and marker_head_flag:
                     current_head_filtered = self.process_tracker.kalman_filter(current_head)
                     if self.process_tracker.compute_head_move_threshold(current_head_filtered):
-                        new_robot_coordinates = self.process_tracker.compute_head_move_compensation(current_head_filtered,
+                        new_robot_coordinates = elfin_process.compute_head_move_compensation(current_head_filtered,
                                                                                         self.m_change_robot_to_head)
                         robot_status = True
                         if self.coord_inv_old is None:
@@ -337,7 +343,7 @@ class RobotControl:
                             self.trck_init_robot.StopRobot()
                             self.coord_inv_old = new_robot_coordinates
                         else:
-                            distance_target = self.process_tracker.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates)
+                            distance_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates)
                             if not self.compensate_force_flag:
                                 robot_status = self.robot_move_decision(distance_target, new_robot_coordinates, current_robot_coordinates, coord_head_tracker)
                             self.coord_inv_old = new_robot_coordinates

@@ -98,7 +98,86 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
 
     return robot_to_head_matrix
 
+def estimate_head_velocity(coord_vel, timestamp):
+    coord_vel = np.vstack(np.array(coord_vel))
+    coord_init = coord_vel[:int(len(coord_vel) / 2)].mean(axis=0)
+    coord_final = coord_vel[int(len(coord_vel) / 2):].mean(axis=0)
+    velocity = (coord_final - coord_init)/(timestamp[-1] - timestamp[0])
+    distance = (coord_final - coord_init)
 
+    return velocity, distance
+
+def compute_versors(init_point, final_point, scale=const.ROBOT_VERSOR_SCALE_FACTOR):
+    init_point = np.array(init_point)
+    final_point = np.array(final_point)
+    norm = (sum((final_point - init_point) ** 2)) ** 0.5
+    versor_factor = (((final_point-init_point) / norm) * scale).tolist()
+
+    return versor_factor
+
+def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_robot_coordinates):
+    head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2]
+
+    versor_factor_move_out = compute_versors(head_center, current_robot_coordinates[:3])
+    init_move_out_point = current_robot_coordinates[0] + versor_factor_move_out[0], \
+                          current_robot_coordinates[1] + versor_factor_move_out[1], \
+                          current_robot_coordinates[2] + versor_factor_move_out[2], \
+                          current_robot_coordinates[5], current_robot_coordinates[4], current_robot_coordinates[3]
+
+    middle_point = ((new_robot_coordinates[0] + current_robot_coordinates[0]) / 2,
+                    (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
+                    (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
+
+    versor_factor_middle_arc = (np.array(compute_versors(head_center, middle_point))) * 1.5
+    middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
+                       middle_point[1] + versor_factor_middle_arc[1], \
+                       middle_point[2] + versor_factor_middle_arc[2]
+
+    versor_factor_arc = compute_versors(head_center, new_robot_coordinates[:3])
+    final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
+                          new_robot_coordinates[1] + versor_factor_arc[1], \
+                          new_robot_coordinates[2] + versor_factor_arc[2], \
+                          new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5], 0
+
+    target_arc = middle_arc_point + final_ext_arc_point
+
+    return init_move_out_point, target_arc
+
+def correction_distance_calculation_target(coord_inv, actual_point):
+    """
+    Estimates the Euclidean distance between the actual position and the target
+    """
+    correction_distance_compensation = np.sqrt((coord_inv[0]-actual_point[0]) ** 2 +
+                                               (coord_inv[1]-actual_point[1]) ** 2 +
+                                               (coord_inv[2]-actual_point[2]) ** 2)
+
+    return correction_distance_compensation
+
+def compute_head_move_compensation(current_head, m_change_robot_to_head):
+    """
+    Estimates the new robot position to reach the target
+    """
+    M_current_head = coordinates_to_transformation_matrix(
+        position=current_head[:3],
+        orientation=current_head[3:6],
+        axes='rzyx',
+    )
+    m_robot_new = M_current_head @ m_change_robot_to_head
+
+    translation, angles_as_deg = transformation_matrix_to_coordinates(m_robot_new, axes='sxyz')
+    new_robot_position = list(translation) + list(angles_as_deg)
+
+    return new_robot_position
+
+def estimate_robot_target_length(robot_target):
+    """
+    Estimates the length of the 3D vector of the robot target
+    """
+    robot_target_length = np.sqrt(robot_target[0] ** 2 + robot_target[1] ** 2 + robot_target[2] ** 2)
+
+    return robot_target_length
+
+#the class Transformation_matrix is based on elif.ayvali code @ https://github.com/eayvali/Pose-Estimation-for-Sensor-Calibration
 class Transformation_matrix:
     def matrices_estimation(A, B):
         n = A.shape[2];
@@ -273,51 +352,6 @@ class TrackerProcessing:
 
         return coord_kalman
 
-    def estimate_head_velocity(self, coord_vel, timestamp):
-        coord_vel = np.vstack(np.array(coord_vel))
-        coord_init = coord_vel[:int(len(coord_vel) / 2)].mean(axis=0)
-        coord_final = coord_vel[int(len(coord_vel) / 2):].mean(axis=0)
-        velocity = (coord_final - coord_init)/(timestamp[-1] - timestamp[0])
-        distance = (coord_final - coord_init)
-
-        return velocity, distance
-
-    def compute_versors(self, init_point, final_point):
-        init_point = np.array(init_point)
-        final_point = np.array(final_point)
-        norm = (sum((final_point - init_point) ** 2)) ** 0.5
-        versor_factor = (((final_point-init_point) / norm) * const.ROBOT_VERSOR_SCALE_FACTOR).tolist()
-
-        return versor_factor
-
-    def compute_arc_motion(self, current_robot_coordinates, head_center_coordinates, new_robot_coordinates):
-        head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2]
-
-        versor_factor_move_out = self.compute_versors(head_center, current_robot_coordinates[:3])
-        init_move_out_point = current_robot_coordinates[0] + versor_factor_move_out[0], \
-                              current_robot_coordinates[1] + versor_factor_move_out[1], \
-                              current_robot_coordinates[2] + versor_factor_move_out[2], \
-                              current_robot_coordinates[5], current_robot_coordinates[4], current_robot_coordinates[3]
-
-        middle_point = ((new_robot_coordinates[0] + current_robot_coordinates[0]) / 2,
-                        (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
-                        (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
-
-        versor_factor_middle_arc = (np.array(self.compute_versors(head_center, middle_point))) * 1.5
-        middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
-                           middle_point[1] + versor_factor_middle_arc[1], \
-                           middle_point[2] + versor_factor_middle_arc[2]
-
-        versor_factor_arc = self.compute_versors(head_center, new_robot_coordinates[:3])
-        final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
-                              new_robot_coordinates[1] + versor_factor_arc[1], \
-                              new_robot_coordinates[2] + versor_factor_arc[2], \
-                              new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5], 0
-
-        target_arc = middle_arc_point + final_ext_arc_point
-
-        return init_move_out_point, target_arc
-
     def compute_head_move_threshold(self, current_ref):
         """
         Checks if the head velocity is bellow the threshold
@@ -325,7 +359,7 @@ class TrackerProcessing:
         self.coord_vel.append(current_ref)
         self.timestamp.append(time())
         if len(self.coord_vel) >= 10:
-            head_velocity, head_distance = self.estimate_head_velocity(self.coord_vel, self.timestamp)
+            head_velocity, head_distance = estimate_head_velocity(self.coord_vel, self.timestamp)
             self.velocity_vector.append(head_velocity)
 
             del self.coord_vel[0]
@@ -342,22 +376,6 @@ class TrackerProcessing:
                 return True
 
         return False
-
-    def compute_head_move_compensation(self, current_head, m_change_robot_to_head):
-        """
-        Estimates the new robot position to reach the target
-        """
-        M_current_head = coordinates_to_transformation_matrix(
-            position=current_head[:3],
-            orientation=current_head[3:6],
-            axes='rzyx',
-        )
-        m_robot_new = M_current_head @ m_change_robot_to_head
-
-        translation, angles_as_deg = transformation_matrix_to_coordinates(m_robot_new, axes='sxyz')
-        new_robot_position = list(translation) + list(angles_as_deg)
-
-        return new_robot_position
 
     def estimate_head_center(self, m_tracker_to_robot, current_head):
         """
@@ -377,20 +395,38 @@ class TrackerProcessing:
 
         return center_head_in_robot
 
-    def correction_distance_calculation_target(self, coord_inv, actual_point):
-        """
-        Estimates the Euclidean distance between the actual position and the target
-        """
-        correction_distance_compensation = np.sqrt((coord_inv[0]-actual_point[0]) ** 2 +
-                                                   (coord_inv[1]-actual_point[1]) ** 2 +
-                                                   (coord_inv[2]-actual_point[2]) ** 2)
+    def estimate_robot_target(self, tracker_coordinates, robot_coordinates, target):
+        coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
+        coord_raw_robot = robot_coordinates.GetRobotCoordinates()
+        head_coordinates_in_tracker = coord_raw[1]
+        head_coordinates_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        return correction_distance_compensation
+        M_current_head = coordinates_to_transformation_matrix(
+            position=head_coordinates_in_tracker[:3],
+            orientation=head_coordinates_in_tracker[3:6],
+            axes='rzyx',
+        )
 
-    def estimate_robot_target_length(self, robot_target):
-        """
-        Estimates the length of the 3D vector of the robot target
-        """
-        robot_target_length = np.sqrt(robot_target[0] ** 2 + robot_target[1] ** 2 + robot_target[2] ** 2)
+        #transform from head basis to tracker basis
+        target_in_tracker = M_current_head @ np.array(target)
+        # transform from tracker basis to robot basis
+        X, Y = tracker_coordinates.m_tracker_to_robot
+        M_tracker_in_robot = Y @ target_in_tracker @ tr.inverse_matrix(X)
 
-        return robot_target_length
+        translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
+        new_target_in_robot = list(translation) + list(angles_as_deg)
+
+
+        head_center_coordinates = self.estimate_head_center(tracker_coordinates.m_tracker_to_robot,
+                                                            head_coordinates_in_tracker).tolist()
+
+        initaxis = compute_versors(head_center_coordinates[:3], coord_raw_robot[:3], scale=1)
+        newaxis = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
+        crossvec = np.cross(initaxis, newaxis)
+        sign = lambda x: 0 if not x else int(x / abs(x))
+        angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
+
+        target_in_robot = new_target_in_robot.copy()
+        target_in_robot[3] = target_in_robot[3] - (angle * sign(crossvec[0]))
+
+        return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
