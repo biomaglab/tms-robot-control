@@ -329,7 +329,7 @@ class RobotControl:
 
                         #if np.allclose(np.array(new_robot_coordinates)[:3], np.array(current_robot_coordinates)[:3], 0, 0.1):
                            # if self.target_force_sensor * 0.8 < force_sensor_data < self.target_force_sensor * 1.2:
-                        if self.new_force_sensor_data >= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * 0.2)):
+                        if self.new_force_sensor_data >= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD/100))):
                             self.trck_init_robot.CompensateForce(self.compensate_force_flag)
                             self.compensate_force_flag = True
                             print("Compensatíng Force")

@@ -414,7 +414,7 @@ class TrackerProcessing:
         M_tracker_in_robot = Y @ target_in_tracker @ tr.inverse_matrix(X)
 
         translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
-        new_target_in_robot = list(translation) + list(angles_as_deg)
+        new_target_in_robot = list(translation) + list(coord_raw_robot[3:])
 
 
         head_center_coordinates = self.estimate_head_center(tracker_coordinates.m_tracker_to_robot,
@@ -427,6 +427,6 @@ class TrackerProcessing:
         angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
 
         target_in_robot = new_target_in_robot.copy()
-        target_in_robot[3] = target_in_robot[3] - (angle * sign(crossvec[0]))
+        target_in_robot[5] = target_in_robot[5] - (angle * sign(crossvec[0]))
 
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
