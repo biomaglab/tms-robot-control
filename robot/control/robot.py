@@ -86,14 +86,16 @@ class RobotControl:
         if target is not None:
             self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates,
                                                                                      self.robot_coordinates, target)
+            self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
             print("Setting robot target")
         else:
             if self.robot_tracker_flag:
                 self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
                 self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
-                print("Setting robot target")
+                print("Setting robot target for head move compensation")
             else:
                 self.m_change_robot_to_head = [None] * 9
+                self.target_force_sensor_data = 0
                 print("Invalid robot target")
 
     def OnResetProcessTracker(self, data):
@@ -302,7 +304,6 @@ class RobotControl:
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
 
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
-        #print(self.new_force_sensor_data)
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
             current_tracker_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, current_tracker_coordinates)

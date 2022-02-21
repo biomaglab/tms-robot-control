@@ -413,7 +413,7 @@ class TrackerProcessing:
         X, Y = tracker_coordinates.m_tracker_to_robot
         M_tracker_in_robot = Y @ target_in_tracker @ tr.inverse_matrix(X)
 
-        translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
+        translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot)
         new_target_in_robot = list(translation) + list(coord_raw_robot[3:])
 
 
