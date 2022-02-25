@@ -377,7 +377,7 @@ class TrackerProcessing:
 
         return False
 
-    def estimate_head_center(self, m_tracker_to_robot, current_head):
+    def estimate_head_center_in_robot(self, m_tracker_to_robot, current_head):
         """
         Estimates the actual head center position using fiducials
         """
@@ -395,7 +395,7 @@ class TrackerProcessing:
 
         return center_head_in_robot
 
-    def estimate_robot_target(self, tracker_coordinates, robot_coordinates, target):
+    def estimate_robot_target(self, trck_init_robot,  tracker_coordinates, robot_coordinates, target):
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
         coord_raw_robot = robot_coordinates.GetRobotCoordinates()
         head_coordinates_in_tracker = coord_raw[1]
@@ -417,16 +417,42 @@ class TrackerProcessing:
         new_target_in_robot = list(translation) + list(coord_raw_robot[3:])
 
 
-        head_center_coordinates = self.estimate_head_center(tracker_coordinates.m_tracker_to_robot,
-                                                            head_coordinates_in_tracker).tolist()
+        head_center_coordinates = self.estimate_head_center_in_robot(tracker_coordinates.m_tracker_to_robot,
+                                                                     head_coordinates_in_tracker).tolist()
 
-        initaxis = compute_versors(head_center_coordinates[:3], coord_raw_robot[:3], scale=1)
+        init_position, final_position = trck_init_robot.CalibrateZDirection()
+
+        initaxis = compute_versors(init_position[:3], final_position[:3], scale=1)
         newaxis = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
         crossvec = np.cross(initaxis, newaxis)
-        sign = lambda x: 0 if not x else int(x / abs(x))
+
         angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
 
         target_in_robot = new_target_in_robot.copy()
-        target_in_robot[5] = target_in_robot[5] - (angle * sign(crossvec[0]))
+        target_in_robot[5] = target_in_robot[5] - (angle * crossvec[0])
+        target_in_robot[4] = target_in_robot[4] - (angle * crossvec[1])
+        target_in_robot[3] = target_in_robot[3] - (angle * crossvec[2])
 
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
+
+    def align_coil_with_head_center(self, tracker_coordinates, robot_coordinates):
+        coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
+        coord_raw_robot = robot_coordinates.GetRobotCoordinates()
+        head_coordinates_in_tracker = coord_raw[1]
+
+        head_center_coordinates = self.estimate_head_center_in_robot(tracker_coordinates.m_tracker_to_robot,
+                                                                     head_coordinates_in_tracker).tolist()
+
+        initaxis = [0,0,1]
+        newaxis = compute_versors(head_center_coordinates[:3], coord_raw_robot[:3], scale=1)
+        crossvec = np.cross(initaxis, newaxis)
+        angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
+
+        target_in_robot = coord_raw_robot.copy()
+        target_in_robot[5] = target_in_robot[5] - (angle * crossvec[0])
+        target_in_robot[4] = target_in_robot[4] - (angle * crossvec[1])
+        target_in_robot[3] = target_in_robot[3] - (angle * crossvec[2])
+
+        target_in_robot[3], target_in_robot[5] = target_in_robot[5], target_in_robot[3]
+
+        return target_in_robot

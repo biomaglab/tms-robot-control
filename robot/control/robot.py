@@ -84,7 +84,10 @@ class RobotControl:
         self.target_index = data["target_index"]
         target = data["target"]
         if target is not None:
-            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates,
+            # coord = self.process_tracker.align_coil_with_head_center(self.tracker_coordinates,
+            #                                                                          self.robot_coordinates)
+            # self.trck_init_robot.SendCoordinates(coord)
+            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.trck_init_robot, self.tracker_coordinates,
                                                                                      self.robot_coordinates, target)
             self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
             print("Setting robot target")
@@ -255,12 +258,12 @@ class RobotControl:
         if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
             #Check the target distance to define the motion mode
             if distance_target < const.ROBOT_ARC_THRESHOLD_DISTANCE and not self.arc_motion_flag:
-                self.trck_init_robot.SendCoordinates(new_robot_coordinates, const.ROBOT_MOTIONS["normal"])
+                self.trck_init_robot.SendCoordinatesControl(new_robot_coordinates, const.ROBOT_MOTIONS["normal"])
 
             elif distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or self.arc_motion_flag:
 
                 if not self.arc_motion_flag:
-                    head_center_coordinates = self.process_tracker.estimate_head_center(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+                    head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
 
                     self.target_linear_out, self.target_arc = elfin_process.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
                                                                                                       new_robot_coordinates)
@@ -274,7 +277,7 @@ class RobotControl:
                         coord = self.target_arc
 
                 elif self.arc_motion_flag and self.arc_motion_step_flag == const.ROBOT_MOTIONS["arc"]:
-                    head_center_coordinates = self.process_tracker.estimate_head_center(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+                    head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
 
                     _, new_target_arc = elfin_process.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
                                                                                 new_robot_coordinates)
@@ -290,7 +293,7 @@ class RobotControl:
                         self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
                         coord = new_robot_coordinates
 
-                self.trck_init_robot.SendCoordinates(coord, self.arc_motion_step_flag)
+                self.trck_init_robot.SendCoordinatesControl(coord, self.arc_motion_step_flag)
             robot_status = True
         else:
             print("Head is too far from the robot basis")
