@@ -395,11 +395,48 @@ class TrackerProcessing:
 
         return center_head_in_robot
 
+    def estimate_head_anterior_posterior_versor(self, m_tracker_to_robot, current_head, center_head_in_robot):
+        """
+        Estimates the actual anterior-posterior versor using nasion fiducial
+        """
+        _, _, m_probe_head_nasion = self.matrix_tracker_fiducials
+        m_current_head = compute_marker_transformation(np.array([current_head]), 0)
+
+        m_nasion_new = m_current_head @ m_probe_head_nasion
+
+        X, Y = m_tracker_to_robot
+        m_nasion_new_in_robot = Y @ m_nasion_new @ tr.inverse_matrix(X)
+
+        head_anterior_posterior_versor = compute_versors(center_head_in_robot, m_nasion_new_in_robot[:3, -1], scale=1)
+
+        return head_anterior_posterior_versor
+
+    def estimate_head_left_right_versor(self, m_tracker_to_robot, current_head):
+        """
+        Estimates the actual left-right versor using fiducials
+        """
+        m_probe_head_left, m_probe_head_right, _ = self.matrix_tracker_fiducials
+        m_current_head = compute_marker_transformation(np.array([current_head]), 0)
+
+        m_ear_left_new = m_current_head @ m_probe_head_left
+        m_ear_right_new = m_current_head @ m_probe_head_right
+
+        X, Y = m_tracker_to_robot
+        m_ear_left_new_in_robot = Y @ m_ear_left_new @ tr.inverse_matrix(X)
+        m_ear_right_new_in_robot = Y @ m_ear_right_new @ tr.inverse_matrix(X)
+
+        head_left_right_versor = compute_versors(m_ear_left_new_in_robot[:3, -1], m_ear_right_new_in_robot[:3, -1], scale=1)
+
+        return head_left_right_versor
+
     def estimate_robot_target(self, trck_init_robot,  tracker_coordinates, robot_coordinates, target):
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
         coord_raw_robot = robot_coordinates.GetRobotCoordinates()
         head_coordinates_in_tracker = coord_raw[1]
         head_coordinates_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
+
+        coord_raw_robot = trck_init_robot.SendCoordinates([coord_raw_robot[0], coord_raw_robot[1], coord_raw_robot[2], 180, 0, 180])
+        coord_raw_robot[3], coord_raw_robot[5] = coord_raw_robot[5], coord_raw_robot[3]
 
         M_current_head = coordinates_to_transformation_matrix(
             position=head_coordinates_in_tracker[:3],
@@ -416,22 +453,51 @@ class TrackerProcessing:
         translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot)
         new_target_in_robot = list(translation) + list(coord_raw_robot[3:])
 
+        target_in_robot = new_target_in_robot.copy()
+
 
         head_center_coordinates = self.estimate_head_center_in_robot(tracker_coordinates.m_tracker_to_robot,
                                                                      head_coordinates_in_tracker).tolist()
+        sign = lambda x: 0 if not x else int(x / abs(x))
+        # RZ
+        head_left_right_versor = self.estimate_head_left_right_versor(tracker_coordinates.m_tracker_to_robot,
+                                                                 head_coordinates_in_tracker)
+        init_position, final_position = trck_init_robot.CalibrateDirection(direction=1)
 
-        init_position, final_position = trck_init_robot.CalibrateZDirection()
+        robot_tool_y_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
 
-        initaxis = compute_versors(init_position[:3], final_position[:3], scale=1)
-        newaxis = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
-        crossvec = np.cross(initaxis, newaxis)
+        crossvec = np.cross(robot_tool_y_versor, head_left_right_versor)
+        angle = np.rad2deg(np.arccos(np.dot(robot_tool_y_versor, head_left_right_versor)))
 
-        angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
+        target_in_robot[3] = target_in_robot[3] - (angle * sign(crossvec[0]))
 
-        target_in_robot = new_target_in_robot.copy()
-        target_in_robot[5] = target_in_robot[5] - (angle * crossvec[0])
-        target_in_robot[4] = target_in_robot[4] - (angle * crossvec[1])
-        target_in_robot[3] = target_in_robot[3] - (angle * crossvec[2])
+        # RY
+        head_anterior_posterior_versor = self.estimate_head_anterior_posterior_versor(tracker_coordinates.m_tracker_to_robot,
+                                                                                 head_coordinates_in_tracker,
+                                                                                 head_center_coordinates)
+        init_position, final_position = trck_init_robot.CalibrateDirection(direction=0)
+
+        robot_tool_x_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+
+        crossvec = np.cross(robot_tool_x_versor, head_anterior_posterior_versor)
+        angle = np.rad2deg(np.arccos(np.dot(robot_tool_x_versor, head_anterior_posterior_versor)))
+
+        target_in_robot[4] = target_in_robot[4] - (angle * sign(crossvec[1]))
+
+        # RX
+        init_position, final_position = trck_init_robot.CalibrateDirection(direction=2)
+
+        robot_tool_z_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        head_to_target_versor = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
+
+        crossvec = np.cross(robot_tool_z_versor, head_to_target_versor)
+        angle = np.rad2deg(np.arccos(np.dot(robot_tool_z_versor, head_to_target_versor)))
+
+        target_in_robot[5] = target_in_robot[5] - (angle * sign(crossvec[0]))
+
+        # trck_init_robot.SendCoordinates(
+        #     [target_in_robot[0], target_in_robot[1], target_in_robot[2], target_in_robot[5], target_in_robot[4],
+        #      target_in_robot[3]])
 
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
 

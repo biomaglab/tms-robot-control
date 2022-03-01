@@ -22,19 +22,32 @@ class Elfin_Server():
     def Run(self):
         return self.cobot.ReadPcsActualPos()
 
-    def CalibrateZDirection(self):
+    def CalibrateDirection(self, direction):
         init_position = self.cobot.ReadPcsActualPos()
+        self.StopRobot()
         self.cobot.SetToolCoordinateMotion(1)
-        CompenDistance = [2, 0, 5]  # [directionID; direction (0:negative, 1:positive); distance]
+        CompenDistance = [direction, 0, 5]  # [directionID; direction (0:negative, 1:positive); distance]
         self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
         status = self.cobot.ReadMoveState()
         while status == 1009:
             status = self.cobot.ReadMoveState()
-            print("CalibrateZDirection")
         final_position = self.cobot.ReadPcsActualPos()
         self.cobot.SetToolCoordinateMotion(0)
 
         return init_position, final_position
+
+    def SendCoordinates(self, target):
+        """
+        It's not possible to send a move command to elfin if the robot is during a move.
+         Status 1009 means robot in motion.
+        """
+        self.StopRobot()
+        self.cobot.MoveL(target)
+        status = self.cobot.ReadMoveState()
+        while status == 1009:
+            status = self.cobot.ReadMoveState()
+
+        return self.cobot.ReadPcsActualPos()
 
     def SendCoordinatesControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
