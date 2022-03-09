@@ -435,8 +435,8 @@ class TrackerProcessing:
         head_coordinates_in_tracker = coord_raw[1]
         head_coordinates_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        coord_raw_robot = trck_init_robot.SendCoordinates([coord_raw_robot[0], coord_raw_robot[1], coord_raw_robot[2], 180, 0, 180])
-        coord_raw_robot[3], coord_raw_robot[5] = coord_raw_robot[5], coord_raw_robot[3]
+        # coord_raw_robot = trck_init_robot.SendCoordinates([coord_raw_robot[0], coord_raw_robot[1], coord_raw_robot[2], 180, 0, 180])
+        # coord_raw_robot[3], coord_raw_robot[5] = coord_raw_robot[5], coord_raw_robot[3]
 
         M_current_head = coordinates_to_transformation_matrix(
             position=head_coordinates_in_tracker[:3],
@@ -462,38 +462,44 @@ class TrackerProcessing:
         # RZ
         head_left_right_versor = self.estimate_head_left_right_versor(tracker_coordinates.m_tracker_to_robot,
                                                                  head_coordinates_in_tracker)
-        init_position, final_position = trck_init_robot.CalibrateDirection(direction=1)
 
-        robot_tool_y_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        #init_position, final_position = trck_init_robot.CalibrateDirection(direction=1)
+        #robot_tool_y_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        robot_tool_y_versor = [0, -1, 0]
 
         crossvec = np.cross(robot_tool_y_versor, head_left_right_versor)
         angle = np.rad2deg(np.arccos(np.dot(robot_tool_y_versor, head_left_right_versor)))
 
-        target_in_robot[3] = target_in_robot[3] - (angle * sign(crossvec[0]))
+        #target_in_robot[3] = target_in_robot[3] - (angle * sign(crossvec[0]))
+        target_in_robot[3] = 180 - (angle * sign(crossvec[0]))
 
         # RY
         head_anterior_posterior_versor = self.estimate_head_anterior_posterior_versor(tracker_coordinates.m_tracker_to_robot,
                                                                                  head_coordinates_in_tracker,
                                                                                  head_center_coordinates)
-        init_position, final_position = trck_init_robot.CalibrateDirection(direction=0)
 
-        robot_tool_x_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        #init_position, final_position = trck_init_robot.CalibrateDirection(direction=0)
+        #robot_tool_x_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        robot_tool_x_versor = [1, 0, 0]
 
         crossvec = np.cross(robot_tool_x_versor, head_anterior_posterior_versor)
         angle = np.rad2deg(np.arccos(np.dot(robot_tool_x_versor, head_anterior_posterior_versor)))
 
-        target_in_robot[4] = target_in_robot[4] - (angle * sign(crossvec[1]))
+        #target_in_robot[4] = target_in_robot[4] - (angle * sign(crossvec[1]))
+        target_in_robot[4] = -(angle * sign(crossvec[1]))
 
         # RX
-        init_position, final_position = trck_init_robot.CalibrateDirection(direction=2)
+        #init_position, final_position = trck_init_robot.CalibrateDirection(direction=2)
+        #robot_tool_z_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        robot_tool_z_versor = [0, 0, 1]
 
-        robot_tool_z_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
         head_to_target_versor = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
 
         crossvec = np.cross(robot_tool_z_versor, head_to_target_versor)
         angle = np.rad2deg(np.arccos(np.dot(robot_tool_z_versor, head_to_target_versor)))
 
-        target_in_robot[5] = target_in_robot[5] - (angle * sign(crossvec[0]))
+        #target_in_robot[5] = target_in_robot[5] - (angle * sign(crossvec[0]))
+        target_in_robot[5] = 180 - (angle * sign(crossvec[0]))
 
         # trck_init_robot.SendCoordinates(
         #     [target_in_robot[0], target_in_robot[1], target_in_robot[2], target_in_robot[5], target_in_robot[4],
