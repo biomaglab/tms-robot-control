@@ -1,4 +1,5 @@
-
+import time
+import csv
 import dataclasses
 import numpy as np
 
@@ -49,6 +50,16 @@ class RobotControl:
 
         self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_list = np.zeros((4, 4))[np.newaxis]
+
+        self.time_start = time.time()
+        self.fieldnames = ["time",
+                           "x_robot", "y_robot"]
+        with open('data_tracker_kalman.csv', 'w', newline='') as csv_file:
+            csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames, lineterminator='\r')
+            csv_writer.writeheader()
+
+        self.last_time = self.time_start
+
 
     @dataclasses.dataclass
     class Robot_Marker:
@@ -324,6 +335,20 @@ class RobotControl:
                 current_head = coord_head_tracker_in_robot
                 if current_head is not None and marker_head_flag:
                     current_head_filtered = self.process_tracker.kalman_filter(current_head)
+
+                    time_step = time.time() - self.last_time
+                    if np.all(coord_head_tracker_in_robot) and np.all(coord_obj_tracker_in_robot) and time_step >= 0.05:
+                        with open('data_tracker_kalman.csv', 'a', newline='') as csv_file:
+                            csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
+                            self.last_time = time.time()
+                            info = {
+                                "time": time.time() - self.time_start,
+                                "x_robot": current_head[0],
+                                "y_robot": current_head_filtered[0],
+                            }
+
+                            csv_writer.writerow(info)
+
                     if self.process_tracker.compute_head_move_threshold(current_head_filtered):
                         new_robot_coordinates = elfin_process.compute_head_move_compensation(current_head_filtered,
                                                                                         self.m_change_robot_to_head)
