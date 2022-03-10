@@ -38,8 +38,7 @@ class RobotControl:
         self.m_change_robot_to_head = [None] * 9
         self.coord_inv_old = None
 
-        self.arc_motion_flag = False
-        self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
+        self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
         self.target_linear_out = None
         self.target_linear_in = None
         self.target_arc = None
@@ -201,7 +200,7 @@ class RobotControl:
     def robot_motion_reset(self):
         self.trck_init_robot.StopRobot()
         self.arc_motion_flag = False
-        self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
+        self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
 
     def create_calibration_point(self):
         coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
@@ -257,43 +256,37 @@ class RobotControl:
         #Check if the target is inside the working space
         if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
             #Check the target distance to define the motion mode
-            if distance_target < const.ROBOT_ARC_THRESHOLD_DISTANCE and not self.arc_motion_flag:
-                self.trck_init_robot.SendCoordinatesControl(new_robot_coordinates, const.ROBOT_MOTIONS["normal"])
+            if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
+                head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+                target_linear_out, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
+                                                                                 head_center_coordinates,
+                                                                                 new_robot_coordinates)
+                if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
+                    self.target_linear_out = target_linear_out
+                    self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]
 
-            elif distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or self.arc_motion_flag:
-
-                if not self.arc_motion_flag:
-                    head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-
-                    self.target_linear_out, self.target_arc = elfin_process.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
-                                                                                                      new_robot_coordinates)
-                    self.arc_motion_flag = True
-                    self.arc_motion_step_flag = const.ROBOT_MOTIONS["linear out"]
-
-                if self.arc_motion_flag and self.arc_motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
-                    coord = self.target_linear_out
+                if self.motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
+                    new_robot_coordinates = self.target_linear_out
                     if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_linear_out)[:3], 0, 1):
-                        self.arc_motion_step_flag = const.ROBOT_MOTIONS["arc"]
-                        coord = self.target_arc
+                        self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
+                        self.target_arc = target_arc
+                        new_robot_coordinates = self.target_arc
 
-                elif self.arc_motion_flag and self.arc_motion_step_flag == const.ROBOT_MOTIONS["arc"]:
-                    head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-
-                    _, new_target_arc = elfin_process.compute_arc_motion(current_robot_coordinates, head_center_coordinates,
-                                                                                new_robot_coordinates)
-                    if not np.allclose(np.array(new_target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, 20):
+                elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
+                    if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, 20):
                         if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= \
                                 const.ROBOT_ARC_THRESHOLD_DISTANCE:
-                            self.target_arc = new_target_arc
-
-                    coord = self.target_arc
+                            self.target_arc = target_arc
+                    new_robot_coordinates = self.target_arc
 
                     if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
-                        self.arc_motion_flag = False
-                        self.arc_motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                        coord = new_robot_coordinates
+                        self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
 
-                self.trck_init_robot.SendCoordinatesControl(coord, self.arc_motion_step_flag)
+            else:
+                self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+
+            self.trck_init_robot.SendCoordinatesControl(new_robot_coordinates, self.motion_step_flag)
+
             robot_status = True
         else:
             print("Head is too far from the robot basis")
