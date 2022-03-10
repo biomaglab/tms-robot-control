@@ -63,16 +63,12 @@ def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
     return tracker_in_robot
 
 def transform_tracker_to_robot(m_tracker_to_robot, coord_tracker):
-    probe_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[0])
-    ref_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[1])
-    obj_tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker[2])
+    tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker)
 
-    if probe_tracker_in_robot is None:
-        probe_tracker_in_robot = coord_tracker[0]
-        ref_tracker_in_robot = coord_tracker[1]
-        obj_tracker_in_robot = coord_tracker[2]
+    if tracker_in_robot is None:
+        tracker_in_robot = coord_tracker
 
-    return np.vstack([probe_tracker_in_robot, ref_tracker_in_robot, obj_tracker_in_robot])
+    return tracker_in_robot
 
 def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     """
@@ -365,7 +361,7 @@ class TrackerProcessing:
             del self.coord_vel[0]
             del self.timestamp[0]
 
-            if len(self.velocity_vector) >= 30:
+            if len(self.velocity_vector) >= 10:
                 self.velocity_std = np.std(self.velocity_vector)
                 del self.velocity_vector[0]
 
@@ -375,7 +371,7 @@ class TrackerProcessing:
             else:
                 return True
 
-        return False
+        return True
 
     def estimate_head_center_in_robot(self, m_tracker_to_robot, current_head):
         """

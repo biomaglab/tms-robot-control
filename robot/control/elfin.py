@@ -74,7 +74,7 @@ class Elfin_Server():
                 self.StopRobot()
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             self.cobot.SetOverride(0.03)  # Setting robot's movement speed
-            CompenDistance = [2, 0, 7]  # [directionID; direction (0:negative, 1:positive); distance]
+            CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             self.cobot.SetToolCoordinateMotion(0)
 
@@ -82,7 +82,7 @@ class Elfin_Server():
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
         self.cobot.GrpStop()
-        sleep(0.1)
+        sleep(0.05)
 
     def Close(self):
         self.StopRobot()

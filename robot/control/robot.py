@@ -154,7 +154,7 @@ class RobotControl:
         if data["data"]:
             coordinates = self.tracker_coordinates.GetCoordinates()[0]
             if self.tracker_coordinates.m_tracker_to_robot is not None:
-                head_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coordinates)[1]
+                head_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coordinates[1])
             else:
                 head_coordinates_in_robot = coordinates[1]
             robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
@@ -234,6 +234,28 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
+    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker):
+        robot_status = True
+        if self.coord_inv_old is None:
+            self.coord_inv_old = new_robot_coordinates
+
+        # if np.allclose(np.array(new_robot_coordinates)[:3], np.array(current_robot_coordinates)[:3], 0, 0.1):
+        if np.allclose(np.array(new_robot_coordinates), np.array(current_robot_coordinates), 0, 10):
+            # avoid small movements (1 mm)
+            pass
+        elif not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
+            # if the head moves (>10mm) before the robot reach the target
+            self.trck_init_robot.StopRobot()
+            self.coord_inv_old = new_robot_coordinates
+        else:
+            distance_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates,
+                                                                                   current_robot_coordinates)
+            robot_status = self.robot_move_decision(distance_target, new_robot_coordinates,
+                                                    current_robot_coordinates, coord_head_tracker)
+            self.coord_inv_old = new_robot_coordinates
+
+        return robot_status
+
     def robot_move_decision(self, distance_target, new_robot_coordinates, current_robot_coordinates, coord_head_tracker):
         """
         There are two types of robot movements.
@@ -296,59 +318,49 @@ class RobotControl:
 
     def robot_control(self):
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
-        coord_head_tracker = current_tracker_coordinates[1]
+        marker_head_flag = markers_flag[1]
+        coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
+
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
 
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
-            current_tracker_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, current_tracker_coordinates)
+            coord_head_tracker_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
         else:
-            current_tracker_coordinates_in_robot = current_tracker_coordinates
+            coord_head_tracker_in_robot = coord_head_tracker_filtered
 
-        coord_head_tracker_in_robot = current_tracker_coordinates_in_robot[1]
-        marker_head_flag = markers_flag[1]
-        coord_obj_tracker_in_robot = current_tracker_coordinates_in_robot[2]
-        marker_obj_flag = markers_flag[2]
         robot_status = False
-        #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
-        if self.new_force_sensor_data < const.ROBOT_FORCE_SENSOR_THRESHOLD:
-            if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
-                current_head = coord_head_tracker_in_robot
-                if current_head is not None and marker_head_flag:
-                    current_head_filtered = self.process_tracker.kalman_filter(current_head)
-                    if self.process_tracker.compute_head_move_threshold(current_head_filtered):
-                        new_robot_coordinates = elfin_process.compute_head_move_compensation(current_head_filtered,
-                                                                                        self.m_change_robot_to_head)
-                        robot_status = True
-                        if self.coord_inv_old is None:
-                           self.coord_inv_old = new_robot_coordinates
 
-                        #if np.allclose(np.array(new_robot_coordinates)[:3], np.array(current_robot_coordinates)[:3], 0, 0.1):
-                           # if self.target_force_sensor * 0.8 < force_sensor_data < self.target_force_sensor * 1.2:
-                        if self.new_force_sensor_data >= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD/100))):
-                            self.trck_init_robot.CompensateForce(self.compensate_force_flag)
-                            self.compensate_force_flag = True
-                            print("Compensatíng Force")
+        #CHECK IF TARGET FROM INVESALIUS
+        if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
+            #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
+            #CHECK FORCE SENSOR
+            if self.new_force_sensor_data < const.ROBOT_FORCE_SENSOR_THRESHOLD:
+                # if self.target_force_sensor * 0.8 < force_sensor_data < self.target_force_sensor * 1.2:
+                if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
+                    self.compensate_force_flag = False
+                    #CHECK IF HEAD IS VISIBLE
+                    if coord_head_tracker_in_robot is not None and marker_head_flag:
+                        #CHECK HEAD VELOCITY
+                        if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
+                            new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
+                            robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered)
                         else:
-                            self.compensate_force_flag = False
-                        if np.allclose(np.array(new_robot_coordinates), np.array(current_robot_coordinates), 0, 0.01):
-                            #avoid small movements (0.01 mm)
-                            pass
-                        elif not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 5):
-                            #if the head moves (>5mm) before the robot reach the target
+                            print("Head is moving too much")
                             self.trck_init_robot.StopRobot()
-                            self.coord_inv_old = new_robot_coordinates
-                        else:
-                            distance_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates)
-                            if not self.compensate_force_flag:
-                                robot_status = self.robot_move_decision(distance_target, new_robot_coordinates, current_robot_coordinates, coord_head_tracker)
-                            self.coord_inv_old = new_robot_coordinates
+                    else:
+                        print("Head marker is not visible")
+                        self.trck_init_robot.StopRobot()
                 else:
-                    print("Head marker is not visible")
-                    self.trck_init_robot.StopRobot()
+                    print("Compensating Force")
+                    self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                    self.compensate_force_flag = True
+            else:
+                print("Force sensor data higher than the upper threshold")
+                self.trck_init_robot.StopRobot()
         else:
-            print("Force sensor data higher than the upper threshold")
+            print("InVesalius stopped navigation")
             self.trck_init_robot.StopRobot()
 
         return robot_status
