@@ -4,11 +4,12 @@ SLEEP_ROBOT = 0.01
 ROBOT_ElFIN_PORT = 10003
 
 ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3}
-ROBOT_HEAD_VELOCITY_THRESHOLD = 10 #mm/s
+ROBOT_HEAD_VELOCITY_THRESHOLD = 20 #mm/s
 ROBOT_ARC_THRESHOLD_DISTANCE = 100 #mm
-ROBOT_VERSOR_SCALE_FACTOR = 70
+ROBOT_VERSOR_SCALE_FACTOR = 50
 ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm
-ROBOT_FORCE_SENSOR_THRESHOLD = 5 #N
+ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
+ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
 ROBOT_WORKING_SPACE = 760 #mm
@@ -31,7 +32,8 @@ PUB_MESSAGES = ['Connect to robot',
                 'Add marker to robot control',
                 'Remove multiple markers',
                 'Remove all markers',
-                'Reset robot']
+                'Reset robot',
+                'Coil at target']
 
 FUNCTION_CONNECT_TO_ROBOT = 0
 FUNCTION_ROBOT_NAVIGATION_MODE = 1
@@ -47,4 +49,4 @@ FUNCTION_ADD_MARKER = 10
 FUNCTION_REMOVE_MULTIPLE_MARKERS = 11
 FUNCTION_REMOVE_ALL_MARKERS = 12
 FUNCTION_RESET_ROBOT = 13
-
+FUNCTION_COIL_AT_TARGET = 14

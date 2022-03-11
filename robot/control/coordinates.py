@@ -28,21 +28,16 @@ class TrackerCoordinates:
     The class is required to avoid acquisition conflict with different threads
     """
     def __init__(self):
-        self.coord = [None]*6
+        self.coord = [[None]*6, [None]*6, [None]*6]
         self.markers_flag = [False, False, False]
-        self.m_tracker_to_robot = np.array([])
+        self.m_tracker_to_robot = None
 
     def SetTrackerToRobotMatrix(self, m_tracker_to_robot):
-        self.m_tracker_to_robot = np.array(m_tracker_to_robot)
+        self.m_tracker_to_robot = m_tracker_to_robot
 
     def SetCoordinates(self, coord, markers_flag):
         self.coord = coord
         self.markers_flag = markers_flag
 
     def GetCoordinates(self):
-        if self.m_tracker_to_robot.any():
-            coord = elfin_process.transform_tracker_to_robot(self.m_tracker_to_robot, self.coord)
-        else:
-            coord = self.coord
-
-        return coord, self.markers_flag
+        return self.coord, self.markers_flag
