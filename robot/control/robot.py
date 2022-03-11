@@ -239,9 +239,9 @@ class RobotControl:
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        # if np.allclose(np.array(new_robot_coordinates)[:3], np.array(current_robot_coordinates)[:3], 0, 0.1):
-        if np.allclose(np.array(new_robot_coordinates), np.array(current_robot_coordinates), 0, 10):
+        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5):
             # avoid small movements (1 mm)
+            #print("avoiding small movements")
             pass
         elif not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
             # if the head moves (>10mm) before the robot reach the target
@@ -295,10 +295,14 @@ class RobotControl:
                         new_robot_coordinates = self.target_arc
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
+                    #UPDATE arc motion target
                     if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, 20):
-                        if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= \
-                                const.ROBOT_ARC_THRESHOLD_DISTANCE:
+                        if elfin_process.correction_distance_calculation_target(new_robot_coordinates[:3], current_robot_coordinates[:3]) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = target_arc
+                            #Avoid small arc motion
+                        elif elfin_process.correction_distance_calculation_target(target_arc[3:-4], current_robot_coordinates[:3]) < const.ROBOT_ARC_THRESHOLD_DISTANCE/1.5:
+                            self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+                            self.target_arc = new_robot_coordinates
                     new_robot_coordinates = self.target_arc
 
                     if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
