@@ -80,7 +80,8 @@ if __name__ == '__main__':
                                     const.FUNCTION_ADD_MARKER: robot.OnAddRobotMarker,
                                     const.FUNCTION_REMOVE_MULTIPLE_MARKERS: robot.OnDeleteRobotMarker,
                                     const.FUNCTION_REMOVE_ALL_MARKERS: robot.OnDeleteAllRobotMarker,
-                                    const.FUNCTION_RESET_ROBOT: reset_robot}
+                                    const.FUNCTION_RESET_ROBOT: reset_robot,
+                                    const.FUNCTION_COIL_AT_TARGET: robot.CoilAtTarget}
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot.trck_init_robot:

@@ -44,6 +44,8 @@ class RobotControl:
         self.target_arc = None
         self.previous_robot_status = False
 
+        self.coil_at_target_state = False
+
         self.robot_markers = []
 
         self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
@@ -176,6 +178,9 @@ class RobotControl:
         for i in reversed(index):
             del self.robot_markers[i]
 
+    def CoilAtTarget(self, data):
+        self.coil_at_target_state = data["state"]
+
     def ElfinRobot(self, robot_IP):
         print("Trying to connect Robot via: ", robot_IP)
         self.trck_init_robot = elfin.Elfin_Server(robot_IP, const.ROBOT_ElFIN_PORT)
@@ -239,11 +244,13 @@ class RobotControl:
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5):
-            # avoid small movements (1 mm)
-            #print("avoiding small movements")
-            pass
-        elif not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
+        if self.coil_at_target_state:
+            if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5):
+                # avoid small movements (1 mm)
+                #print("avoiding small movements")
+                return robot_status
+
+        if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
             # if the head moves (>10mm) before the robot reach the target
             self.trck_init_robot.StopRobot()
             self.coord_inv_old = new_robot_coordinates
@@ -364,7 +371,7 @@ class RobotControl:
                 print("Force sensor data higher than the upper threshold")
                 self.trck_init_robot.StopRobot()
         else:
-            print("InVesalius stopped navigation")
+            print("Navigation is off")
             self.trck_init_robot.StopRobot()
 
         return robot_status

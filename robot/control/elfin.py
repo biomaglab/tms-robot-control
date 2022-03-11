@@ -67,13 +67,13 @@ class Elfin_Server():
         return self.cobot.ReadForceSensorData()[2]
 
     def CompensateForce(self, flag):
-        print("compensate force")
+        print("compensating force")
         status = self.cobot.ReadMoveState()
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             if not flag:
                 self.StopRobot()
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-            self.cobot.SetOverride(0.03)  # Setting robot's movement speed
+            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             self.cobot.SetToolCoordinateMotion(0)
