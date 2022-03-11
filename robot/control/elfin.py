@@ -272,7 +272,7 @@ class Elfin:
         if status:
             return [float(s) for s in status]
         #print("Error code: ", status)
-        return 0
+        return [0]*6
 
     def SetToolCoordinateMotion(self, status):
         """
