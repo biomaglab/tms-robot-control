@@ -458,9 +458,9 @@ class TrackerProcessing:
         head_left_right_versor = self.estimate_head_left_right_versor(tracker_coordinates.m_tracker_to_robot,
                                                                  head_coordinates_in_tracker)
 
-        #init_position, final_position = trck_init_robot.CalibrateDirection(direction=1)
-        #robot_tool_y_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
-        robot_tool_y_versor = [0, -1, 0]
+        init_position, final_position = trck_init_robot.CalibrateDirection(direction=1)
+        robot_tool_y_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        #robot_tool_y_versor = [0, -1, 0]
 
         crossvec = np.cross(robot_tool_y_versor, head_left_right_versor)
         angle = np.rad2deg(np.arccos(np.dot(robot_tool_y_versor, head_left_right_versor)))
@@ -473,9 +473,9 @@ class TrackerProcessing:
                                                                                  head_coordinates_in_tracker,
                                                                                  head_center_coordinates)
 
-        #init_position, final_position = trck_init_robot.CalibrateDirection(direction=0)
-        #robot_tool_x_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
-        robot_tool_x_versor = [1, 0, 0]
+        init_position, final_position = trck_init_robot.CalibrateDirection(direction=0)
+        robot_tool_x_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        #robot_tool_x_versor = [1, 0, 0]
 
         crossvec = np.cross(robot_tool_x_versor, head_anterior_posterior_versor)
         angle = np.rad2deg(np.arccos(np.dot(robot_tool_x_versor, head_anterior_posterior_versor)))
@@ -484,9 +484,9 @@ class TrackerProcessing:
         target_in_robot[4] = -(angle * sign(crossvec[1]))
 
         # RX
-        #init_position, final_position = trck_init_robot.CalibrateDirection(direction=2)
-        #robot_tool_z_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
-        robot_tool_z_versor = [0, 0, 1]
+        init_position, final_position = trck_init_robot.CalibrateDirection(direction=2)
+        robot_tool_z_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
+        #robot_tool_z_versor = [0, 0, 1]
 
         head_to_target_versor = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
 
