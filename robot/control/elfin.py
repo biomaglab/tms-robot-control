@@ -64,7 +64,7 @@ class Elfin_Server():
             self.StopRobot()
 
     def GetForceSensorData(self):
-        return self.cobot.ReadForceSensorData()[2]
+        return 1
 
     def CompensateForce(self, flag):
         print("compensating force")
@@ -76,6 +76,31 @@ class Elfin_Server():
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            self.cobot.SetToolCoordinateMotion(0)
+
+    def TuneTarget(self, distance_to_target):
+        def sign(x):
+            if x >= 0:
+                return 1
+            else:
+                return 0
+        print("compensating force")
+        status = self.cobot.ReadMoveState()
+        if status == const.ROBOT_MOVE_STATE["free to move"]:
+            self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
+            CompenDistance = [0, sign(distance_to_target[0]), distance_to_target[0]]  # [directionID; direction (0:negative, 1:positive); distance]
+            self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            CompenDistance = [1, sign(distance_to_target[1]), distance_to_target[1]]  # [directionID; direction (0:negative, 1:positive); distance]
+            self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            CompenDistance = [2, sign(distance_to_target[2]), distance_to_target[2]]  # [directionID; direction (0:negative, 1:positive); distance]
+            self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            # CompenDistance = [3, sign(distance_to_target[0]), distance_to_target[3]]  # [directionID; direction (0:negative, 1:positive); distance]
+            # self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            # CompenDistance = [4, sign(distance_to_target[4]), distance_to_target[4]]  # [directionID; direction (0:negative, 1:positive); distance]
+            # self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            # CompenDistance = [5, sign(distance_to_target[5]), distance_to_target[5]]  # [directionID; direction (0:negative, 1:positive); distance]
+            # self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             self.cobot.SetToolCoordinateMotion(0)
 
     def StopRobot(self):

@@ -33,7 +33,9 @@ PUB_MESSAGES = ['Connect to robot',
                 'Remove multiple markers',
                 'Remove all markers',
                 'Reset robot',
-                'Coil at target']
+                'Coil at target',
+                'Distance to the target',
+                ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
 FUNCTION_ROBOT_NAVIGATION_MODE = 1
@@ -50,3 +52,4 @@ FUNCTION_REMOVE_MULTIPLE_MARKERS = 11
 FUNCTION_REMOVE_ALL_MARKERS = 12
 FUNCTION_RESET_ROBOT = 13
 FUNCTION_COIL_AT_TARGET = 14
+FUNCTION_DISTANCE_TO_TARGET = 15

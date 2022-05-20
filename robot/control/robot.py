@@ -178,7 +178,10 @@ class RobotControl:
         for i in reversed(index):
             del self.robot_markers[i]
 
-    def CoilAtTarget(self, data):
+    def OnDistanceToTarget(self, data):
+        self.distance_to_target = data["distance"]
+
+    def OnCoilAtTarget(self, data):
         self.coil_at_target_state = data["state"]
 
     def ElfinRobot(self, robot_IP):
@@ -244,11 +247,13 @@ class RobotControl:
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        if self.coil_at_target_state:
-            if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5):
-                # avoid small movements (1 mm)
-                #print("avoiding small movements")
-                return robot_status
+        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 30):
+            # avoid small movements (1 mm)
+            #print("avoiding small movements")
+            if not self.coil_at_target_state:
+                self.trck_init_robot.TuneTarget(self.distance_to_target)
+
+            return robot_status
 
         if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
             # if the head moves (>10mm) before the robot reach the target
