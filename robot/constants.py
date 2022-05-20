@@ -12,7 +12,7 @@ ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
 ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
-ROBOT_WORKING_SPACE = 760 #mm
+ROBOT_WORKING_SPACE = 1000 #mm
 ROBOT_MOVE_STATE = {"free to move": 0,
                     "in motion": 1009,
                     "waiting for execution": 1013,
