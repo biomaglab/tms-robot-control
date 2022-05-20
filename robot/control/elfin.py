@@ -84,14 +84,14 @@ class Elfin_Server():
                 return 1
             else:
                 return 0
-        print("compensating force")
+        print("tune target")
         status = self.cobot.ReadMoveState()
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            CompenDistance = [0, sign(distance_to_target[0]), distance_to_target[0]]  # [directionID; direction (0:negative, 1:positive); distance]
-            self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             CompenDistance = [1, sign(distance_to_target[1]), distance_to_target[1]]  # [directionID; direction (0:negative, 1:positive); distance]
+            self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            CompenDistance = [0, sign(distance_to_target[0]), distance_to_target[0]]  # [directionID; direction (0:negative, 1:positive); distance]
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             CompenDistance = [2, sign(distance_to_target[2]), distance_to_target[2]]  # [directionID; direction (0:negative, 1:positive); distance]
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional

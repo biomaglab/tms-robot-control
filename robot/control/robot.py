@@ -45,6 +45,7 @@ class RobotControl:
         self.previous_robot_status = False
 
         self.coil_at_target_state = False
+        self.distance_to_target = [0]*6
 
         self.robot_markers = []
 
