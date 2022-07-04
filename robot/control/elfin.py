@@ -90,6 +90,7 @@ class Elfin_Server():
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             print("tune target")
+            print(distance_to_target)
             if self.tune_status == 0:
                 CompenDistance = [0, sign(distance_to_target[1]), distance_to_target[1]]  # [directionID; direction (0:negative, 1:positive); distance]
                 self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional

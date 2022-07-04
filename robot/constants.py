@@ -35,6 +35,7 @@ PUB_MESSAGES = ['Connect to robot',
                 'Reset robot',
                 'Coil at target',
                 'Distance to the target',
+                'Update object matrix to robot',
                 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
@@ -53,3 +54,4 @@ FUNCTION_REMOVE_ALL_MARKERS = 12
 FUNCTION_RESET_ROBOT = 13
 FUNCTION_COIL_AT_TARGET = 14
 FUNCTION_DISTANCE_TO_TARGET = 15
+FUNCTION_UPDATE_NAVIGATION_OBJECT_MATRIX = 16
