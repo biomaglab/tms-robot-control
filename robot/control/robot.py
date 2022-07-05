@@ -88,7 +88,7 @@ class RobotControl:
         self.target_index = data["target_index"]
         target = data["target"]
         nav_target = data["nav_target"]
-        if target is not None:
+        if nav_target is not None:
             # coord = self.process_tracker.align_coil_with_head_center(self.tracker_coordinates,
             #                                                                          self.robot_coordinates)
             # self.trck_init_robot.SendCoordinates(coord)
@@ -109,17 +109,33 @@ class RobotControl:
                     orientation=nav_target[3:],
                     axes='sxyz',
                 )
-                M_target_in_robot = Y_est @ target_matrix @ tr.inverse_matrix(X_est)
+
+                m_img_flip = target_matrix.copy()
+                m_img_flip[1, -1] = -m_img_flip[1, -1]
+                coord_raw_head_tracker = self.tracker_coordinates.GetCoordinates()[0][1]
+                coord_raw_head_tracker_matrix = elfin_process.coordinates_to_transformation_matrix(
+                    position=coord_raw_head_tracker[:3],
+                    orientation=coord_raw_head_tracker[3:],
+                    axes='sxyz',
+                )
+                target_navigation_object_to_head_pose_matrix = coord_raw_head_tracker_matrix @ m_img_flip
+                print("target:")
+                print(target_matrix)
+                print(target_navigation_object_to_head_pose_matrix)
+
+                M_target_in_robot = Y_est @ target_navigation_object_to_head_pose_matrix @ tr.inverse_matrix(X_est)
                 #self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
+                self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.trck_init_robot,
+                                                                                         self.tracker_coordinates,
+                                                                                         self.robot_coordinates, target,
+                                                                                         M_target_in_robot)
+                self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
+                print("Setting robot target")
 
             except np.linalg.LinAlgError:
                 print("numpy.linalg.LinAlgError")
-                print("Try a new acquisition")
+                print("Try a new target")
 
-            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.trck_init_robot, self.tracker_coordinates,
-                                                                                     self.robot_coordinates, target, M_target_in_robot)
-            self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
-            print("Setting robot target")
         else:
             if self.robot_tracker_flag:
                 self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
@@ -222,6 +238,17 @@ class RobotControl:
         if len(self.navigation_robot_pose_matrix_list)<300:
             print("Collecting nav object pose")
             navigation_object_pose_matrix = np.array(data["m_img"]).reshape(4, 4)
+            m_img_flip = navigation_object_pose_matrix.copy()
+            m_img_flip[1, -1] = -m_img_flip[1, -1]
+            coord_raw_head_tracker = self.tracker_coordinates.GetCoordinates()[0][1]
+            coord_raw_head_tracker_matrix = elfin_process.coordinates_to_transformation_matrix(
+                position=coord_raw_head_tracker[:3],
+                orientation=coord_raw_head_tracker[3:],
+                axes='sxyz',
+            )
+            navigation_object_to_head_pose_matrix = np.linalg.inv(coord_raw_head_tracker_matrix) @ m_img_flip
+            print(navigation_object_pose_matrix)
+            print(navigation_object_to_head_pose_matrix)
             coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
             if not any(coord is None for coord in coord_raw_robot):
                 new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
@@ -230,7 +257,7 @@ class RobotControl:
                     axes='rzyx',
                 )
             self.navigation_robot_pose_matrix_list = np.vstack([self.navigation_robot_pose_matrix_list.copy(), new_robot_coord_list[np.newaxis]])
-            self.navigation_object_pose_matrix_list = np.vstack([self.navigation_object_pose_matrix_list.copy(), navigation_object_pose_matrix[np.newaxis]])
+            self.navigation_object_pose_matrix_list = np.vstack([self.navigation_object_pose_matrix_list.copy(), navigation_object_to_head_pose_matrix[np.newaxis]])
 
     def ElfinRobot(self, robot_IP):
         print("Trying to connect Robot via: ", robot_IP)
