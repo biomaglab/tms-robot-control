@@ -23,10 +23,8 @@ class RobotControl:
         self.trck_init_robot = None
         self.robot_mode_status = False
 
-        self.tracker_coord = []
-        self.tracker_angles = []
-        self.robot_coord = []
-        self.robot_angles = []
+        self.tracker_coord_list = []
+        self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
         self.matrix_nav_to_robot = []
         self.new_force_sensor_data = 0
@@ -50,8 +48,8 @@ class RobotControl:
 
         self.robot_markers = []
 
-        self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
-        self.coord_coil_list = np.zeros((4, 4))[np.newaxis]
+        self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
+        self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
         self.navigation_robot_pose_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.navigation_object_pose_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -146,27 +144,33 @@ class RobotControl:
         self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
 
     def OnCreatePoint(self, data):
-        self.create_calibration_point()
-        topic = 'Coordinates for the robot transformation matrix collected'
-        data = {}
-        self.rc.send_message(topic, data)
+        if self.create_calibration_point():
+            topic = 'Coordinates for the robot transformation matrix collected'
+            data = {}
+            self.rc.send_message(topic, data)
 
     def OnResetRobotMatrix(self, data):
-        self.robot_coord_list = np.zeros((4, 4))[np.newaxis]
-        self.coord_coil_list = np.zeros((4, 4))[np.newaxis]
+        self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
+        self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
+        self.tracker_coord_list = []
+        self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
-            robot_coord_list = np.stack(self.robot_coord_list[1:], axis=2)
-            coord_coil_list = np.stack(self.coord_coil_list[1:], axis=2)
+            affine_matrix_robot_to_tracker = elfin_process.AffineTransformation(np.array(self.tracker_coord_list), np.array(self.robot_coord_list))
+            affine_matrix_tracker_to_robot = tr.inverse_matrix(affine_matrix_robot_to_tracker)
+
+            robot_coord_list = np.stack(self.robot_coord_matrix_list[1:], axis=2)
+            coord_coil_list = np.stack(self.coord_coil_matrix_list[1:], axis=2)
             X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Transformation_matrix.matrices_estimation(robot_coord_list, coord_coil_list)
             print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
+            print(robot_coord_list[:4, :4, -1][:3, 3].T - (affine_matrix_tracker_to_robot @ coord_coil_list[:4, :4, -1])[:3, 3].T)
             # print(X_est)
             # print(Y_est)
             # print(Y_est_check)
             print(ErrorStats)
-            self.matrix_tracker_to_robot = X_est, Y_est
+            self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
             self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
             topic = 'Update robot transformation matrix'
@@ -271,10 +275,15 @@ class RobotControl:
                 axes='rzyx',
             ))
 
-            self.robot_coord_list = np.vstack([self.robot_coord_list.copy(), new_robot_coord_list[np.newaxis]])
-            self.coord_coil_list = np.vstack([self.coord_coil_list.copy(), new_coord_coil_list[np.newaxis]])
+            self.robot_coord_matrix_list = np.vstack([self.robot_coord_matrix_list.copy(), new_robot_coord_list[np.newaxis]])
+            self.coord_coil_matrix_list = np.vstack([self.coord_coil_matrix_list.copy(), new_coord_coil_list[np.newaxis]])
+            self.tracker_coord_list.append(coord_raw_tracker_obj[:3])
+            self.robot_coord_list.append(coord_raw_robot[:3])
+
+            return True
         else:
             print('Cannot collect the coil markers, please try again')
+            return False
 
     def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
                                          marker_obj_flag):

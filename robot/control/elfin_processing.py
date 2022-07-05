@@ -49,15 +49,17 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     return m_probe
 
 def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
-    X, Y = m_tracker_to_robot
+    X, Y, affine = m_tracker_to_robot
     M_tracker = coordinates_to_transformation_matrix(
         position=tracker_coord[:3],
         orientation=tracker_coord[3:6],
         axes='rzyx',
     )
     M_tracker_in_robot = Y @ M_tracker @ tr.inverse_matrix(X)
+    M_affine_tracker_in_robot = affine @ M_tracker
 
-    translation, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
+    _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
+    translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes='rzyx')
     tracker_in_robot = list(translation) + list(angles_as_deg)
 
     return tracker_in_robot
@@ -114,6 +116,11 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     robot_to_head_matrix = np.linalg.inv(m_head_target) @ m_robot_target
 
     return robot_to_head_matrix
+
+def AffineTransformation(tracker, robot):
+    m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,
+                                            shear=False, scale=False, usesvd=False)
+    return m_change
 
 def estimate_head_velocity(coord_vel, timestamp):
     coord_vel = np.vstack(np.array(coord_vel))
@@ -403,9 +410,9 @@ class TrackerProcessing:
         m_ear_left_new = m_current_head @ m_probe_head_left
         m_ear_right_new = m_current_head @ m_probe_head_right
 
-        X, Y = m_tracker_to_robot
-        m_ear_left_new_in_robot = Y @ m_ear_left_new @ tr.inverse_matrix(X)
-        m_ear_right_new_in_robot = Y @ m_ear_right_new @ tr.inverse_matrix(X)
+        X, Y, affine = m_tracker_to_robot
+        m_ear_left_new_in_robot = affine @ m_ear_left_new
+        m_ear_right_new_in_robot = affine @ m_ear_right_new
 
         center_head_in_robot = (m_ear_left_new_in_robot[:3, -1] + m_ear_right_new_in_robot[:3, -1])/2
 
@@ -420,8 +427,8 @@ class TrackerProcessing:
 
         m_nasion_new = m_current_head @ m_probe_head_nasion
 
-        X, Y = m_tracker_to_robot
-        m_nasion_new_in_robot = Y @ m_nasion_new @ tr.inverse_matrix(X)
+        X, Y, affine = m_tracker_to_robot
+        m_nasion_new_in_robot = affine @ m_nasion_new
 
         head_anterior_posterior_versor = compute_versors(center_head_in_robot, m_nasion_new_in_robot[:3, -1], scale=1)
 
@@ -437,9 +444,9 @@ class TrackerProcessing:
         m_ear_left_new = m_current_head @ m_probe_head_left
         m_ear_right_new = m_current_head @ m_probe_head_right
 
-        X, Y = m_tracker_to_robot
-        m_ear_left_new_in_robot = Y @ m_ear_left_new @ tr.inverse_matrix(X)
-        m_ear_right_new_in_robot = Y @ m_ear_right_new @ tr.inverse_matrix(X)
+        X, Y, affine = m_tracker_to_robot
+        m_ear_left_new_in_robot = affine @ m_ear_left_new
+        m_ear_right_new_in_robot = affine @ m_ear_right_new
 
         head_left_right_versor = compute_versors(m_ear_left_new_in_robot[:3, -1], m_ear_right_new_in_robot[:3, -1], scale=1)
 
@@ -460,10 +467,11 @@ class TrackerProcessing:
         #transform from head basis to tracker basis
         target_in_tracker = M_current_head @ np.array(target)
         # transform from tracker basis to robot basis
-        X, Y = tracker_coordinates.m_tracker_to_robot
+        X, Y, affine = tracker_coordinates.m_tracker_to_robot
         M_tracker_in_robot = Y @ target_in_tracker @ tr.inverse_matrix(X)
+        M_affine_tracker_in_robot = affine @ target_in_tracker
 
-        translation, _ = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
+        translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes='rzyx')
         _, angles_as_deg = transformation_matrix_to_coordinates(M_target_in_robot, axes='rzyx')
         new_target_in_robot = list(translation) + list(angles_as_deg)
 
