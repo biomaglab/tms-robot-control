@@ -22,6 +22,7 @@ class RobotControl:
 
         self.trck_init_robot = None
         self.robot_mode_status = False
+        self.tune_status = False
 
         self.tracker_coord_list = []
         self.robot_coord_list = []
@@ -258,13 +259,17 @@ class RobotControl:
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5):
+        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5) or self.tune_status:
             # avoid small movements (1 mm)
-            #print("avoiding small movements")
+            print("avoiding small movements")
             if not self.coil_at_target_state:
-                #self.trck_init_robot.TuneTarget(self.distance_to_target)
-                return robot_status
-
+                self.tune_status = True
+                self.trck_init_robot.TuneTarget(self.distance_to_target)
+            if self.tune_status and self.coil_at_target_state:
+                self.tune_status = False
+                self.m_change_robot_to_head = elfin_process.update_robot_target(self.tracker_coordinates, self.robot_coordinates)
+            return robot_status
+        print("not avoiding small movements")
         if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
             # if the head moves (>10mm) before the robot reach the target
             self.trck_init_robot.StopRobot()
@@ -388,5 +393,6 @@ class RobotControl:
         else:
             print("Navigation is off")
             self.trck_init_robot.StopRobot()
+            self.tune_status = False
 
         return robot_status

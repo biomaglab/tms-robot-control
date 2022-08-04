@@ -181,6 +181,17 @@ def estimate_robot_target_length(robot_target):
 
     return robot_target_length
 
+def update_robot_target(tracker_coordinates,  robot_coordinates):
+    coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
+    head_coordinates_in_tracker = coord_raw[1]
+    coord_raw_robot = robot_coordinates.GetRobotCoordinates()
+
+    head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot,
+                                                           head_coordinates_in_tracker)
+
+    return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
+
+
 #the class Transformation_matrix is based on elif.ayvali code @ https://github.com/eayvali/Pose-Estimation-for-Sensor-Calibration
 class Transformation_matrix:
     def matrices_estimation(A, B):

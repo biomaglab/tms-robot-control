@@ -80,11 +80,6 @@ class Elfin_Server():
             self.cobot.SetToolCoordinateMotion(0)
 
     def TuneTarget(self, distance_to_target):
-        def sign(x):
-            if x >= 0:
-                return 1
-            else:
-                return 0
         status = self.cobot.ReadMoveState()
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
@@ -92,17 +87,20 @@ class Elfin_Server():
             print("tune target")
             print(distance_to_target)
             if self.tune_status == 0:
-                CompenDistance = [0, sign(distance_to_target[1]), distance_to_target[1]]  # [directionID; direction (0:negative, 1:positive); distance]
+                CompenDistance = [0, 1, distance_to_target[0]]  # [directionID; direction (0:negative, 1:positive); distance]
                 self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
                 self.tune_status = 1
+                print("moving x")
             elif self.tune_status == 1:
-                CompenDistance = [1, sign(distance_to_target[0]), distance_to_target[0]]  # [directionID; direction (0:negative, 1:positive); distance]
+                CompenDistance = [1, 1, distance_to_target[1]]  # [directionID; direction (0:negative, 1:positive); distance]
                 self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
                 self.tune_status = 2
+                print("moving y")
             elif self.tune_status == 2:
-                CompenDistance = [2, sign(distance_to_target[2]), distance_to_target[2]]  # [directionID; direction (0:negative, 1:positive); distance]
+                CompenDistance = [2, 1, distance_to_target[2]]  # [directionID; direction (0:negative, 1:positive); distance]
                 self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
                 self.tune_status = 0
+                print("moving z")
             # CompenDistance = [3, sign(distance_to_target[0]), distance_to_target[3]]  # [directionID; direction (0:negative, 1:positive); distance]
             # self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             # CompenDistance = [4, sign(distance_to_target[4]), distance_to_target[4]]  # [directionID; direction (0:negative, 1:positive); distance]
