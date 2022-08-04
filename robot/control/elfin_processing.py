@@ -48,15 +48,11 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     )
     return m_probe
 
-def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
+def transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord):
     X, Y, affine = m_tracker_to_robot
-    M_tracker = coordinates_to_transformation_matrix(
-        position=tracker_coord[:3],
-        orientation=tracker_coord[3:6],
-        axes='rzyx',
-    )
-    M_tracker_in_robot = Y @ M_tracker @ tr.inverse_matrix(X)
-    M_affine_tracker_in_robot = affine @ M_tracker
+
+    M_tracker_in_robot = Y @ M_tracker_coord @ tr.inverse_matrix(X)
+    M_affine_tracker_in_robot = affine @ M_tracker_coord
 
     _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
     translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes='rzyx')
@@ -65,33 +61,17 @@ def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
     return tracker_in_robot
 
 def transform_tracker_to_robot(m_tracker_to_robot, coord_tracker):
-    tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker)
+    M_tracker_coord = coordinates_to_transformation_matrix(
+        position=coord_tracker[:3],
+        orientation=coord_tracker[3:6],
+        axes='rzyx',
+    )
+    tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord)
 
     if tracker_in_robot is None:
         tracker_in_robot = coord_tracker
 
     return tracker_in_robot
-
-def compute_target_nav_to_head_matrix(head_coordinates, target):
-    """
-    :param head: nx6 array of head coordinates from tracking device in robot space
-    :param robot: nx6 array of robot coordinates
-
-    :return: target_robot_matrix: 3x3 array representing change of basis from robot to head in robot system
-    """
-    # compute head target matrix
-    m_head_target = coordinates_to_transformation_matrix(
-        position=head_coordinates[:3],
-        orientation=head_coordinates[3:],
-        axes='rzyx',
-    )
-
-    # compute robot target matrix
-    m_robot_target = target
-
-    robot_to_head_matrix = np.linalg.inv(m_head_target) @ m_robot_target
-
-    return robot_to_head_matrix
 
 def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     """
@@ -452,31 +432,16 @@ class TrackerProcessing:
 
         return head_left_right_versor
 
-    def estimate_robot_target(self, trck_init_robot,  tracker_coordinates, robot_coordinates,  target, M_target_in_robot):
+    def estimate_robot_target(self,  tracker_coordinates,  m_target):
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
-        coord_raw_robot = robot_coordinates.GetRobotCoordinates()
         head_coordinates_in_tracker = coord_raw[1]
-        head_coordinates_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        M_current_head = coordinates_to_transformation_matrix(
-            position=head_coordinates_in_tracker[:3],
-            orientation=head_coordinates_in_tracker[3:6],
-            axes='rzyx',
-        )
+        target_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, m_target)
+        head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        #transform from head basis to tracker basis
-        target_in_tracker = M_current_head @ np.array(target)
-        # transform from tracker basis to robot basis
-        X, Y, affine = tracker_coordinates.m_tracker_to_robot
-        M_tracker_in_robot = Y @ target_in_tracker @ tr.inverse_matrix(X)
-        M_affine_tracker_in_robot = affine @ target_in_tracker
+        print("new target:", target_in_robot)
 
-        translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes='rzyx')
-        _, angles_as_deg = transformation_matrix_to_coordinates(M_target_in_robot, axes='rzyx')
-        new_target_in_robot = list(translation) + list(angles_as_deg)
-
-        print("target:", new_target_in_robot)
-        return compute_robot_to_head_matrix(head_coordinates_in_robot, new_target_in_robot)
+        return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
 
     def align_coil_with_head_center(self, tracker_coordinates, robot_coordinates):
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()

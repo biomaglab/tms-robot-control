@@ -83,7 +83,6 @@ if __name__ == '__main__':
                                     const.FUNCTION_RESET_ROBOT: reset_robot,
                                     const.FUNCTION_COIL_AT_TARGET: robot.OnCoilAtTarget,
                                     const.FUNCTION_DISTANCE_TO_TARGET: robot.OnDistanceToTarget,
-                                    const.FUNCTION_UPDATE_NAVIGATION_OBJECT_MATRIX: robot.OnUpdateNavigationObjectPoseMatrix,
                                     }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
