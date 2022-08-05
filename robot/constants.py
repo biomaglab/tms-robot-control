@@ -12,7 +12,7 @@ ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
 ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
-ROBOT_WORKING_SPACE = 760 #mm
+ROBOT_WORKING_SPACE = 1000 #mm
 ROBOT_MOVE_STATE = {"free to move": 0,
                     "in motion": 1009,
                     "waiting for execution": 1013,
@@ -33,7 +33,9 @@ PUB_MESSAGES = ['Connect to robot',
                 'Remove multiple markers',
                 'Remove all markers',
                 'Reset robot',
-                'Coil at target']
+                'Coil at target',
+                'Distance to the target',
+                ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
 FUNCTION_ROBOT_NAVIGATION_MODE = 1
@@ -50,3 +52,4 @@ FUNCTION_REMOVE_MULTIPLE_MARKERS = 11
 FUNCTION_REMOVE_ALL_MARKERS = 12
 FUNCTION_RESET_ROBOT = 13
 FUNCTION_COIL_AT_TARGET = 14
+FUNCTION_DISTANCE_TO_TARGET = 15

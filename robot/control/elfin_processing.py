@@ -48,15 +48,11 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     )
     return m_probe
 
-def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
+def transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord):
     X, Y, affine = m_tracker_to_robot
-    M_tracker = coordinates_to_transformation_matrix(
-        position=tracker_coord[:3],
-        orientation=tracker_coord[3:6],
-        axes='rzyx',
-    )
-    M_tracker_in_robot = Y @ M_tracker @ tr.inverse_matrix(X)
-    M_affine_tracker_in_robot = affine @ M_tracker
+
+    M_tracker_in_robot = Y @ M_tracker_coord @ tr.inverse_matrix(X)
+    M_affine_tracker_in_robot = affine @ M_tracker_coord
 
     _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
     translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes='rzyx')
@@ -65,7 +61,12 @@ def transformation_tracker_to_robot(m_tracker_to_robot, tracker_coord):
     return tracker_in_robot
 
 def transform_tracker_to_robot(m_tracker_to_robot, coord_tracker):
-    tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, coord_tracker)
+    M_tracker_coord = coordinates_to_transformation_matrix(
+        position=coord_tracker[:3],
+        orientation=coord_tracker[3:6],
+        axes='rzyx',
+    )
+    tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord)
 
     if tracker_in_robot is None:
         tracker_in_robot = coord_tracker
@@ -179,6 +180,17 @@ def estimate_robot_target_length(robot_target):
     robot_target_length = np.sqrt(robot_target[0] ** 2 + robot_target[1] ** 2 + robot_target[2] ** 2)
 
     return robot_target_length
+
+def update_robot_target(tracker_coordinates,  robot_coordinates):
+    coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
+    head_coordinates_in_tracker = coord_raw[1]
+    coord_raw_robot = robot_coordinates.GetRobotCoordinates()
+
+    head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot,
+                                                           head_coordinates_in_tracker)
+
+    return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
+
 
 #the class Transformation_matrix is based on elif.ayvali code @ https://github.com/eayvali/Pose-Estimation-for-Sensor-Calibration
 class Transformation_matrix:
@@ -431,83 +443,14 @@ class TrackerProcessing:
 
         return head_left_right_versor
 
-    def estimate_robot_target(self, trck_init_robot,  tracker_coordinates, robot_coordinates, target):
+    def estimate_robot_target(self,  tracker_coordinates,  m_target):
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
-        coord_raw_robot = robot_coordinates.GetRobotCoordinates()
         head_coordinates_in_tracker = coord_raw[1]
-        head_coordinates_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        # coord_raw_robot = trck_init_robot.SendCoordinates([coord_raw_robot[0], coord_raw_robot[1], coord_raw_robot[2], 180, 0, 180])
-        # coord_raw_robot[3], coord_raw_robot[5] = coord_raw_robot[5], coord_raw_robot[3]
+        target_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, m_target)
+        head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        M_current_head = coordinates_to_transformation_matrix(
-            position=head_coordinates_in_tracker[:3],
-            orientation=head_coordinates_in_tracker[3:6],
-            axes='rzyx',
-        )
-
-        #transform from head basis to tracker basis
-        target_in_tracker = M_current_head @ np.array(target)
-        # transform from tracker basis to robot basis
-        X, Y, affine = tracker_coordinates.m_tracker_to_robot
-        M_tracker_in_robot = Y @ target_in_tracker @ tr.inverse_matrix(X)
-        M_affine_tracker_in_robot = affine @ target_in_tracker
-
-        _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot)
-        translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot)
-        new_target_in_robot = list(translation) + list(coord_raw_robot[3:])
-
-        target_in_robot = new_target_in_robot.copy()
-
-
-        head_center_coordinates = self.estimate_head_center_in_robot(tracker_coordinates.m_tracker_to_robot,
-                                                                     head_coordinates_in_tracker).tolist()
-        sign = lambda x: 0 if not x else int(x / abs(x))
-        # RZ
-        head_left_right_versor = self.estimate_head_left_right_versor(tracker_coordinates.m_tracker_to_robot,
-                                                                 head_coordinates_in_tracker)
-
-        init_position, final_position = trck_init_robot.CalibrateDirection(direction=1)
-        robot_tool_y_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
-        #robot_tool_y_versor = [0, -1, 0]
-
-        crossvec = np.cross(robot_tool_y_versor, head_left_right_versor)
-        angle = np.rad2deg(np.arccos(np.dot(robot_tool_y_versor, head_left_right_versor)))
-
-        #target_in_robot[3] = target_in_robot[3] - (angle * sign(crossvec[0]))
-        target_in_robot[3] = 180 - (angle * sign(crossvec[0]))
-
-        # RY
-        head_anterior_posterior_versor = self.estimate_head_anterior_posterior_versor(tracker_coordinates.m_tracker_to_robot,
-                                                                                 head_coordinates_in_tracker,
-                                                                                 head_center_coordinates)
-
-        init_position, final_position = trck_init_robot.CalibrateDirection(direction=0)
-        robot_tool_x_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
-        #robot_tool_x_versor = [1, 0, 0]
-
-        crossvec = np.cross(robot_tool_x_versor, head_anterior_posterior_versor)
-        angle = np.rad2deg(np.arccos(np.dot(robot_tool_x_versor, head_anterior_posterior_versor)))
-
-        #target_in_robot[4] = target_in_robot[4] - (angle * sign(crossvec[1]))
-        target_in_robot[4] = -(angle * sign(crossvec[1]))
-
-        # RX
-        init_position, final_position = trck_init_robot.CalibrateDirection(direction=2)
-        robot_tool_z_versor = compute_versors(init_position[:3], final_position[:3], scale=1)
-        #robot_tool_z_versor = [0, 0, 1]
-
-        head_to_target_versor = compute_versors(head_center_coordinates[:3], new_target_in_robot[:3], scale=1)
-
-        crossvec = np.cross(robot_tool_z_versor, head_to_target_versor)
-        angle = np.rad2deg(np.arccos(np.dot(robot_tool_z_versor, head_to_target_versor)))
-
-        #target_in_robot[5] = target_in_robot[5] - (angle * sign(crossvec[0]))
-        target_in_robot[5] = 180 - (angle * sign(crossvec[0]))
-
-        # trck_init_robot.SendCoordinates(
-        #     [target_in_robot[0], target_in_robot[1], target_in_robot[2], target_in_robot[5], target_in_robot[4],
-        #      target_in_robot[3]])
+        print("Update target based on InVesalius:", target_in_robot)
 
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
 

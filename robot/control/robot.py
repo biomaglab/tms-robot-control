@@ -22,10 +22,12 @@ class RobotControl:
 
         self.trck_init_robot = None
         self.robot_mode_status = False
+        self.tune_status = False
 
         self.tracker_coord_list = []
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
+
         self.new_force_sensor_data = 0
         self.target_force_sensor_data = 0
         self.compensate_force_flag = False
@@ -43,6 +45,7 @@ class RobotControl:
         self.previous_robot_status = False
 
         self.coil_at_target_state = False
+        self.distance_to_target = [0]*6
 
         self.robot_markers = []
 
@@ -82,12 +85,11 @@ class RobotControl:
         self.robot_tracker_flag = data["robot_tracker_flag"]
         self.target_index = data["target_index"]
         target = data["target"]
+        if not self.robot_tracker_flag:
+            self.trck_init_robot.StopRobot()
         if target is not None:
-            # coord = self.process_tracker.align_coil_with_head_center(self.tracker_coordinates,
-            #                                                                          self.robot_coordinates)
-            # self.trck_init_robot.SendCoordinates(coord)
-            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.trck_init_robot, self.tracker_coordinates,
-                                                                                     self.robot_coordinates, target)
+            target = np.array(target).reshape(4, 4)
+            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
             self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
             print("Setting robot target")
         else:
@@ -125,6 +127,7 @@ class RobotControl:
         self.tracker_coord_list = []
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
+        self.tune_status = False
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
@@ -144,7 +147,7 @@ class RobotControl:
             self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
             topic = 'Update robot transformation matrix'
-            data = {'data': np.hstack(np.concatenate((X_est, Y_est))).tolist()}
+            data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
             self.rc.send_message(topic, data)
 
         except np.linalg.LinAlgError:
@@ -152,8 +155,8 @@ class RobotControl:
             print("Try a new acquisition")
 
     def OnLoadRobotMatrix(self, data):
-        X_est, Y_est = np.split(np.array(data["data"]).reshape(8, 4), 2, axis=0)
-        self.matrix_tracker_to_robot = X_est, Y_est
+        X_est, Y_est, affine_matrix_tracker_to_robot = np.split(np.array(data["data"]).reshape(12, 4), 3, axis=0)
+        self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
         self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
     def OnAddRobotMarker(self, data):
@@ -182,7 +185,10 @@ class RobotControl:
         for i in reversed(index):
             del self.robot_markers[i]
 
-    def CoilAtTarget(self, data):
+    def OnDistanceToTarget(self, data):
+        self.distance_to_target = data["distance"]
+
+    def OnCoilAtTarget(self, data):
         self.coil_at_target_state = data["state"]
 
     def ElfinRobot(self, robot_IP):
@@ -248,19 +254,32 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker):
+    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker, marker_coil_flag):
         robot_status = True
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        if self.coil_at_target_state:
-            if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5):
-                # avoid small movements (1 mm)
-                #print("avoiding small movements")
-                return robot_status
+        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 1) or self.tune_status:
+            # Robot reaches the robot target (1 mm). The robot target might be a bit different from neuronavigation target, due to registration error. This part corrects that
+            if marker_coil_flag:
+                if not self.coil_at_target_state:
+                    # this IF is for safety reasons. To avoid tune movements highers than 5cm (TODO: check the limits)
+                    if np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 50:
+                        self.tune_status = True
+                        #tunes the robot position based on neuronavigation
+                        self.trck_init_robot.TuneTarget(self.distance_to_target)
+                    else:
+                        self.tune_status = False
+                if self.tune_status and self.coil_at_target_state:
+                    self.tune_status = False
+                    self.m_change_robot_to_head = elfin_process.update_robot_target(self.tracker_coordinates, self.robot_coordinates)
+            else:
+                self.tune_status = False
+
+            return robot_status
 
         if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
-            # if the head moves (>10mm) before the robot reach the target
+            # if the head moves (>10mm) before the robot reach the robot target
             self.trck_init_robot.StopRobot()
             self.coord_inv_old = new_robot_coordinates
         else:
@@ -339,6 +358,7 @@ class RobotControl:
     def robot_control(self):
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
         marker_head_flag = markers_flag[1]
+        marker_coil_flag = markers_flag[2]
         coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
@@ -365,7 +385,7 @@ class RobotControl:
                         #CHECK HEAD VELOCITY
                         if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                             new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
-                            robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered)
+                            robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered, marker_coil_flag)
                         else:
                             print("Head is moving too much")
                             self.trck_init_robot.StopRobot()
@@ -381,6 +401,6 @@ class RobotControl:
                 self.trck_init_robot.StopRobot()
         else:
             print("Navigation is off")
-            self.trck_init_robot.StopRobot()
+            self.tune_status = False
 
         return robot_status

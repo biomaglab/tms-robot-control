@@ -81,7 +81,9 @@ if __name__ == '__main__':
                                     const.FUNCTION_REMOVE_MULTIPLE_MARKERS: robot.OnDeleteRobotMarker,
                                     const.FUNCTION_REMOVE_ALL_MARKERS: robot.OnDeleteAllRobotMarker,
                                     const.FUNCTION_RESET_ROBOT: reset_robot,
-                                    const.FUNCTION_COIL_AT_TARGET: robot.CoilAtTarget}
+                                    const.FUNCTION_COIL_AT_TARGET: robot.OnCoilAtTarget,
+                                    const.FUNCTION_DISTANCE_TO_TARGET: robot.OnDistanceToTarget,
+                                    }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot.trck_init_robot:
