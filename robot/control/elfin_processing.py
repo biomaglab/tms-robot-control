@@ -450,7 +450,7 @@ class TrackerProcessing:
         target_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, m_target)
         head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
-        print("new target:", target_in_robot)
+        print("Update target based on InVesalius:", target_in_robot)
 
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
 

@@ -65,7 +65,7 @@ class Elfin_Server():
             self.StopRobot()
 
     def GetForceSensorData(self):
-        return 1
+        return self.cobot.ReadForceSensorData()[2]
 
     def CompensateForce(self, flag):
         print("compensating force")

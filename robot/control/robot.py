@@ -27,7 +27,7 @@ class RobotControl:
         self.tracker_coord_list = []
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
-        self.matrix_nav_to_robot = []
+
         self.new_force_sensor_data = 0
         self.target_force_sensor_data = 0
         self.compensate_force_flag = False
@@ -51,9 +51,6 @@ class RobotControl:
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
-
-        self.navigation_robot_pose_matrix_list = np.zeros((4, 4))[np.newaxis]
-        self.navigation_object_pose_matrix_list = np.zeros((4, 4))[np.newaxis]
 
     @dataclasses.dataclass
     class Robot_Marker:
@@ -88,6 +85,8 @@ class RobotControl:
         self.robot_tracker_flag = data["robot_tracker_flag"]
         self.target_index = data["target_index"]
         target = data["target"]
+        if not self.robot_tracker_flag:
+            self.trck_init_robot.StopRobot()
         if target is not None:
             target = np.array(target).reshape(4, 4)
             self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
@@ -264,7 +263,7 @@ class RobotControl:
             # Robot reaches the robot target (1 mm). The robot target might be a bit different from neuronavigation target, due to registration error. This part corrects that
             if marker_coil_flag:
                 if not self.coil_at_target_state:
-                    # this IF is for safety reasons. To avoid tune movements highers than 5cm
+                    # this IF is for safety reasons. To avoid tune movements highers than 5cm (TODO: check the limits)
                     if np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 50:
                         self.tune_status = True
                         #tunes the robot position based on neuronavigation
@@ -402,7 +401,6 @@ class RobotControl:
                 self.trck_init_robot.StopRobot()
         else:
             print("Navigation is off")
-            self.trck_init_robot.StopRobot()
             self.tune_status = False
 
         return robot_status
