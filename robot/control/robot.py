@@ -128,6 +128,7 @@ class RobotControl:
         self.tracker_coord_list = []
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
+        self.tune_status = False
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
@@ -254,24 +255,32 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker):
+    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker, marker_coil_flag):
         robot_status = True
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 5) or self.tune_status:
-            # avoid small movements (1 mm)
-            print("avoiding small movements")
-            if not self.coil_at_target_state:
-                self.tune_status = True
-                self.trck_init_robot.TuneTarget(self.distance_to_target)
-            if self.tune_status and self.coil_at_target_state:
+        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 1) or self.tune_status:
+            # Robot reaches the robot target (1 mm). The robot target might be a bit different from neuronavigation target, due to registration error. This part corrects that
+            if marker_coil_flag:
+                if not self.coil_at_target_state:
+                    # this IF is for safety reasons. To avoid tune movements highers than 5cm
+                    if np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 50:
+                        self.tune_status = True
+                        #tunes the robot position based on neuronavigation
+                        self.trck_init_robot.TuneTarget(self.distance_to_target)
+                    else:
+                        self.tune_status = False
+                if self.tune_status and self.coil_at_target_state:
+                    self.tune_status = False
+                    self.m_change_robot_to_head = elfin_process.update_robot_target(self.tracker_coordinates, self.robot_coordinates)
+            else:
                 self.tune_status = False
-                self.m_change_robot_to_head = elfin_process.update_robot_target(self.tracker_coordinates, self.robot_coordinates)
+
             return robot_status
-        print("not avoiding small movements")
+
         if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
-            # if the head moves (>10mm) before the robot reach the target
+            # if the head moves (>10mm) before the robot reach the robot target
             self.trck_init_robot.StopRobot()
             self.coord_inv_old = new_robot_coordinates
         else:
@@ -350,6 +359,7 @@ class RobotControl:
     def robot_control(self):
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
         marker_head_flag = markers_flag[1]
+        marker_coil_flag = markers_flag[2]
         coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
@@ -376,7 +386,7 @@ class RobotControl:
                         #CHECK HEAD VELOCITY
                         if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                             new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
-                            robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered)
+                            robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered, marker_coil_flag)
                         else:
                             print("Head is moving too much")
                             self.trck_init_robot.StopRobot()
