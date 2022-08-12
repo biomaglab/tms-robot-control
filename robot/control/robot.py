@@ -185,12 +185,24 @@ class RobotControl:
         for i in reversed(index):
             del self.robot_markers[i]
 
-    def OnDistanceToTarget(self, data):
-        offset = data["distance"]
-        rotation_matrix = np.array([[np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET)), -np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET))],
+    def OnCoilToRobotAlignment(self, distance):
+        rotation_matrix = np.identity(4)
+        rotation_along_z = np.array([[np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET)), -np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET))],
                                     [np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET)), np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET))]])
-        offsetx, offsety = np.lingalg.inv(rotation_matrix) @ offset[:1]
-        self.distance_to_target = [offsetx, offsety, offset[2]]
+        rotation_matrix[:2, :2] = rotation_along_z
+        m_offset = elfin_process.coordinates_to_transformation_matrix(
+            position=distance[:3],
+            orientation=distance[3:],
+            axes='sxyz',
+        )
+        distance_matrix = np.linalg.inv(rotation_matrix) @ m_offset @ rotation_matrix
+
+        return elfin_process.transformation_matrix_to_coordinates(distance_matrix, axes='sxyz')
+
+    def OnDistanceToTarget(self, data):
+        distance = data["distance"]
+        translation, angles_as_deg = self.OnCoilToRobotAlignment(distance)
+        self.distance_to_target = list(translation) + list(angles_as_deg)
 
     def OnCoilAtTarget(self, data):
         self.coil_at_target_state = data["state"]
