@@ -186,7 +186,11 @@ class RobotControl:
             del self.robot_markers[i]
 
     def OnDistanceToTarget(self, data):
-        self.distance_to_target = data["distance"]
+        offset = data["distance"]
+        rotation_matrix = np.array([[np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET)), -np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET))],
+                                    [np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET)), np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET))]])
+        offsetx, offsety = np.lingalg.inv(rotation_matrix) @ offset[:1]
+        self.distance_to_target = [offsetx, offsety, offset[2]]
 
     def OnCoilAtTarget(self, data):
         self.coil_at_target_state = data["state"]
