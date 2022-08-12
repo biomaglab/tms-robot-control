@@ -90,7 +90,7 @@ class RobotControl:
         if target is not None:
             target = np.array(target).reshape(4, 4)
             self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
-            self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
+            self.target_force_sensor_data = self.new_force_sensor_data
             print("Setting robot target")
         else:
             if self.robot_tracker_flag:
@@ -392,29 +392,24 @@ class RobotControl:
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
-            if self.new_force_sensor_data < const.ROBOT_FORCE_SENSOR_THRESHOLD:
-                # if self.target_force_sensor * 0.8 < force_sensor_data < self.target_force_sensor * 1.2:
-                if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
-                    self.compensate_force_flag = False
-                    #CHECK IF HEAD IS VISIBLE
-                    if coord_head_tracker_in_robot is not None and marker_head_flag:
-                        #CHECK HEAD VELOCITY
-                        if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
-                            new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
-                            robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered, marker_coil_flag)
-                        else:
-                            print("Head is moving too much")
-                            self.trck_init_robot.StopRobot()
+            if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
+                self.compensate_force_flag = False
+                #CHECK IF HEAD IS VISIBLE
+                if coord_head_tracker_in_robot is not None and marker_head_flag:
+                    #CHECK HEAD VELOCITY
+                    if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
+                        new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
+                        robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered, marker_coil_flag)
                     else:
-                        print("Head marker is not visible")
+                        print("Head is moving too much")
                         self.trck_init_robot.StopRobot()
                 else:
-                    print("Compensating Force")
-                    self.trck_init_robot.CompensateForce(self.compensate_force_flag)
-                    self.compensate_force_flag = True
+                    print("Head marker is not visible")
+                    self.trck_init_robot.StopRobot()
             else:
-                print("Force sensor data higher than the upper threshold")
-                self.trck_init_robot.StopRobot()
+                print("Compensating Force")
+                self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                self.compensate_force_flag = True
         else:
             print("Navigation is off")
             self.tune_status = False
