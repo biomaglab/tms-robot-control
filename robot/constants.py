@@ -10,7 +10,7 @@ ROBOT_VERSOR_SCALE_FACTOR = 50
 ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm
 ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
 ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
-ROBOT_RZ_OFFSET = 0
+ROBOT_RZ_OFFSET = -30
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
 ROBOT_WORKING_SPACE = 1000 #mm

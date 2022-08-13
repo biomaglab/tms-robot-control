@@ -190,9 +190,10 @@ class RobotControl:
         rotation_along_z = np.array([[np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET)), -np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET))],
                                     [np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET)), np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET))]])
         rotation_matrix[:2, :2] = rotation_along_z
+        fix_axis = -distance[0], distance[1], distance[2], -distance[3], distance[4], distance[5]
         m_offset = elfin_process.coordinates_to_transformation_matrix(
-            position=distance[:3],
-            orientation=distance[3:],
+            position=fix_axis[:3],
+            orientation=fix_axis[3:],
             axes='sxyz',
         )
         distance_matrix = np.linalg.inv(rotation_matrix) @ m_offset @ rotation_matrix
@@ -392,7 +393,7 @@ class RobotControl:
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
-            if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
+            #if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
                 self.compensate_force_flag = False
                 #CHECK IF HEAD IS VISIBLE
                 if coord_head_tracker_in_robot is not None and marker_head_flag:
@@ -406,10 +407,10 @@ class RobotControl:
                 else:
                     print("Head marker is not visible")
                     self.trck_init_robot.StopRobot()
-            else:
-                print("Compensating Force")
-                self.trck_init_robot.CompensateForce(self.compensate_force_flag)
-                self.compensate_force_flag = True
+            #else:
+                #print("Compensating Force")
+                #self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                #self.compensate_force_flag = True
         else:
             print("Navigation is off")
             self.tune_status = False

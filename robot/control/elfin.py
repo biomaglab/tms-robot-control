@@ -68,7 +68,6 @@ class Elfin_Server():
         return self.cobot.ReadForceSensorData()[2]
 
     def CompensateForce(self, flag):
-        print("compensating force")
         status = self.cobot.ReadMoveState()
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             if not flag:
@@ -85,12 +84,13 @@ class Elfin_Server():
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             print("tuning target")
+            print(self.tune_status)
             if self.tune_status == 0:
-                CompenDistance = [0, 1, distance_to_target[1]]  #X [directionID; direction (0:negative, 1:positive); distance]
+                CompenDistance = [0, 1, distance_to_target[0]]  #X [directionID; direction (0:negative, 1:positive); distance]
                 self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
                 self.tune_status = 1
             elif self.tune_status == 1:
-                CompenDistance = [1, 1, distance_to_target[0]]  #Y
+                CompenDistance = [1, 1, distance_to_target[1]]  #Y
                 self.cobot.MoveRelL(CompenDistance)  
                 self.tune_status = 2
             elif self.tune_status == 2:
@@ -98,11 +98,11 @@ class Elfin_Server():
                 self.cobot.MoveRelL(CompenDistance)
                 self.tune_status = 3
             elif self.tune_status == 3:
-                CompenDistance = [3, 1, distance_to_target[4]]  #RX
+                CompenDistance = [3, 1, distance_to_target[3]]  #RX
                 self.cobot.MoveRelL(CompenDistance)
                 self.tune_status = 4
             elif self.tune_status == 4:
-                CompenDistance = [4, 1, distance_to_target[3]]  #RY
+                CompenDistance = [4, 1, distance_to_target[4]]  #RY
                 self.cobot.MoveRelL(CompenDistance)
                 self.tune_status = 5
             elif self.tune_status == 5:
