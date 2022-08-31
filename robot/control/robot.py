@@ -393,7 +393,7 @@ class RobotControl:
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
-            #if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
+            if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
                 self.compensate_force_flag = False
                 #CHECK IF HEAD IS VISIBLE
                 if coord_head_tracker_in_robot is not None and marker_head_flag:
@@ -407,10 +407,10 @@ class RobotControl:
                 else:
                     print("Head marker is not visible")
                     self.trck_init_robot.StopRobot()
-            #else:
+            else:
                 #print("Compensating Force")
-                #self.trck_init_robot.CompensateForce(self.compensate_force_flag)
-                #self.compensate_force_flag = True
+                self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                self.compensate_force_flag = True
         else:
             print("Navigation is off")
             self.tune_status = False
