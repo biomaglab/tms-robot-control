@@ -276,8 +276,8 @@ class RobotControl:
         if self.coord_inv_old is None:
             self.coord_inv_old = new_robot_coordinates
 
-        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 1) or self.tune_status:
-            # Robot reaches the robot target (1 mm). The robot target might be a bit different from neuronavigation target, due to registration error. This part corrects that
+        if np.allclose(np.array(new_robot_coordinates[:3]), np.array(current_robot_coordinates[:3]), 0, 10) or self.tune_status:
+            # Robot reaches the robot target (10 mm). The robot target might be a bit different from neuronavigation target, due to registration error. This part corrects that
             if marker_coil_flag:
                 if not self.coil_at_target_state:
                     # this IF is for safety reasons. To avoid tune movements highers than 5cm (TODO: check the limits)
