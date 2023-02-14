@@ -12,6 +12,7 @@ class Elfin_Server():
         self.server_ip = server_ip
         self.port_number = port_number
         self.tune_status = 0
+        self.coordinate = [None]*6
 
     def Initialize(self):
         message_size = 1024
@@ -21,34 +22,10 @@ class Elfin_Server():
         return status_connection
 
     def Run(self):
-        return self.cobot.ReadPcsActualPos()
-
-    def CalibrateDirection(self, direction):
-        init_position = self.cobot.ReadPcsActualPos()
-        self.StopRobot()
-        self.cobot.SetToolCoordinateMotion(1)
-        CompenDistance = [direction, 0, 5]  # [directionID; direction (0:negative, 1:positive); distance]
-        self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
-        status = self.cobot.ReadMoveState()
-        while status == 1009:
-            status = self.cobot.ReadMoveState()
-        final_position = self.cobot.ReadPcsActualPos()
-        self.cobot.SetToolCoordinateMotion(0)
-
-        return init_position, final_position
-
-    def SendCoordinates(self, target):
-        """
-        It's not possible to send a move command to elfin if the robot is during a move.
-         Status 1009 means robot in motion.
-        """
-        self.StopRobot()
-        self.cobot.MoveL(target)
-        status = self.cobot.ReadMoveState()
-        while status == 1009:
-            status = self.cobot.ReadMoveState()
-
-        return self.cobot.ReadPcsActualPos()
+        coord = self.cobot.ReadPcsActualPos()
+        if coord:
+            self.coordinate = coord
+        return self.coordinate
 
     def SendCoordinatesControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
@@ -331,8 +308,11 @@ class Elfin:
             1025 =Error reporting
         """
         message = "ReadMoveState," + self.robot_id + self.end_msg
-        status = int(self.send(message)[0])
-        return status
+        readmovestate = self.send(message)
+        if readmovestate:
+            status = int(readmovestate[0])
+            return status
+        return 1025
 
     def MoveHoming(self):
         """
