@@ -35,6 +35,11 @@ def from_robot(sid, msg):
     asyncio.create_task(sio.emit('to_neuronavigation', msg))
     print('Forwarding robot -> neuronavigation: %s' % str(msg))
 
+@sio.event
+def restart_robot_main_loop(sid):
+    asyncio.create_task(sio.emit('restart_robot_main_loop'))
+    print('Restarting robot main_loop')
+
 
 if __name__ == '__main__':
     uvicorn.run(app, port=port, host='0.0.0.0', loop='asyncio')

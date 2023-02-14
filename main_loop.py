@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+import sys
 
 import time
 import socketio
@@ -17,6 +19,7 @@ class RemoteControl:
         self.__sio.on('connect', self.__on_connect)
         self.__sio.on('disconnect', self.__on_disconnect)
         self.__sio.on('to_robot', self.__on_message_receive)
+        self.__sio.on('restart_robot_main_loop', self.__on_restart_main_loop)
         self.__lock = Lock()
 
     def __on_connect(self):
@@ -31,6 +34,17 @@ class RemoteControl:
         self.__lock.acquire()
         self.__buffer.append(msg)
         self.__lock.release()
+
+    def __on_restart_main_loop(self):
+        """Restarts the current program.
+        Automatically restarts the main_loop.py when Invesalius is started.
+        The restart only works if the code is running in the python console.
+        For pycharm users, the "Edit configuration" can be used to select the option "Run with Python Console".
+        The conventional pycharm "run" can also be used, but every time InVesalius is started the main_loop will stop and
+        requires to be manually started again.
+        """
+        python = sys.executable
+        os.execl(python, *sys.argv)
 
     def get_buffer(self):
         self.__lock.acquire()
