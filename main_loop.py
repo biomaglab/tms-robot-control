@@ -44,7 +44,7 @@ class RemoteControl:
         requires to be manually started again.
         """
         python = sys.executable
-        os.execl(python, *sys.argv)
+        os.execl(python, python, *sys.argv)
 
     def get_buffer(self):
         self.__lock.acquire()
