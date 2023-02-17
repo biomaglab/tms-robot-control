@@ -28,7 +28,7 @@ class TrackerCoordinates:
     The class is required to avoid acquisition conflict with different threads
     """
     def __init__(self):
-        self.coord = [[None]*6, [None]*6, [None]*6]
+        self.coord = [None, None, None]
         self.markers_flag = [False, False, False]
         self.m_tracker_to_robot = None
 
