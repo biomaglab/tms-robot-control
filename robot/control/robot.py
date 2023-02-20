@@ -373,7 +373,10 @@ class RobotControl:
         return robot_status
 
     def robot_control(self):
+        robot_status = False
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
+        if current_tracker_coordinates[1] is None:
+            return robot_status
         marker_head_flag = markers_flag[1]
         marker_coil_flag = markers_flag[2]
         coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
@@ -386,8 +389,6 @@ class RobotControl:
             coord_head_tracker_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
         else:
             coord_head_tracker_in_robot = coord_head_tracker_filtered
-
-        robot_status = False
 
         #CHECK IF TARGET FROM INVESALIUS
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
