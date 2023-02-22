@@ -135,7 +135,7 @@ class Elfin:
             return True
 
         elif status == 'Fail':
-            print("Error code: ", recv_message[2])
+            print("The message {} is returning the error code: {}".format(recv_message[0], recv_message[2]))
             return False
 
     def Electrify(self):
