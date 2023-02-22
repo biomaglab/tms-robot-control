@@ -181,7 +181,7 @@ class RobotControl:
         self.robot_markers = []
 
     def OnDeleteRobotMarker(self, data):
-        index = data["index"]
+        index = data["indexes"]
         for i in reversed(index):
             del self.robot_markers[i]
 
