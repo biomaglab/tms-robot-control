@@ -281,7 +281,7 @@ class RobotControl:
             if marker_coil_flag:
                 if not self.coil_at_target_state:
                     # this IF is for safety reasons. To avoid tune movements highers than 5cm (TODO: check the limits)
-                    if np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 50:
+                    if np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE:
                         self.tune_status = True
                         #tunes the robot position based on neuronavigation
                         self.trck_init_robot.TuneTarget(self.distance_to_target)
