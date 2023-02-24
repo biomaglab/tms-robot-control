@@ -15,6 +15,8 @@ ROBOT_RY_OFFSET = 0
 ROBOT_RZ_OFFSET = -30
 ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE = 50
 
+FORCE_TORQUE_SENSOR = False
+
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
 ROBOT_WORKING_SPACE = 1000 #mm
 ROBOT_MOVE_STATE = {"free to move": 0,

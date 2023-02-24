@@ -42,7 +42,10 @@ class Elfin_Server():
             self.StopRobot()
 
     def GetForceSensorData(self):
-        return self.cobot.ReadForceSensorData()[2]
+        if const.FORCE_TORQUE_SENSOR:
+            return self.cobot.ReadForceSensorData()[2]
+        else:
+            return False
 
     def CompensateForce(self, flag):
         status = self.cobot.ReadMoveState()
