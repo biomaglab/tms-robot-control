@@ -186,17 +186,19 @@ class RobotControl:
             del self.robot_markers[i]
 
     def OnCoilToRobotAlignment(self, distance):
-        rotation_matrix = np.identity(4)
-        rotation_along_z = np.array([[np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET)), -np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET))],
-                                    [np.sin(np.deg2rad(const.ROBOT_RZ_OFFSET)), np.cos(np.deg2rad(const.ROBOT_RZ_OFFSET))]])
-        rotation_matrix[:2, :2] = rotation_along_z
+        xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
+        Rx = tr.rotation_matrix(const.ROBOT_RX_OFFSET, xaxis)
+        Ry = tr.rotation_matrix(const.ROBOT_RY_OFFSET, yaxis)
+        Rz = tr.rotation_matrix(const.ROBOT_RZ_OFFSET, zaxis)
+        rotation_alignment_matrix = tr.concatenate_matrices(Rx, Ry, Rz)
+
         fix_axis = -distance[0], distance[1], distance[2], -distance[3], distance[4], distance[5]
         m_offset = elfin_process.coordinates_to_transformation_matrix(
             position=fix_axis[:3],
             orientation=fix_axis[3:],
             axes='sxyz',
         )
-        distance_matrix = np.linalg.inv(rotation_matrix) @ m_offset @ rotation_matrix
+        distance_matrix = np.linalg.inv(rotation_alignment_matrix) @ m_offset @ rotation_alignment_matrix
 
         return elfin_process.transformation_matrix_to_coordinates(distance_matrix, axes='sxyz')
 
