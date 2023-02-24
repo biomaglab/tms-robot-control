@@ -267,10 +267,11 @@ class Elfin:
         :param: target:[directionID; direction (0:negative, 1:positive); distance]
         :return:
         """
-        distance = [str(s) for s in distance]
-        distance = (",".join(distance))
-        message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
-        return self.send(message)
+        if abs(distance[2]) > 0.1:
+            distance = [str(s) for s in distance]
+            distance = (",".join(distance))
+            message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
+            self.send(message)
 
     def ReadForceSensorData(self):
         """Function: Read force sensor data
