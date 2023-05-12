@@ -1,7 +1,11 @@
 #Robot
-SITE = "usp"
+SITE = "usp_coil"
 # Define the required offset to align the coil and robot end effector
-if SITE == "usp":
+if SITE == "usp_coil":
+    ROBOT_RX_OFFSET = 0
+    ROBOT_RY_OFFSET = 0
+    ROBOT_RZ_OFFSET = -90
+elif SITE == "usp_neurosoft":
     ROBOT_RX_OFFSET = -90
     ROBOT_RY_OFFSET = 0
     ROBOT_RZ_OFFSET = -30
