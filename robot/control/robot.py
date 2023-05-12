@@ -82,25 +82,26 @@ class RobotControl:
         self.robot_mode_status = data["robot_mode"]
 
     def OnUpdateRobotTargetMatrix(self, data):
-        self.robot_tracker_flag = data["robot_tracker_flag"]
-        self.target_index = data["target_index"]
-        target = data["target"]
-        if not self.robot_tracker_flag:
-            self.trck_init_robot.StopRobot()
-        if target is not None:
-            target = np.array(target).reshape(4, 4)
-            self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
-            self.target_force_sensor_data = self.new_force_sensor_data
-            print("Setting robot target")
-        else:
-            if self.robot_tracker_flag:
-                self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
-                self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
-                print("Setting robot target for head move compensation")
+        if self.trck_init_robot:
+            self.robot_tracker_flag = data["robot_tracker_flag"]
+            self.target_index = data["target_index"]
+            target = data["target"]
+            if not self.robot_tracker_flag:
+                self.trck_init_robot.StopRobot()
+            if target is not None:
+                target = np.array(target).reshape(4, 4)
+                self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
+                self.target_force_sensor_data = self.new_force_sensor_data
+                print("Setting robot target")
             else:
-                self.m_change_robot_to_head = [None] * 9
-                self.target_force_sensor_data = 0
-                print("Invalid robot target")
+                if self.robot_tracker_flag:
+                    self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
+                    self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
+                    print("Setting robot target for head move compensation")
+                else:
+                    self.m_change_robot_to_head = [None] * 9
+                    self.target_force_sensor_data = 0
+                    print("Invalid robot target")
 
     def OnResetProcessTracker(self, data):
         self.process_tracker.__init__()
@@ -307,7 +308,7 @@ class RobotControl:
             self.trck_init_robot.StopRobot()
             self.coord_inv_old = new_robot_coordinates
         else:
-            distance_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates,
+            distance_target = elfin_process.correction_distance_calculation_target(tunning_to_target,
                                                                                    current_robot_coordinates)
             robot_status = self.robot_move_decision(distance_target, new_robot_coordinates,
                                                     current_robot_coordinates, coord_head_tracker, tunning_to_target)
@@ -352,7 +353,6 @@ class RobotControl:
                         self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
                         self.target_arc = target_arc
                         new_robot_target_coordinates = self.target_arc
-                        print("start arc")
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
@@ -366,7 +366,6 @@ class RobotControl:
                     new_robot_target_coordinates = self.target_arc
 
                     if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
-                        print("aqui normal")
                         self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                         new_robot_target_coordinates = tunning_to_target
 
@@ -374,7 +373,7 @@ class RobotControl:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                 new_robot_target_coordinates = tunning_to_target
 
-            if not np.allclose(np.array(current_robot_coordinates)[:3], np.array(new_robot_coordinates)[:3], 0, 1):
+            if not self.coil_at_target_state:
                 self.trck_init_robot.SendCoordinatesControl(new_robot_target_coordinates, self.motion_step_flag)
 
             robot_status = True
@@ -409,7 +408,7 @@ class RobotControl:
             if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
                 self.compensate_force_flag = False
                 #CHECK IF HEAD IS VISIBLE
-                if coord_head_tracker_in_robot is not None and marker_head_flag:
+                if coord_head_tracker_in_robot is not None and marker_head_flag and marker_coil_flag:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                         new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
