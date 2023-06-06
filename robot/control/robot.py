@@ -88,20 +88,14 @@ class RobotControl:
             target = data["target"]
             if not self.robot_tracker_flag:
                 self.trck_init_robot.StopRobot()
-            if target is not None:
+                self.m_change_robot_to_head = [None] * 9
+                self.target_force_sensor_data = 0
+                print("Removing robot target")
+            else:
                 target = np.array(target).reshape(4, 4)
                 self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
                 print("Setting robot target")
-            else:
-                if self.robot_tracker_flag:
-                    self.m_change_robot_to_head = self.robot_markers[self.target_index].robot_target_matrix
-                    self.target_force_sensor_data = self.robot_markers[self.target_index].robot_force_sensor_data
-                    print("Setting robot target for head move compensation")
-                else:
-                    self.m_change_robot_to_head = [None] * 9
-                    self.target_force_sensor_data = 0
-                    print("Invalid robot target")
 
     def OnResetProcessTracker(self, data):
         self.process_tracker.__init__()
@@ -365,9 +359,9 @@ class RobotControl:
                             self.target_arc = tunning_to_target
                     new_robot_target_coordinates = self.target_arc
 
-                    if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
-                        self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                        new_robot_target_coordinates = tunning_to_target
+                    #if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
+                    #    self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+                    #    new_robot_target_coordinates = tunning_to_target
 
             else:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
