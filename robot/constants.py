@@ -9,10 +9,14 @@ elif SITE == "usp_neurosoft":
     ROBOT_RX_OFFSET = -90
     ROBOT_RY_OFFSET = 0
     ROBOT_RZ_OFFSET = -30
-else:
+elif SITE == "aalto":
     ROBOT_RX_OFFSET = 0
     ROBOT_RY_OFFSET = 0
     ROBOT_RZ_OFFSET = -22.5
+else:
+    ROBOT_RX_OFFSET = 0
+    ROBOT_RY_OFFSET = 0
+    ROBOT_RZ_OFFSET = 0
 
 SLEEP_ROBOT = 0.01
 
