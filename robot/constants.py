@@ -47,9 +47,6 @@ PUB_MESSAGES = ['Connect to robot',
                 'Reset coordinates collection for the robot transformation matrix',
                 'Robot transformation matrix estimation',
                 'Load robot transformation matrix',
-                'Add marker to robot control',
-                'Remove multiple markers',
-                'Remove all markers',
                 'Reset robot',
                 'Coil at target',
                 'Distance to the target',
@@ -65,9 +62,6 @@ FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX = 6
 FUNCTION_RESET_ROBOT_MATRIX = 7
 FUNCTION_ROBOT_MATRIX_ESTIMATION = 8
 FUNCTION_LOAD_ROBOT_MATRIX = 9
-FUNCTION_ADD_MARKER = 10
-FUNCTION_REMOVE_MULTIPLE_MARKERS = 11
-FUNCTION_REMOVE_ALL_MARKERS = 12
-FUNCTION_RESET_ROBOT = 13
-FUNCTION_COIL_AT_TARGET = 14
-FUNCTION_DISTANCE_TO_TARGET = 15
+FUNCTION_RESET_ROBOT = 10
+FUNCTION_COIL_AT_TARGET = 11
+FUNCTION_DISTANCE_TO_TARGET = 12

@@ -47,32 +47,8 @@ class RobotControl:
         self.coil_at_target_state = False
         self.distance_to_target = [0]*6
 
-        self.robot_markers = []
-
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
-
-    @dataclasses.dataclass
-    class Robot_Marker:
-        """Class for storing robot target."""
-        m_robot_target : list = None
-        target_force_sensor_data : float = 0
-
-        @property
-        def robot_target_matrix(self):
-            return self.m_robot_target
-
-        @robot_target_matrix.setter
-        def robot_target_matrix(self, new_m_robot_target):
-            self.m_robot_target = new_m_robot_target
-
-        @property
-        def robot_force_sensor_data(self):
-            return self.target_force_sensor_data
-
-        @robot_force_sensor_data.setter
-        def robot_force_sensor_data(self, new_force_sensor_data):
-            self.target_force_sensor_data = new_force_sensor_data
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
@@ -153,32 +129,6 @@ class RobotControl:
         X_est, Y_est, affine_matrix_tracker_to_robot = np.split(np.array(data["data"]).reshape(12, 4), 3, axis=0)
         self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
         self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
-
-    def OnAddRobotMarker(self, data):
-        if data["data"]:
-            coordinates = self.tracker_coordinates.GetCoordinates()[0]
-            if self.tracker_coordinates.m_tracker_to_robot is not None:
-                head_coordinates_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coordinates[1])
-            else:
-                head_coordinates_in_robot = coordinates[1]
-            robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
-            current_robot_target_matrix = elfin_process.compute_robot_to_head_matrix(head_coordinates_in_robot, robot_coordinates)
-        else:
-            current_robot_target_matrix = [None]
-
-        new_robot_marker = self.Robot_Marker()
-        new_robot_marker.robot_target_matrix = current_robot_target_matrix
-        new_robot_marker.target_force_sensor_data = self.new_force_sensor_data
-
-        self.robot_markers.append(new_robot_marker)
-
-    def OnDeleteAllRobotMarker(self, data):
-        self.robot_markers = []
-
-    def OnDeleteRobotMarker(self, data):
-        index = data["indexes"]
-        for i in reversed(index):
-            del self.robot_markers[i]
 
     def OnCoilToRobotAlignment(self, distance):
         xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
