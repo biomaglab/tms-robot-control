@@ -252,15 +252,13 @@ class RobotControl:
             self.trck_init_robot.StopRobot()
             self.coord_inv_old = new_robot_coordinates
         else:
-            distance_target = elfin_process.correction_distance_calculation_target(tunning_to_target,
-                                                                                   current_robot_coordinates)
-            robot_status = self.robot_move_decision(distance_target, new_robot_coordinates,
-                                                    current_robot_coordinates, coord_head_tracker, tunning_to_target)
+            robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
+                                                    coord_head_tracker, tunning_to_target)
             self.coord_inv_old = new_robot_coordinates
 
         return robot_status
 
-    def robot_move_decision(self, distance_target, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target):
+    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target):
         """
         There are two types of robot movements.
         We can imagine in two concentric spheres of different sizes. The inside sphere is to compensate for small head movements.
@@ -279,10 +277,17 @@ class RobotControl:
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
         """
+        current_robot_coordinates_flip_angle = current_robot_coordinates.copy()
+        current_robot_coordinates_flip_angle[3], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[5] = current_robot_coordinates_flip_angle[5], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[3]
+        distance_target = elfin_process.correction_distance_calculation_target(tunning_to_target,
+                                                                               current_robot_coordinates)
+        distance_angle_target = elfin_process.correction_distance_calculation_target(tunning_to_target[3:],
+                                                                                     current_robot_coordinates_flip_angle[3:])
         #Check if the target is inside the working space
         if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
             #Check the target distance to define the motion mode
-            if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
+
+            if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
                 head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
                 target_linear_out, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
                                                                                  head_center_coordinates,
@@ -293,18 +298,18 @@ class RobotControl:
 
                 if self.motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
                     new_robot_target_coordinates = self.target_linear_out
-                    if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_linear_out)[:3], 0, 1):
+                    if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
                         self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
                         self.target_arc = target_arc
                         new_robot_target_coordinates = self.target_arc
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
-                    if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, 20):
-                        if elfin_process.correction_distance_calculation_target(new_robot_coordinates[:3], current_robot_coordinates[:3]) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
+                    if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
+                        if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = target_arc
                             #Avoid small arc motion
-                        elif elfin_process.correction_distance_calculation_target(target_arc[3:-4], current_robot_coordinates[:3]) < const.ROBOT_ARC_THRESHOLD_DISTANCE/1.5:
+                        elif elfin_process.correction_distance_calculation_target(target_arc[3:-1], current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/3:
                             self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                             self.target_arc = tunning_to_target
                     new_robot_target_coordinates = self.target_arc
