@@ -12,7 +12,7 @@ elif SITE == "usp_neurosoft":
 elif SITE == "aalto":
     ROBOT_RX_OFFSET = 0
     ROBOT_RY_OFFSET = 0
-    ROBOT_RZ_OFFSET = -22.5
+    ROBOT_RZ_OFFSET = 157.5
 else:
     ROBOT_RX_OFFSET = 0
     ROBOT_RY_OFFSET = 0
