@@ -63,19 +63,19 @@ class Elfin_Server():
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            print("tuning target")
-            print(self.tune_status)
+            #print("tuning target")
+            #print(self.tune_status)
             if self.tune_status == 0:
-                CompenDistance = [0, 1, distance_to_target[0]]  #X [directionID; direction (0:negative, 1:positive); distance]
-                self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
-                self.tune_status = 1
-            elif self.tune_status == 1:
-                CompenDistance = [1, 1, distance_to_target[1]]  #Y
-                self.cobot.MoveRelL(CompenDistance)  
-                self.tune_status = 2
-            elif self.tune_status == 2:
                 CompenDistance = [2, 1, distance_to_target[2]]  #Z
                 self.cobot.MoveRelL(CompenDistance)
+                self.tune_status = 1
+            elif self.tune_status == 1:
+                CompenDistance = [0, 1, distance_to_target[0]]  #X [directionID; direction (0:negative, 1:positive); distance]
+                self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+                self.tune_status = 2
+            elif self.tune_status == 2:
+                CompenDistance = [1, 1, distance_to_target[1]]  #Y
+                self.cobot.MoveRelL(CompenDistance)  
                 self.tune_status = 3
             elif self.tune_status == 3:
                 CompenDistance = [3, 1, distance_to_target[3]]  #RX
@@ -270,7 +270,13 @@ class Elfin:
         :param: target:[directionID; direction (0:negative, 1:positive); distance]
         :return:
         """
-        if abs(distance[2]) > 0.1:
+        #avoid small moves
+        # TODO: get thresholds from invesalius
+        if distance[1] in [3, 4, 5]:
+            threshold = 1 #degrees
+        else:
+            threshold = 1 #mm
+        if abs(distance[2]) > threshold:
             distance = [str(s) for s in distance]
             distance = (",".join(distance))
             message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg

@@ -323,7 +323,15 @@ class RobotControl:
                 new_robot_target_coordinates = tunning_to_target
 
             if not self.coil_at_target_state:
-                self.trck_init_robot.SendCoordinatesControl(new_robot_target_coordinates, self.motion_step_flag)
+                if (np.sqrt(
+                        np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or
+                    np.sqrt(
+                        np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
+                        and self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
+                    # tunes the robot position based on neuronavigation
+                    self.trck_init_robot.TuneTarget(self.distance_to_target)
+                else:
+                    self.trck_init_robot.SendCoordinatesControl(new_robot_target_coordinates, self.motion_step_flag)
 
             robot_status = True
         else:
