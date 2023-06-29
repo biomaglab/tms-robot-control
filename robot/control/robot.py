@@ -181,7 +181,7 @@ class RobotControl:
 
     def ElfinRobot(self, robot_IP):
         print("Trying to connect Robot via: ", robot_IP)
-        self.trck_init_robot = elfin.Elfin_Server(robot_IP, const.ROBOT_ElFIN_PORT)
+        self.trck_init_robot = elfin.Elfin_Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
         status_connection = self.trck_init_robot.Initialize()
         if status_connection:
             print('Connect to elfin robot tracking device.')
