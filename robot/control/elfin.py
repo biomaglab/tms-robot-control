@@ -8,16 +8,17 @@ class Elfin_Server():
     This class is similar to tracker devices wrappers.
     It follows the same functions as the others (Initialize, Run and Close)
     """
-    def __init__(self, server_ip, port_number):
+    def __init__(self, server_ip, port_number, remote_control):
         self.server_ip = server_ip
         self.port_number = port_number
+        self.remote_control = remote_control
         self.tune_status = 0
         self.coordinate = [None]*6
 
     def Initialize(self):
         message_size = 1024
         robot_id = 0
-        self.cobot = Elfin()
+        self.cobot = Elfin(self.remote_control)
         status_connection = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
         return status_connection
 
@@ -103,10 +104,11 @@ class Elfin_Server():
         #TODO: robot function to close? self.cobot.close()
 
 class Elfin:
-    def __init__(self):
+    def __init__(self, remote_control):
         """
         Class to communicate with elfin robot. This class follows "HansRobot Communication Protocol Interface".
         """
+        self.remote_control = remote_control
         self.end_msg = ",;"
 
     def connect(self, server_ip, port_number, message_size, robot_id):
@@ -114,6 +116,8 @@ class Elfin:
             mySocket = socket(AF_INET, SOCK_STREAM)
             mySocket.connect((server_ip, port_number))
 
+            self.server_ip = server_ip
+            self.port_number = port_number
             self.message_size = message_size
             self.robot_id = str(robot_id)
             self.mySocket = mySocket
@@ -123,9 +127,26 @@ class Elfin:
         except:
             return False
 
+    def reconnect(self):
+        topic = 'Update robot status'
+        data = {'robot_status': False}
+        self.remote_control.send_message(topic, data)
+        print("Trying to reconnect to robot...")
+        while self.connect(self.server_ip, self.port_number, self.message_size, self.robot_id) is False:
+            sleep(1)
+            print("Trying to reconnect to robot...")
+        self.GrpStop()
+        sleep(0.1)
+        print("Reconnect!")
+
     def send(self, message):
         self.mySocket.sendall(message.encode('utf-8'))
-        data = self.mySocket.recv(self.message_size).decode('utf-8').split(',')
+        try:
+            data = self.mySocket.recv(self.message_size).decode('utf-8').split(',')
+        except TimeoutError:
+            print("Robot connection error: TimeoutError")
+            self.reconnect()
+            return False
         status = self.check_status(data)
         if status and type(data) != bool:
             if len(data) > 3:
