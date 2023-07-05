@@ -34,13 +34,13 @@ class Elfin_Server():
          Status 1009 means robot in motion.
         """
         status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_MOVE_STATE["free to move"]:
-            if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
-                self.cobot.MoveL(target)
-            elif motion_type == const.ROBOT_MOTIONS["arc"]:
-                self.cobot.MoveC(target)
-        elif status == const.ROBOT_MOVE_STATE["error"]:
-            self.StopRobot()
+        if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
+            self.cobot.MoveB(target)
+        elif motion_type == const.ROBOT_MOTIONS["arc"]:
+            if status == const.ROBOT_MOVE_STATE["free to move"]:
+                    self.cobot.MoveC(target)
+            elif status == const.ROBOT_MOVE_STATE["error"]:
+                self.StopRobot()
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
@@ -309,6 +309,18 @@ class Elfin:
             distance = (",".join(distance))
             message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
             self.send(message)
+
+    def MoveB(self, target):
+        """
+        Function: Immediately change the end point of the robot's current
+        movement to the specified space coordinate position.
+        :param: target:[X,Y,Z,RX,RY,RZ]
+        :return:
+        """
+        target = [str(s) for s in target]
+        target = (",".join(target))
+        message = "MoveB," + self.robot_id + ',' + target + self.end_msg
+        return self.send(message)
 
     def StartServo(self, servoTime=0.015, lookaheadTime=1.5):
         """
