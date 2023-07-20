@@ -22,7 +22,6 @@ class RobotControl:
 
         self.trck_init_robot = None
         self.robot_mode_status = False
-        self.tune_status = False
 
         self.tracker_coord_list = []
         self.robot_coord_list = []
@@ -43,7 +42,6 @@ class RobotControl:
         self.target_linear_in = None
         self.target_arc = None
         self.previous_robot_status = False
-        self.servo = False
 
         self.coil_at_target_state = False
         self.distance_to_target = [0]*6
@@ -99,7 +97,6 @@ class RobotControl:
         self.tracker_coord_list = []
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
-        self.tune_status = False
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
@@ -330,20 +327,9 @@ class RobotControl:
                         np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
                         and self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
                     # tunes the robot position based on neuronavigation
-                    #self.trck_init_robot.TuneTarget(self.distance_to_target)
-                    if not self.servo:
-                        self.trck_init_robot.Servo(servoTime=0.015, lookaheadTime=const.ROBOT_SERVO_LOOKAHEADTIME)
-                    self.trck_init_robot.PushServo(new_robot_target_coordinates)
-                    self.servo = True
+                    self.trck_init_robot.TuneTarget(self.distance_to_target)
                 else:
                     self.trck_init_robot.SendCoordinatesControl(new_robot_target_coordinates, self.motion_step_flag)
-                    self.servo = False
-            else:
-            #     #if not self.servo:
-            #     self.trck_init_robot.Servo(servoTime=0.015, lookaheadTime=0.5)
-            #     self.trck_init_robot.PushServo(new_robot_target_coordinates)
-                self.servo = False
-
             robot_status = True
         else:
             print("Head is too far from the robot basis")
@@ -392,8 +378,5 @@ class RobotControl:
                 #print("Compensating Force")
                 self.trck_init_robot.CompensateForce(self.compensate_force_flag)
                 self.compensate_force_flag = True
-        else:
-            #print("Navigation is off")
-            self.tune_status = False
 
         return robot_status
