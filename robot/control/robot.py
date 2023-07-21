@@ -35,7 +35,6 @@ class RobotControl:
         self.target_index = None
         self.target_flag = False
         self.m_change_robot_to_head = [None] * 9
-        self.coord_inv_old = None
 
         self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
         self.target_linear_out = None
@@ -240,22 +239,6 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker, marker_coil_flag, tunning_to_target):
-        robot_status = True
-        if self.coord_inv_old is None:
-            self.coord_inv_old = new_robot_coordinates
-
-        if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
-            # if the head moves (>10mm) before the robot reach the robot target
-            self.trck_init_robot.StopRobot()
-            self.coord_inv_old = new_robot_coordinates
-        else:
-            robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                    coord_head_tracker, tunning_to_target)
-            self.coord_inv_old = new_robot_coordinates
-
-        return robot_status
-
     def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target):
         """
         There are two types of robot movements.
@@ -277,19 +260,18 @@ class RobotControl:
         """
         current_robot_coordinates_flip_angle = current_robot_coordinates.copy()
         current_robot_coordinates_flip_angle[3], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[5] = current_robot_coordinates_flip_angle[5], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[3]
-        distance_target = elfin_process.correction_distance_calculation_target(tunning_to_target,
+        distance_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates,
                                                                                current_robot_coordinates)
-        distance_angle_target = elfin_process.correction_distance_calculation_target(tunning_to_target[3:],
+        distance_angle_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates[3:],
                                                                                      current_robot_coordinates_flip_angle[3:])
         #Check if the target is inside the working space
         if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
+            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+            target_linear_out, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
+                                                                             head_center_coordinates,
+                                                                             new_robot_coordinates)
             #Check the target distance to define the motion mode
-
             if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
-                head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-                target_linear_out, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
-                                                                                 head_center_coordinates,
-                                                                                 new_robot_coordinates)
                 if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
                     self.target_linear_out = target_linear_out
                     self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]
@@ -304,6 +286,10 @@ class RobotControl:
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
                     if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
+                        _, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
+                                                                              head_center_coordinates,
+                                                                              new_robot_coordinates,
+                                                                              versor_factor=1)
                         if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = target_arc
                             #Avoid small arc motion
@@ -311,10 +297,6 @@ class RobotControl:
                             self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                             self.target_arc = tunning_to_target
                     new_robot_target_coordinates = self.target_arc
-
-                    #if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
-                    #    self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                    #    new_robot_target_coordinates = tunning_to_target
 
             else:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
@@ -367,7 +349,8 @@ class RobotControl:
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                         new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
                         tunning_to_target = self.OnTuneTCP()
-                        robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered, marker_coil_flag, tunning_to_target)
+                        robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
+                                                                coord_head_tracker_filtered, tunning_to_target)
                     else:
                         print("Head is moving too much")
                         self.trck_init_robot.StopRobot()
