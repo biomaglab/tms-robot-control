@@ -119,7 +119,7 @@ def compute_versors(init_point, final_point, scale=const.ROBOT_VERSOR_SCALE_FACT
 
     return versor_factor
 
-def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_robot_coordinates):
+def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_robot_coordinates, versor_factor=1.5):
     head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2]
 
     versor_factor_move_out = compute_versors(head_center, current_robot_coordinates[:3])
@@ -132,7 +132,7 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
                     (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
                     (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
 
-    versor_factor_middle_arc = (np.array(compute_versors(head_center, middle_point))) * 1.5
+    versor_factor_middle_arc = (np.array(compute_versors(head_center, middle_point))) * versor_factor
     middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
                        middle_point[1] + versor_factor_middle_arc[1], \
                        middle_point[2] + versor_factor_middle_arc[2]
