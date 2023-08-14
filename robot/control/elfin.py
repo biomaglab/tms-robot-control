@@ -12,7 +12,6 @@ class Elfin_Server():
         self.server_ip = server_ip
         self.port_number = port_number
         self.remote_control = remote_control
-        self.tune_status = 0
         self.coordinate = [None]*6
 
     def Initialize(self):
@@ -64,33 +63,10 @@ class Elfin_Server():
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            #print("tuning target")
-            #print(self.tune_status)
-            if self.tune_status == 0:
-                CompenDistance = [2, 1, distance_to_target[2]]  #Z
-                self.cobot.MoveRelL(CompenDistance)
-                self.tune_status = 1
-            elif self.tune_status == 1:
-                CompenDistance = [0, 1, distance_to_target[0]]  #X [directionID; direction (0:negative, 1:positive); distance]
-                self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
-                self.tune_status = 2
-            elif self.tune_status == 2:
-                CompenDistance = [1, 1, distance_to_target[1]]  #Y
-                self.cobot.MoveRelL(CompenDistance)  
-                self.tune_status = 3
-            elif self.tune_status == 3:
-                CompenDistance = [3, 1, distance_to_target[3]]  #RX
-                self.cobot.MoveRelL(CompenDistance)
-                self.tune_status = 4
-            elif self.tune_status == 4:
-                CompenDistance = [4, 1, distance_to_target[4]]  #RY
-                self.cobot.MoveRelL(CompenDistance)
-                self.tune_status = 5
-            elif self.tune_status == 5:
-                CompenDistance = [5, 1, distance_to_target[5]] #RZ
-                self.cobot.MoveRelL(CompenDistance)
-                self.tune_status = 0
-
+            abs_distance_to_target = [abs(x) for x in distance_to_target]
+            direction = abs_distance_to_target.index(max(abs_distance_to_target))
+            CompenDistance = [direction, 1, distance_to_target[direction]]
+            self.cobot.MoveRelL(CompenDistance)
             self.cobot.SetToolCoordinateMotion(0)
 
     def StopRobot(self):
@@ -291,17 +267,10 @@ class Elfin:
         :param: target:[directionID; direction (0:negative, 1:positive); distance]
         :return:
         """
-        #avoid small moves
-        # TODO: get thresholds from invesalius
-        if distance[1] in [3, 4, 5]:
-            threshold = 1 #degrees
-        else:
-            threshold = 1 #mm
-        if abs(distance[2]) > threshold:
-            distance = [str(s) for s in distance]
-            distance = (",".join(distance))
-            message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
-            self.send(message)
+        distance = [str(s) for s in distance]
+        distance = (",".join(distance))
+        message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
+        self.send(message)
 
     def ReadForceSensorData(self):
         """Function: Read force sensor data

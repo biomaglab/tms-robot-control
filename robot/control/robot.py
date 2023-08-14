@@ -22,7 +22,6 @@ class RobotControl:
 
         self.trck_init_robot = None
         self.robot_mode_status = False
-        self.tune_status = False
 
         self.tracker_coord_list = []
         self.robot_coord_list = []
@@ -98,7 +97,6 @@ class RobotControl:
         self.tracker_coord_list = []
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
-        self.tune_status = False
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
@@ -383,6 +381,6 @@ class RobotControl:
                 self.compensate_force_flag = True
         else:
             #print("Navigation is off")
-            self.tune_status = False
+            pass
 
         return robot_status
