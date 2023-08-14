@@ -33,13 +33,13 @@ class Elfin_Server():
          Status 1009 means robot in motion.
         """
         status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_MOVE_STATE["free to move"]:
-            if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
-                self.cobot.MoveB(target)
-            elif motion_type == const.ROBOT_MOTIONS["arc"]:
+        if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
+            self.cobot.MoveB(target)
+        elif motion_type == const.ROBOT_MOTIONS["arc"]:
+            if status == const.ROBOT_MOVE_STATE["free to move"]:
                 self.cobot.MoveC(target)
-        elif status == const.ROBOT_MOVE_STATE["error"]:
-            self.StopRobot()
+            elif status == const.ROBOT_MOVE_STATE["error"]:
+                self.StopRobot()
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
