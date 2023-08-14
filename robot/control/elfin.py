@@ -35,7 +35,7 @@ class Elfin_Server():
         status = self.cobot.ReadMoveState()
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
-                self.cobot.MoveL(target)
+                self.cobot.MoveB(target)
             elif motion_type == const.ROBOT_MOTIONS["arc"]:
                 self.cobot.MoveC(target)
         elif status == const.ROBOT_MOVE_STATE["error"]:
@@ -334,4 +334,15 @@ class Elfin:
         target = [str(s) for s in target]
         target = (",".join(target))
         message = "MoveC," + self.robot_id + ',' + target + self.end_msg
+        return self.send(message)
+
+    def MoveB(self, target):
+        """
+        function: Linear motion.
+        :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
+        :return:
+        """
+        target = [str(s) for s in target]
+        target = (",".join(target))
+        message = "MoveB," + self.robot_id + ',' + target + self.end_msg
         return self.send(message)
