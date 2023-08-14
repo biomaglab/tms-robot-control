@@ -63,19 +63,11 @@ class Elfin_Server():
         if status == const.ROBOT_MOVE_STATE["free to move"]:
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            #print("tuning target")
             abs_distance_to_target = [abs(x) for x in distance_to_target]
             direction = abs_distance_to_target.index(max(abs_distance_to_target))
             CompenDistance = [direction, 1, distance_to_target[direction]]
             self.cobot.MoveRelL(CompenDistance)
             self.cobot.SetToolCoordinateMotion(0)
-
-    def Servo(self, servoTime, lookaheadTime):
-        self.cobot.StartServo(servoTime, lookaheadTime)
-
-    def PushServo(self, target):
-        self.cobot.PushServoP(target)
-
 
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
@@ -275,56 +267,10 @@ class Elfin:
         :param: target:[directionID; direction (0:negative, 1:positive); distance]
         :return:
         """
-        #avoid small moves
-        # TODO: get thresholds from invesalius
-        if distance[1] in [3, 4, 5]:
-            threshold = 0.1 #degrees
-        else:
-            threshold = 0.1 #mm
-        if abs(distance[2]) > threshold:
-            distance = [str(s) for s in distance]
-            distance = (",".join(distance))
-            message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
-            self.send(message)
-
-    def MoveB(self, target):
-        """
-        Function: Immediately change the end point of the robot's current
-        movement to the specified space coordinate position.
-        :param: target:[X,Y,Z,RX,RY,RZ]
-        :return:
-        """
-        target = [str(s) for s in target]
-        target = (",".join(target))
-        message = "MoveB," + self.robot_id + ',' + target + self.end_msg
-        return self.send(message)
-
-    def StartServo(self, servoTime=0.015, lookaheadTime=1.5):
-        """
-        Function: Set the fixed update cycle and look-ahead time when
-        starting the robot online control (servoJ or servoP).
-        servoTime: The period of fixed location update is recommended to be greater than 0.015s
-        lookaheadTime: Prospective time, recommended between 0.05s and 0.2s
-        """
-        message = "StartServo," + self.robot_id + ',' + str(servoTime) + ',' + str(lookaheadTime) + self.end_msg
-        return self.send(message)
-
-    def PushServoP(self, target):
-        """
-        Function: The online terminal TCP position command control transmits the TCP position with the fixed update time
-        set by the StartServo, and the robot reversely converts the target position of the target TCP position in
-        real time. Note: The user needs to input a continuous track position. If there is no update position for more
-        than 2 update cycles, the line control will be turned off.
-        :param target:
-        :return:
-        """
-        target = [str(s) for s in target]
-        target = (",".join(target))
-        message = "PushServoP," + self.robot_id + ',' + target + self.end_msg
-        status = self.send(message)
-        if not status:
-            self.StartServo(servoTime=0.015, lookaheadTime=const.ROBOT_SERVO_LOOKAHEADTIME)
-        return status
+        distance = [str(s) for s in distance]
+        distance = (",".join(distance))
+        message = "MoveRelL," + self.robot_id + ',' + distance + self.end_msg
+        self.send(message)
 
     def ReadForceSensorData(self):
         """Function: Read force sensor data
@@ -388,4 +334,15 @@ class Elfin:
         target = [str(s) for s in target]
         target = (",".join(target))
         message = "MoveC," + self.robot_id + ',' + target + self.end_msg
+        return self.send(message)
+
+    def MoveB(self, target):
+        """
+        function: Linear motion.
+        :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
+        :return:
+        """
+        target = [str(s) for s in target]
+        target = (",".join(target))
+        message = "MoveB," + self.robot_id + ',' + target + self.end_msg
         return self.send(message)

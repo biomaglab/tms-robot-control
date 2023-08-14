@@ -361,5 +361,8 @@ class RobotControl:
                 #print("Compensating Force")
                 self.trck_init_robot.CompensateForce(self.compensate_force_flag)
                 self.compensate_force_flag = True
+        else:
+            #print("Navigation is off")
+            pass
 
         return robot_status
