@@ -35,7 +35,6 @@ class RobotControl:
         self.target_index = None
         self.target_flag = False
         self.m_change_robot_to_head = [None] * 9
-        self.coord_inv_old = None
 
         self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
         self.target_linear_out = None
@@ -240,22 +239,6 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_motion(self, current_robot_coordinates, new_robot_coordinates, coord_head_tracker, marker_coil_flag, tunning_to_target):
-        robot_status = True
-        if self.coord_inv_old is None:
-            self.coord_inv_old = new_robot_coordinates
-
-        if not np.allclose(np.array(new_robot_coordinates), np.array(self.coord_inv_old), 0, 10):
-            # if the head moves (>10mm) before the robot reach the robot target
-            self.trck_init_robot.StopRobot()
-            self.coord_inv_old = new_robot_coordinates
-        else:
-            robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                    coord_head_tracker, tunning_to_target)
-            self.coord_inv_old = new_robot_coordinates
-
-        return robot_status
-
     def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target):
         """
         There are two types of robot movements.
@@ -368,7 +351,8 @@ class RobotControl:
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                         new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
                         tunning_to_target = self.OnTuneTCP()
-                        robot_status = self.robot_motion(current_robot_coordinates, new_robot_coordinates, coord_head_tracker_filtered, marker_coil_flag, tunning_to_target)
+                        robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
+                                                 coord_head_tracker_filtered, tunning_to_target)
                     else:
                         print("Head is moving too much")
                         self.trck_init_robot.StopRobot()
