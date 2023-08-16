@@ -260,9 +260,9 @@ class RobotControl:
         """
         current_robot_coordinates_flip_angle = current_robot_coordinates.copy()
         current_robot_coordinates_flip_angle[3], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[5] = current_robot_coordinates_flip_angle[5], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[3]
-        distance_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates,
+        distance_target = elfin_process.correction_distance_calculation_target(tunning_to_target,
                                                                                current_robot_coordinates)
-        distance_angle_target = elfin_process.correction_distance_calculation_target(new_robot_coordinates[3:],
+        distance_angle_target = elfin_process.correction_distance_calculation_target(tunning_to_target[3:],
                                                                                      current_robot_coordinates_flip_angle[3:])
         #Check if the target is inside the working space
         if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
