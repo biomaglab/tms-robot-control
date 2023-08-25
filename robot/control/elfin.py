@@ -3,7 +3,7 @@ from time import sleep
 from socket import socket, AF_INET, SOCK_STREAM
 import robot.constants as const
 
-class Elfin_Server():
+class Server():
     """
     This class is similar to tracker devices wrappers.
     It follows the same functions as the others (Initialize, Run and Close)
@@ -36,9 +36,9 @@ class Elfin_Server():
         if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
             self.cobot.MoveB(target)
         elif motion_type == const.ROBOT_MOTIONS["arc"]:
-            if status == const.ROBOT_MOVE_STATE["free to move"]:
+            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
                 self.cobot.MoveC(target)
-            elif status == const.ROBOT_MOVE_STATE["error"]:
+            elif status == const.ROBOT_ELFIN_MOVE_STATE["error"]:
                 self.StopRobot()
 
     def GetForceSensorData(self):
@@ -49,7 +49,7 @@ class Elfin_Server():
 
     def CompensateForce(self, flag):
         status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_MOVE_STATE["free to move"]:
+        if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
             if not flag:
                 self.StopRobot()
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
@@ -60,7 +60,7 @@ class Elfin_Server():
 
     def TuneTarget(self, distance_to_target):
         status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_MOVE_STATE["free to move"]:
+        if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             abs_distance_to_target = [abs(x) for x in distance_to_target]

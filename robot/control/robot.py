@@ -6,8 +6,9 @@ import robot.constants as const
 import robot.transformations as tr
 
 import robot.control.elfin as elfin
+import robot.control.dobot_api as dobot
 import robot.control.coordinates as coordinates
-import robot.control.elfin_processing as elfin_process
+import robot.control.robot_processing as robot_process
 
 
 class RobotControl:
@@ -15,7 +16,7 @@ class RobotControl:
         self.rc = rc
 
         self.trk_init = None
-        self.process_tracker = elfin_process.TrackerProcessing()
+        self.process_tracker = robot_process.TrackerProcessing()
 
         self.robot_coordinates = coordinates.RobotCoordinates(rc)
         self.tracker_coordinates = coordinates.TrackerCoordinates()
@@ -49,8 +50,9 @@ class RobotControl:
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
     def OnRobotConnection(self, data):
+        robot_model = data["robot_model"]
         robot_IP = data["robot_IP"]
-        self.ElfinRobot(robot_IP)
+        self.RobotConnection(robot_IP, robot_model)
 
     def OnUpdateRobotNavigationMode(self, data):
         self.robot_mode_status = data["robot_mode"]
@@ -99,12 +101,12 @@ class RobotControl:
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
-            affine_matrix_robot_to_tracker = elfin_process.AffineTransformation(np.array(self.tracker_coord_list), np.array(self.robot_coord_list))
+            affine_matrix_robot_to_tracker = robot_process.AffineTransformation(np.array(self.tracker_coord_list), np.array(self.robot_coord_list))
             affine_matrix_tracker_to_robot = tr.inverse_matrix(affine_matrix_robot_to_tracker)
 
             robot_coord_list = np.stack(self.robot_coord_matrix_list[1:], axis=2)
             coord_coil_list = np.stack(self.coord_coil_matrix_list[1:], axis=2)
-            X_est, Y_est, Y_est_check, ErrorStats = elfin_process.Transformation_matrix.matrices_estimation(robot_coord_list, coord_coil_list)
+            X_est, Y_est, Y_est_check, ErrorStats = robot_process.Transformation_matrix.matrices_estimation(robot_coord_list, coord_coil_list)
             print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
             print(robot_coord_list[:4, :4, -1][:3, 3].T - (affine_matrix_tracker_to_robot @ coord_coil_list[:4, :4, -1])[:3, 3].T)
             # print(X_est)
@@ -135,19 +137,19 @@ class RobotControl:
         rotation_alignment_matrix = tr.concatenate_matrices(Rx, Ry, Rz)
 
         fix_axis = -distance[0], distance[1], distance[2], -distance[3], distance[4], distance[5]
-        m_offset = elfin_process.coordinates_to_transformation_matrix(
+        m_offset = robot_process.coordinates_to_transformation_matrix(
             position=fix_axis[:3],
             orientation=fix_axis[3:],
             axes='sxyz',
         )
         distance_matrix = np.linalg.inv(rotation_alignment_matrix) @ m_offset @ rotation_alignment_matrix
 
-        return elfin_process.transformation_matrix_to_coordinates(distance_matrix, axes='sxyz')
+        return robot_process.transformation_matrix_to_coordinates(distance_matrix, axes='sxyz')
 
     def OnTuneTCP(self):
         robot_coord = self.robot_coordinates.GetRobotCoordinates()
         robot_coord_flip = robot_coord.copy()
-        m_robot = elfin_process.coordinates_to_transformation_matrix(
+        m_robot = robot_process.coordinates_to_transformation_matrix(
             position=robot_coord_flip[:3],
             orientation=robot_coord_flip[3:],
             axes='rzyx',
@@ -156,7 +158,7 @@ class RobotControl:
         result_frame_Y = m_robot[1, 0] * self.distance_to_target[0] + m_robot[1, 1] * self.distance_to_target[1] + m_robot[1, 2] * self.distance_to_target[2] + m_robot[1, 3]
         result_frame_Z = m_robot[2, 0] * self.distance_to_target[0] + m_robot[2, 1] * self.distance_to_target[1] + m_robot[2, 2] * self.distance_to_target[2] + m_robot[2, 3]
 
-        m_offset = elfin_process.coordinates_to_transformation_matrix(
+        m_offset = robot_process.coordinates_to_transformation_matrix(
             position=self.distance_to_target[:3],
             orientation=self.distance_to_target[3:],
             axes='sxyz',
@@ -164,7 +166,7 @@ class RobotControl:
         m_final = m_robot @ m_offset
         m_robot_offset = m_final.copy()
         m_robot_offset[:3, -1] = [result_frame_X, result_frame_Y, result_frame_Z]
-        translation, angles_as_deg = elfin_process.transformation_matrix_to_coordinates(m_robot_offset, axes='sxyz')
+        translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_robot_offset, axes='sxyz')
 
         return list(translation) + list(angles_as_deg)
 
@@ -176,9 +178,31 @@ class RobotControl:
     def OnCoilAtTarget(self, data):
         self.coil_at_target_state = data["state"]
 
+    def RobotConnection(self, robot_IP, robot_model):
+        print("Trying to connect Robot via: ", robot_IP, robot_model)
+        if robot_model == "elfin":
+            self.ElfinRobot(robot_IP)
+        elif robot_model == "dobot":
+            self.DobotRobot(robot_IP)
+
     def ElfinRobot(self, robot_IP):
-        print("Trying to connect Robot via: ", robot_IP)
-        self.trck_init_robot = elfin.Elfin_Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
+        self.trck_init_robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
+        status_connection = self.trck_init_robot.Initialize()
+        if status_connection:
+            print('Connect to elfin robot tracking device.')
+        else:
+            topic = 'Dialog robot destroy'
+            data = {}
+            self.rc.send_message(topic, data)
+            self.trck_init_robot = None
+            print('Not possible to connect to elfin robot.')
+
+        topic = 'Robot connection status'
+        data = {'data': status_connection}
+        self.rc.send_message(topic, data)
+
+    def DobotRobot(self, robot_IP):
+        self.trck_init_robot = dobot.Server(robot_IP, self.rc)
         status_connection = self.trck_init_robot.Initialize()
         if status_connection:
             print('Connect to elfin robot tracking device.')
@@ -208,12 +232,12 @@ class RobotControl:
         coord_raw_tracker_obj = coord_raw[2]
 
         if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
-            new_robot_coord_list = elfin_process.coordinates_to_transformation_matrix(
+            new_robot_coord_list = robot_process.coordinates_to_transformation_matrix(
                 position=coord_raw_robot[:3],
                 orientation=coord_raw_robot[3:],
                 axes='rzyx',
             )
-            new_coord_coil_list = np.array(elfin_process.coordinates_to_transformation_matrix(
+            new_coord_coil_list = np.array(robot_process.coordinates_to_transformation_matrix(
                 position=coord_raw_tracker_obj[:3],
                 orientation=coord_raw_tracker_obj[3:],
                 axes='rzyx',
@@ -260,17 +284,17 @@ class RobotControl:
         """
         current_robot_coordinates_flip_angle = current_robot_coordinates.copy()
         current_robot_coordinates_flip_angle[3], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[5] = current_robot_coordinates_flip_angle[5], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[3]
-        distance_target = elfin_process.correction_distance_calculation_target(tunning_to_target,
+        distance_target = robot_process.correction_distance_calculation_target(tunning_to_target,
                                                                                current_robot_coordinates)
-        distance_angle_target = elfin_process.correction_distance_calculation_target(tunning_to_target[3:],
+        distance_angle_target = robot_process.correction_distance_calculation_target(tunning_to_target[3:],
                                                                                      current_robot_coordinates_flip_angle[3:])
         #Check if the target is inside the working space
-        if elfin_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
+        if robot_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
             #Check the target distance to define the motion mode
 
             if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
                 head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-                target_linear_out, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
+                target_linear_out, target_arc = robot_process.compute_arc_motion(current_robot_coordinates,
                                                                                  head_center_coordinates,
                                                                                  new_robot_coordinates)
                 if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
@@ -287,10 +311,10 @@ class RobotControl:
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
                     if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
-                        if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
+                        if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = target_arc
                             #Avoid small arc motion
-                        elif elfin_process.correction_distance_calculation_target(target_arc[3:-1], current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/3:
+                        elif robot_process.correction_distance_calculation_target(target_arc[3:-1], current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/3:
                             self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                             self.target_arc = tunning_to_target
                     new_robot_target_coordinates = self.target_arc
@@ -335,7 +359,7 @@ class RobotControl:
         self.new_force_sensor_data = self.trck_init_robot.GetForceSensorData()
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
-            coord_head_tracker_in_robot = elfin_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
+            coord_head_tracker_in_robot = robot_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
         else:
             coord_head_tracker_in_robot = coord_head_tracker_filtered
 
@@ -349,7 +373,7 @@ class RobotControl:
                 if coord_head_tracker_in_robot is not None and marker_head_flag and marker_coil_flag:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
-                        new_robot_coordinates = elfin_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
+                        new_robot_coordinates = robot_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
                         tunning_to_target = self.OnTuneTCP()
                         robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
                                                  coord_head_tracker_filtered, tunning_to_target)

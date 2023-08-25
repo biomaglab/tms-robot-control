@@ -22,6 +22,11 @@ SLEEP_ROBOT = 0.01
 
 ROBOT_ElFIN_PORT = 10003
 
+ROBOT_DOBOT_DASHBOARD_PORT = 29999
+ROBOT_DOBOT_MOVE_PORT = 30003
+ROBOT_DOBOT_FEED_PORT = 30004
+ROBOT_DOBOT_TOOL_ID = 1
+
 ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3}
 ROBOT_HEAD_VELOCITY_THRESHOLD = 20 #mm/s
 ROBOT_ARC_THRESHOLD_DISTANCE = 80 #mm
@@ -38,10 +43,11 @@ FORCE_TORQUE_SENSOR = False
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
 ROBOT_WORKING_SPACE = 1000 #mm
-ROBOT_MOVE_STATE = {"free to move": 0,
+ROBOT_ELFIN_MOVE_STATE = {"free to move": 0,
                     "in motion": 1009,
                     "waiting for execution": 1013,
                     "error": 1025}
+ROBOT_DOBOT_MOVE_STATE = {"error": 9}
 
 #Publisher messages
 PUB_MESSAGES = ['Connect to robot',
