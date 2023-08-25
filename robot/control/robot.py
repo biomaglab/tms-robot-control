@@ -5,7 +5,7 @@ import numpy as np
 import robot.constants as const
 import robot.transformations as tr
 
-import robot.control.elfin as elfin
+import robot.control.elfin_api as elfin
 import robot.control.dobot_api as dobot
 import robot.control.coordinates as coordinates
 import robot.control.robot_processing as robot_process
@@ -50,8 +50,8 @@ class RobotControl:
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
     def OnRobotConnection(self, data):
-        robot_model = data["robot_model"]
         robot_IP = data["robot_IP"]
+        robot_model = data["robot_model"]
         self.RobotConnection(robot_IP, robot_model)
 
     def OnUpdateRobotNavigationMode(self, data):
@@ -181,37 +181,19 @@ class RobotControl:
     def RobotConnection(self, robot_IP, robot_model):
         print("Trying to connect Robot via: ", robot_IP, robot_model)
         if robot_model == "elfin":
-            self.ElfinRobot(robot_IP)
+            self.trck_init_robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
+            status_connection = self.trck_init_robot.Initialize()
         elif robot_model == "dobot":
-            self.DobotRobot(robot_IP)
-
-    def ElfinRobot(self, robot_IP):
-        self.trck_init_robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
-        status_connection = self.trck_init_robot.Initialize()
+            self.trck_init_robot = dobot.Server(robot_IP, self.rc)
+            status_connection = self.trck_init_robot.Initialize()
         if status_connection:
-            print('Connect to elfin robot tracking device.')
+            print('Connect to robot tracking device.')
         else:
             topic = 'Dialog robot destroy'
             data = {}
             self.rc.send_message(topic, data)
             self.trck_init_robot = None
-            print('Not possible to connect to elfin robot.')
-
-        topic = 'Robot connection status'
-        data = {'data': status_connection}
-        self.rc.send_message(topic, data)
-
-    def DobotRobot(self, robot_IP):
-        self.trck_init_robot = dobot.Server(robot_IP, self.rc)
-        status_connection = self.trck_init_robot.Initialize()
-        if status_connection:
-            print('Connect to elfin robot tracking device.')
-        else:
-            topic = 'Dialog robot destroy'
-            data = {}
-            self.rc.send_message(topic, data)
-            self.trck_init_robot = None
-            print('Not possible to connect to elfin robot.')
+            print('Not possible to connect to robot.')
 
         topic = 'Robot connection status'
         data = {'data': status_connection}

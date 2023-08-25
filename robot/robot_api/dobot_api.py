@@ -1,3 +1,5 @@
+#CODE based on https://github.com/Dobot-Arm/TCP-IP-CR-Python
+
 import socket
 from time import sleep
 import datetime
