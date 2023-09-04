@@ -5,8 +5,8 @@ import numpy as np
 import robot.constants as const
 import robot.transformations as tr
 
-import robot.control.elfin_api as elfin
-import robot.control.dobot_api as dobot
+import robot.robot_api.elfin_api as elfin
+import robot.robot_api.dobot_api as dobot
 import robot.control.coordinates as coordinates
 import robot.control.robot_processing as robot_process
 
