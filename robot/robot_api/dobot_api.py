@@ -164,6 +164,13 @@ class Server():
             sleep(0.005)
 
     def Initialize(self):
+        if self.global_state["connect"]:
+            self.client_dash.close()
+            self.client_feed.close()
+            self.client_move.close()
+            self.client_dash = None
+            self.client_feed = None
+            self.client_move = None
         try:
             self.client_dash = DobotApiDashboard(self.server_ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
             self.client_move = DobotApiMove(self.server_ip, int(const.ROBOT_DOBOT_MOVE_PORT))
@@ -251,15 +258,21 @@ class Dobot:
                 f"Connect to dashboard server need use port {self.port} !")
 
     def send_data(self, string):
-        self.socket_dobot.send(str.encode(string, 'utf-8'))
+        try:
+            self.socket_dobot.send(str.encode(string, 'utf-8'))
+        except ConnectionAbortedError:
+            print(f"ConnectionAbortedError. Unable to send message: {string}")
 
     def wait_reply(self):
         """
         Read the return value
         """
-        data = self.socket_dobot.recv(1024)
-        data_str = str(data, encoding="utf-8")
-        return data_str
+        try:
+            data = self.socket_dobot.recv(1024)
+            data_str = str(data, encoding="utf-8")
+            return data_str
+        except ConnectionAbortedError:
+            return False
 
     def close(self):
         """
