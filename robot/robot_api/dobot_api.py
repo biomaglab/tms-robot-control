@@ -2,7 +2,7 @@
 
 import socket
 from time import sleep
-import datetime
+import time
 import numpy as np
 from threading import Thread
 import robot.constants as const
@@ -127,13 +127,24 @@ class Server():
         self.client_feed = None
         self.client_move = None
 
+        self.stop_threads = False
+
         self.global_state = {}
         self.global_state["connect"] = False
+        self.global_state["move"] = False
+        self.thread_move = False
 
         self.remote_control = remote_control
         self.coordinate = [None]*6
         self.force_torque_data = [None] * 6
+        self.robot_mode = 0
+        self.running_status = 0
 
+        self.status_move = False
+        self.target = [None] * 6
+        self.distance_to_target = [None] * 6
+        self.coil_at_target_flag = False
+        self.motion_type = const.ROBOT_MOTIONS["normal"]
 
     def set_feed_back(self):
         if self.global_state["connect"]:
@@ -160,14 +171,13 @@ class Server():
             self.coordinate = a["tool_vector_actual"][0]
             self.force_torque_data = a["six_force_value"][0]
             #OR self.force_torque_data = a["actual_TCP_force"][0]
+            self.robot_mode = int(a["robot_mode"][0])
+            self.running_status = int(a["running_status"][0])
 
-            sleep(0.005)
+            #sleep(0.001)
 
     def Initialize(self):
         if self.global_state["connect"]:
-            self.client_dash.close()
-            self.client_feed.close()
-            self.client_move.close()
             self.client_dash = None
             self.client_feed = None
             self.client_move = None
@@ -176,7 +186,13 @@ class Server():
             self.client_move = DobotApiMove(self.server_ip, int(const.ROBOT_DOBOT_MOVE_PORT))
             self.client_feed = Dobot(self.server_ip, int(const.ROBOT_DOBOT_FEED_PORT))
             self.global_state["connect"] = True
+            self.global_state["move"] = True
             self.set_feed_back()
+            self.set_move_thread()
+            # status = int(self.client_dash.RobotMode())
+            if self.robot_mode == 4:
+                self.client_dash.EnableRobot()
+                sleep(1)
             return True
         except Exception as e:
             print("Attention!", f"Connection Error:{e}")
@@ -185,18 +201,58 @@ class Server():
     def Run(self):
         return self.coordinate
 
+    def set_move_thread(self):
+        if self.global_state["connect"]:
+            thread = Thread(target=self.move_thread)
+            thread.setDaemon(True)
+            thread.start()
+            self.thread_move = thread
+
+    def move_thread(self):
+        while True:
+            if not self.global_state["move"]:
+                break
+            if self.status_move and not self.coil_at_target_flag:
+                print('moving')
+                if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
+                    self.client_move.MoveB(self.target)
+                elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
+                    self.client_move.MoveC(self.target)
+                elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
+                    offset_x = self.distance_to_target[0]
+                    offset_y = self.distance_to_target[1]
+                    offset_z = self.distance_to_target[2]
+                    offset_rx = self.distance_to_target[3]
+                    offset_ry = self.distance_to_target[4]
+                    offset_rz = self.distance_to_target[5]
+                    self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
+                                                 tool=const.ROBOT_DOBOT_TOOL_ID)
+                while self.running_status != 1:
+                    sleep(0.001)
+                print("running_status", self.running_status)
+                while self.running_status == 1:
+                    # print('moving')
+                    status = int(self.robot_mode)
+                    if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+                        self.StopRobot()
+                    sleep(0.001)
+            sleep(0.001)
+
+
+    def coil_at_target_state(self, coil_at_target_state):
+        self.coil_at_target_flag = coil_at_target_state
+
     def SendCoordinatesControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
          Status 1009 means robot in motion.
         """
-        status = self.client_dash.RobotMode()
-        if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
-            self.client_move.MoveB(target)
-        elif motion_type == const.ROBOT_MOTIONS["arc"]:
-            self.client_move.MoveC(target)
-        elif status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
-            self.StopRobot()
+        self.target = target
+        self.motion_type = motion_type
+        self.status_move = True
+        if not self.global_state["move"]:
+            self.global_state["move"] = True
+            self.set_move_thread()
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
@@ -219,24 +275,28 @@ class Server():
             self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
 
     def TuneTarget(self, distance_to_target):
-        status = self.client_dash.RobotMode()
-        if not status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
-            offset_x = distance_to_target[0]
-            offset_y = distance_to_target[1]
-            offset_z = distance_to_target[2]
-            offset_rx = distance_to_target[3]
-            offset_ry = distance_to_target[4]
-            offset_rz = distance_to_target[5]
-            self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
+        self.distance_to_target = distance_to_target
+        self.motion_type = const.ROBOT_MOTIONS["tunning"]
+        self.status_move = True
+        if not self.global_state["move"]:
+            self.global_state["move"] = True
+            self.set_move_thread()
 
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
-        self.client_dash.ResetRobot()
+        self.status_move = False
+        if self.running_status == 1:
+            self.client_dash.ResetRobot()
+        self.global_state["move"] = False
+        if self.thread_move:
+            self.thread_move.join()
         #sleep(0.05)
 
     def Close(self):
         self.StopRobot()
+        self.global_state["connect"] = False
+        self.global_state["move"] = False
         #TODO: robot function to close? self.cobot.close()
 
 class Dobot:
@@ -270,8 +330,10 @@ class Dobot:
         try:
             data = self.socket_dobot.recv(1024)
             data_str = str(data, encoding="utf-8")
+            print(data_str)
             return data_str
         except ConnectionAbortedError:
+            print(f"ConnectionAbortedError. Unable to read message")
             return False
 
     def close(self):
@@ -629,7 +691,7 @@ class DobotApiMove(Dobot):
         self.send_data(string)
         return self.wait_reply()
 
-    def MoveB(self, x, y, z, rx, ry, rz):
+    def MoveB(self, target):
         """
         Coordinate system motion interface (linear motion mode)
         x: A number in the Cartesian coordinate system x
@@ -639,6 +701,7 @@ class DobotApiMove(Dobot):
         ry: Position of Ry axis in Cartesian coordinate system
         rz: Position of Rz axis in Cartesian coordinate system
         """
+        x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
         string = "MovL({:f},{:f},{:f},{:f},{:f},{:f})".format(
             x, y, z, rx, ry, rz)
         self.send_data(string)
@@ -734,13 +797,16 @@ class DobotApiMove(Dobot):
         self.send_data(string)
         return self.wait_reply()
 
-    def MoveC(self, x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2):
+    def MoveC(self, target):
         """
         Circular motion instruction
         x1, y1, z1, a1, b1, c1 :Is the point value of intermediate point coordinates
         x2, y2, z2, a2, b2, c2 :Is the value of the end point coordinates
         Note: This instruction should be used together with other movement instructions
         """
+        print(target)
+        x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2 = target[0], target[1], target[2], target[3], target[4], target[5], \
+                                                        target[6], target[7], target[8], target[9], target[10], target[11]
         string = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
             x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2)
         self.send_data(string)

@@ -4,7 +4,7 @@ SITE = "usp_coil"
 if SITE == "usp_coil":
     ROBOT_RX_OFFSET = 0
     ROBOT_RY_OFFSET = 0
-    ROBOT_RZ_OFFSET = -90
+    ROBOT_RZ_OFFSET = 0
 elif SITE == "usp_neurosoft":
     ROBOT_RX_OFFSET = -90
     ROBOT_RY_OFFSET = 0
@@ -25,9 +25,9 @@ ROBOT_ElFIN_PORT = 10003
 ROBOT_DOBOT_DASHBOARD_PORT = 29999
 ROBOT_DOBOT_MOVE_PORT = 30003
 ROBOT_DOBOT_FEED_PORT = 30004
-ROBOT_DOBOT_TOOL_ID = 1
+ROBOT_DOBOT_TOOL_ID = 0
 
-ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3}
+ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3, 'tunning': 4}
 ROBOT_HEAD_VELOCITY_THRESHOLD = 20 #mm/s
 ROBOT_ARC_THRESHOLD_DISTANCE = 80 #mm
 ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE = 30 #°
@@ -42,7 +42,7 @@ ROBOT_TARGET_TUNING_THRESHOLD_ANGLE = 5
 FORCE_TORQUE_SENSOR = False
 
 #Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
-ROBOT_WORKING_SPACE = 1000 #mm
+ROBOT_WORKING_SPACE = 1500 #mm
 ROBOT_ELFIN_MOVE_STATE = {"free to move": 0,
                     "in motion": 1009,
                     "waiting for execution": 1013,
