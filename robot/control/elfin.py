@@ -34,7 +34,7 @@ class Elfin_Server():
         """
         status = self.cobot.ReadMoveState()
         if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
-            self.cobot.MoveB(target)
+            self.cobot.MoveL(target)
         elif motion_type == const.ROBOT_MOTIONS["arc"]:
             if status == const.ROBOT_MOVE_STATE["free to move"]:
                 self.cobot.MoveC(target)
@@ -242,10 +242,10 @@ class Elfin:
             if True Return x,y,z,a,b,c
             if Error Return False
         """
-        message = "ReadPcsActualPos," + self.robot_id + self.end_msg
+        message = "ReadActPos," + self.robot_id + self.end_msg
         coord = self.send(message)
         if coord:
-            return [float(s) for s in coord]
+            return [float(s) for s in coord][6:12]
 
         return coord
 
@@ -293,10 +293,27 @@ class Elfin:
             if Error Return False
             if not Error Return True
         """
-        message = "SetToolCoordinateMotion," + self.robot_id + ',' + str(status) + self.end_msg
+        message = "SetToolMotion," + self.robot_id + ',' + str(status) + self.end_msg
         status = self.send(message)
         return status
 
+#    def ReadMoveState(self):
+#        """
+#        Function: Get the motion state of the robot
+#        :return:
+#            Current state of motion of robot:
+#            0=motion completion;
+#            1009=in motion;
+#            1013=waiting for execution;
+#            1025 =Error reporting
+#        """
+#        message = "ReadMoveState," + self.robot_id + self.end_msg
+#        readmovestate = self.send(message)
+#        if readmovestate:
+#            status = int(readmovestate[0])
+#            return status
+#        return 1025
+    
     def ReadMoveState(self):
         """
         Function: Get the motion state of the robot
@@ -307,12 +324,18 @@ class Elfin:
             1013=waiting for execution;
             1025 =Error reporting
         """
-        message = "ReadMoveState," + self.robot_id + self.end_msg
+        message = "ReadRobotState," + self.robot_id + self.end_msg
         readmovestate = self.send(message)
-        if readmovestate:
-            status = int(readmovestate[0])
-            return status
-        return 1025
+        moving_state = bool(readmovestate[0])
+        error_state = bool(readmovestate[2])
+        if error_state:
+            #ErrorState
+            return const.ROBOT_MOVE_STATE["error"]
+        if moving_state:
+            #robot is moving
+            return const.ROBOT_MOVE_STATE["in motion"]
+        # robot is not moving
+        return const.ROBOT_MOVE_STATE["free to move"]
 
     def MoveHoming(self):
         """
@@ -331,9 +354,19 @@ class Elfin:
         :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
         :return:
         """
-        target = [str(s) for s in target]
-        target = (",".join(target))
-        message = "MoveC," + self.robot_id + ',' + target + self.end_msg
+        start_position, middle_position, final_target = target
+
+        start_position = [str(s) for s in start_position]
+        middle_position = [str(s) for s in middle_position]
+        final_target = [str(s) for s in final_target]
+
+        start_position = (",".join(start_position))
+        middle_position = (",".join(middle_position))
+        final_target = (",".join(final_target))
+
+        message = "MoveC," + self.robot_id + ',' + start_position + ',' + middle_position + ',' + final_target +\
+                  ',0,0,1,10,10,1,TCP,Base,0' + self.end_msg
+                  #FixedPosure,nMoveCType,dRadLen,dVelocity,dAcc,dRadius,sTcpName,sUcsName,strCmdID
         return self.send(message)
 
     def MoveB(self, target):

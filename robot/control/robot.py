@@ -270,7 +270,7 @@ class RobotControl:
 
             if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
                 head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-                target_linear_out, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
+                target_linear_out, middle_arc_point, target_arc = elfin_process.compute_arc_motion(current_robot_coordinates,
                                                                                  head_center_coordinates,
                                                                                  new_robot_coordinates)
                 if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
@@ -286,14 +286,14 @@ class RobotControl:
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
-                    if not np.allclose(np.array(target_arc[3:-1]), np.array(self.target_arc[3:-1]), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
+                    if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
                         if elfin_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = target_arc
                             #Avoid small arc motion
                         elif elfin_process.correction_distance_calculation_target(target_arc[3:-1], current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/3:
                             self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                             self.target_arc = tunning_to_target
-                    new_robot_target_coordinates = self.target_arc
+                    new_robot_target_coordinates = current_robot_coordinates, middle_arc_point, self.target_arc
 
                     #if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
                     #    self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
