@@ -215,7 +215,7 @@ class Server():
             if self.status_move and not self.coil_at_target_flag:
                 print('moving')
                 if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
-                    self.client_move.MoveB(self.target)
+                    self.client_move.MoveL(self.target)
                 elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
                     self.client_move.MoveC(self.target)
                 elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
@@ -691,7 +691,7 @@ class DobotApiMove(Dobot):
         self.send_data(string)
         return self.wait_reply()
 
-    def MoveB(self, target):
+    def MoveL(self, target):
         """
         Coordinate system motion interface (linear motion mode)
         x: A number in the Cartesian coordinate system x
@@ -716,9 +716,6 @@ class DobotApiMove(Dobot):
             j1, j2, j3, j4, j5, j6)
         self.send_data(string)
         return self.wait_reply()
-
-    def Jump(self):
-        print("待定")
 
     def RelMovJ(self, offset1, offset2, offset3, offset4, offset5, offset6):
         """

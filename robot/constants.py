@@ -13,6 +13,10 @@ elif SITE == "aalto":
     ROBOT_RX_OFFSET = 0
     ROBOT_RY_OFFSET = 0
     ROBOT_RZ_OFFSET = 157.5
+elif SITE == "tubingen":
+    ROBOT_RX_OFFSET = 0
+    ROBOT_RY_OFFSET = 0
+    ROBOT_RZ_OFFSET = 157.5
 else:
     ROBOT_RX_OFFSET = 0
     ROBOT_RY_OFFSET = 0

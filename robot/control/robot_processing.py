@@ -136,17 +136,15 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
     middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
                        middle_point[1] + versor_factor_middle_arc[1], \
                        middle_point[2] + versor_factor_middle_arc[2], \
-                       new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5],
+                       new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
 
     versor_factor_arc = compute_versors(head_center, new_robot_coordinates[:3])
     final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
                           new_robot_coordinates[1] + versor_factor_arc[1], \
                           new_robot_coordinates[2] + versor_factor_arc[2], \
-                          new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5], 0
+                          new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
 
-    target_arc = middle_arc_point + final_ext_arc_point
-
-    return init_move_out_point, target_arc
+    return init_move_out_point, middle_arc_point, final_ext_arc_point
 
 def correction_distance_calculation_target(coord_inv, actual_point):
     """
