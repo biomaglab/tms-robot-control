@@ -282,7 +282,7 @@ class RobotControl:
                     if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
                         self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
                         self.target_arc = target_arc
-                        new_robot_target_coordinates = self.target_arc
+                        new_robot_target_coordinates = current_robot_coordinates, middle_arc_point, self.target_arc
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
