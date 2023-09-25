@@ -310,6 +310,8 @@ class RobotControl:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                 new_robot_target_coordinates = tunning_to_target
 
+            self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+            new_robot_target_coordinates = tunning_to_target
             if not self.coil_at_target_state:
                 if (np.sqrt(
                         np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or

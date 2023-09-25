@@ -189,9 +189,12 @@ class Server():
             self.global_state["move"] = True
             self.set_feed_back()
             self.set_move_thread()
-            # status = int(self.client_dash.RobotMode())
+            sleep(2)
             if self.robot_mode == 4:
                 self.client_dash.EnableRobot()
+                sleep(1)
+            if self.robot_mode == 9:
+                self.client_dash.ClearError()
                 sleep(1)
             return True
         except Exception as e:
@@ -210,6 +213,7 @@ class Server():
 
     def move_thread(self):
         while True:
+            timeout_start = time.time()
             if not self.global_state["move"]:
                 break
             if self.status_move and not self.coil_at_target_flag:
@@ -229,6 +233,10 @@ class Server():
                                                  tool=const.ROBOT_DOBOT_TOOL_ID)
                 while self.running_status != 1:
                     sleep(0.001)
+                    if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+                        print("break")
+                        break
+
                 print("running_status", self.running_status)
                 while self.running_status == 1:
                     # print('moving')
@@ -236,6 +244,9 @@ class Server():
                     if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
                         self.StopRobot()
                     sleep(0.001)
+                    if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+                        print("break")
+                        break
             sleep(0.001)
 
 
