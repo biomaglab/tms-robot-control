@@ -6,6 +6,7 @@ import time
 import numpy as np
 from threading import Thread
 import robot.constants as const
+import robot.control.robot_processing as robot_process
 
 # Port Feedback
 MyType = np.dtype([(
@@ -221,7 +222,9 @@ class Server():
                 if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
                     self.client_move.MoveL(self.target)
                 elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
-                    self.client_move.MoveC(self.target)
+                    curve_set = robot_process.bezier_curve(np.asarray(self.target))
+                    for curve_point in curve_set:
+                        self.client_move.ServoP(curve_point)
                 elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
                     offset_x = self.distance_to_target[0]
                     offset_y = self.distance_to_target[1]
@@ -843,13 +846,14 @@ class DobotApiMove(Dobot):
         self.send_data(string)
         return self.wait_reply()
 
-    def ServoP(self, x, y, z, a, b, c):
+    def ServoP(self, target):
         """
         Dynamic following command based on Cartesian space
         x, y, z, a, b, c :Cartesian coordinate point value
         """
+        x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
         string = "ServoP({:f},{:f},{:f},{:f},{:f},{:f})".format(
-            x, y, z, a, b, c)
+            x, y, z, rx, ry, rz)
         self.send_data(string)
         return self.wait_reply()
 

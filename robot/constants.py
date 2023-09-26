@@ -36,6 +36,7 @@ ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3, 
 ROBOT_HEAD_VELOCITY_THRESHOLD = 20 #mm/s
 ROBOT_ARC_THRESHOLD_DISTANCE = 80 #mm
 ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE = 30 #°
+ROBOT_ARC_BEZIER_CURVE_STEP = 0.1 # step size between 0 and 1. 0.1 generates 10 points; 0.01 generates 100 points along the curve path
 ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC = 40 #mm
 ROBOT_VERSOR_SCALE_FACTOR = 50
 ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm

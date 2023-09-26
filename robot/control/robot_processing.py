@@ -190,6 +190,26 @@ def update_robot_target(tracker_coordinates,  robot_coordinates):
 
     return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
 
+def bezier_curve(points):
+    """
+    Code based on https://github.com/torresjrjr/Bezier.py
+    Returns a point interpolated by the Bezier process for arc motion
+    INPUTS:
+        t_values     list of floats/ints
+        points       list of numpy arrays
+    OUTPUTS:
+        curve        list of numpy arrays
+    """
+    t_values = np.arange(0, 1, const.ROBOT_ARC_BEZIER_CURVE_STEP) #define the number of points along the path
+    curve = []
+    for t in t_values:
+        newpoints = np.array(points)
+        while len(newpoints) > 1:
+            newpoints_aux = (1 - t) * newpoints[:-1] + t * newpoints[1:]
+            newpoints = newpoints_aux
+        curve.append(newpoints[0])
+
+    return np.array(curve)
 
 #the class Transformation_matrix is based on elif.ayvali code @ https://github.com/eayvali/Pose-Estimation-for-Sensor-Calibration
 class Transformation_matrix:
