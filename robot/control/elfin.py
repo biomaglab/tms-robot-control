@@ -33,10 +33,10 @@ class Elfin_Server():
          Status 1009 means robot in motion.
         """
         status = self.cobot.ReadMoveState()
-        if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
-            self.cobot.MoveL(target)
-        elif motion_type == const.ROBOT_MOTIONS["arc"]:
-            if status == const.ROBOT_MOVE_STATE["free to move"]:
+        if status == const.ROBOT_MOVE_STATE["free to move"]:
+            if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
+                self.cobot.MoveL(target)
+            elif motion_type == const.ROBOT_MOTIONS["arc"]:
                 self.cobot.MoveC(target)
             elif status == const.ROBOT_MOVE_STATE["error"]:
                 self.StopRobot()
@@ -218,9 +218,10 @@ class Elfin:
             if Error Return False
             if not Error Return True
         """
-        message = "GrpStop," + self.robot_id + self.end_msg
-        status = self.send(message)
-        return status
+        if self.ReadMoveState() == const.ROBOT_MOVE_STATE["in motion"]:
+            message = "GrpStop," + self.robot_id + self.end_msg
+            status = self.send(message)
+            return status
 
     def SetOverride(self, override):
         """
