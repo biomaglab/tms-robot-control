@@ -280,7 +280,8 @@ class RobotControl:
                 target_linear_out, middle_arc_point, target_arc = robot_process.compute_arc_motion(
                                                                             current_robot_coordinates,
                                                                             head_center_coordinates,
-                                                                            new_robot_coordinates)
+                                                                            #new_robot_coordinates)
+                                                                            tunning_to_target)
                 if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
                     self.target_linear_out = target_linear_out
                     self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]
@@ -290,7 +291,7 @@ class RobotControl:
                     if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
                         self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
                         self.target_arc = target_arc
-                        new_robot_target_coordinates = current_robot_coordinates, middle_arc_point, self.target_arc
+                        new_robot_target_coordinates = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
@@ -298,20 +299,18 @@ class RobotControl:
                         if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
                             self.target_arc = target_arc
                             #Avoid small arc motion
-                        elif robot_process.correction_distance_calculation_target(target_arc[3:-1], current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/3:
+                        elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
                             self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                             self.target_arc = tunning_to_target
-                    new_robot_target_coordinates = current_robot_coordinates, middle_arc_point, self.target_arc
+                    new_robot_target_coordinates = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
-                    #if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc[3:-1])[:3], 0, 20):
-                    #    self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                    #    new_robot_target_coordinates = tunning_to_target
+                    if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
+                       self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+                       new_robot_target_coordinates = tunning_to_target
             else:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                 new_robot_target_coordinates = tunning_to_target
 
-            self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-            new_robot_target_coordinates = tunning_to_target
             if not self.coil_at_target_state:
                 if (np.sqrt(
                         np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or

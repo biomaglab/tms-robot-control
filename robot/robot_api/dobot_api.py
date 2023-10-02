@@ -212,19 +212,40 @@ class Server():
             thread.start()
             self.thread_move = thread
 
+    def motion_loop(self):
+        timeout_start = time.time()
+        while self.running_status != 1:
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+                print("break")
+                self.StopRobot()
+                break
+            sleep(0.001)
+
+        while self.running_status == 1:
+            status = int(self.robot_mode)
+            if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+                self.StopRobot()
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+                self.StopRobot()
+                print("break")
+                break
+            sleep(0.001)
+
     def move_thread(self):
         while True:
-            timeout_start = time.time()
             if not self.global_state["move"]:
+                self.StopRobot()
                 break
-            if self.status_move and not self.coil_at_target_flag:
+            if self.status_move and not self.coil_at_target_flag and not self.running_status:
                 print('moving')
                 if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
                     self.client_move.MoveL(self.target)
+                    self.motion_loop()
                 elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
                     curve_set = robot_process.bezier_curve(np.asarray(self.target))
                     for curve_point in curve_set:
                         self.client_move.ServoP(curve_point)
+                    self.motion_loop()
                 elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
                     offset_x = self.distance_to_target[0]
                     offset_y = self.distance_to_target[1]
@@ -234,22 +255,8 @@ class Server():
                     offset_rz = self.distance_to_target[5]
                     self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
                                                  tool=const.ROBOT_DOBOT_TOOL_ID)
-                while self.running_status != 1:
-                    sleep(0.001)
-                    if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
-                        print("break")
-                        break
+                    self.motion_loop()
 
-                print("running_status", self.running_status)
-                while self.running_status == 1:
-                    # print('moving')
-                    status = int(self.robot_mode)
-                    if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
-                        self.StopRobot()
-                    sleep(0.001)
-                    if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
-                        print("break")
-                        break
             sleep(0.001)
 
 
@@ -270,7 +277,7 @@ class Server():
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
-            return self.force_torque_data[2]
+            return -self.force_torque_data[2]
         else:
             return False
 
@@ -282,7 +289,7 @@ class Server():
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             offset_x = 0
             offset_y = 0
-            offset_z = 1
+            offset_z = -1
             offset_rx = 0
             offset_ry = 0
             offset_rz = 0
@@ -300,11 +307,14 @@ class Server():
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
         self.status_move = False
-        if self.running_status == 1:
-            self.client_dash.ResetRobot()
+        #if self.running_status == 1:
+        self.client_dash.ResetRobot()
         self.global_state["move"] = False
         if self.thread_move:
-            self.thread_move.join()
+            try:
+                self.thread_move.join()
+            except RuntimeError:
+                pass
         #sleep(0.05)
 
     def Close(self):
@@ -690,7 +700,7 @@ class DobotApiMove(Dobot):
     Define class dobot_api_move to establish a connection to Dobot
     """
 
-    def MovJ(self, x, y, z, rx, ry, rz):
+    def MovJ(self, target):
         """
         Joint motion interface (point-to-point motion mode)
         x: A number in the Cartesian coordinate system x
@@ -700,6 +710,7 @@ class DobotApiMove(Dobot):
         ry: Position of Ry axis in Cartesian coordinate system
         rz: Position of Rz axis in Cartesian coordinate system
         """
+        x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
         string = "MovJ({:f},{:f},{:f},{:f},{:f},{:f})".format(
             x, y, z, rx, ry, rz)
         self.send_data(string)
@@ -815,7 +826,6 @@ class DobotApiMove(Dobot):
         x2, y2, z2, a2, b2, c2 :Is the value of the end point coordinates
         Note: This instruction should be used together with other movement instructions
         """
-        print(target)
         x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2 = target[0], target[1], target[2], target[3], target[4], target[5], \
                                                         target[6], target[7], target[8], target[9], target[10], target[11]
         string = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
