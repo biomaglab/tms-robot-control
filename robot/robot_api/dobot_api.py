@@ -215,7 +215,7 @@ class Server():
     def motion_loop(self):
         timeout_start = time.time()
         while self.running_status != 1:
-            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_START_MOTION:
                 print("break")
                 self.StopRobot()
                 break
@@ -244,7 +244,7 @@ class Server():
                 elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
                     curve_set = robot_process.bezier_curve(np.asarray(self.target))
                     for curve_point in curve_set:
-                        self.client_move.ServoP(curve_point)
+                        self.client_move.MoveL(curve_point)
                     self.motion_loop()
                 elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
                     offset_x = self.distance_to_target[0]

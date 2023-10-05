@@ -211,7 +211,9 @@ def bezier_curve(points):
         while len(newpoints) > 1:
             newpoints_aux = (1 - t) * newpoints[:-1] + t * newpoints[1:]
             newpoints = newpoints_aux
-        if t <= 0.5:
+        if t <= 0.3:
+            newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], init_angles[1], init_angles[2]
+        elif t <= 0.5:
             newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], target_angles[1], target_angles[2]
         else:
             newpoints[0][3], newpoints[0][4], newpoints[0][5] = target_angles[0], target_angles[1], target_angles[2]
