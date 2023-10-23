@@ -280,8 +280,7 @@ class RobotControl:
                 target_linear_out, middle_arc_point, target_arc = robot_process.compute_arc_motion(
                                                                             current_robot_coordinates,
                                                                             head_center_coordinates,
-                                                                            #new_robot_coordinates)
-                                                                            tunning_to_target)
+                                                                            new_robot_coordinates) #needs to be new_robot_coordinates!!
                 if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
                     self.target_linear_out = target_linear_out
                     self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]

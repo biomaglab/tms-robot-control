@@ -138,7 +138,7 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
                        middle_point[2] + versor_factor_middle_arc[2], \
                        new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
 
-    versor_factor_arc = compute_versors(head_center, new_robot_coordinates[:3], 1)
+    versor_factor_arc = compute_versors(head_center, new_robot_coordinates[:3])
     final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
                           new_robot_coordinates[1] + versor_factor_arc[1], \
                           new_robot_coordinates[2] + versor_factor_arc[2], \
@@ -211,10 +211,10 @@ def bezier_curve(points):
         while len(newpoints) > 1:
             newpoints_aux = (1 - t) * newpoints[:-1] + t * newpoints[1:]
             newpoints = newpoints_aux
-        if t <= 0.3:
+        if t <= 0.7:
             newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], init_angles[1], init_angles[2]
-        elif t <= 0.5:
-            newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], target_angles[1], target_angles[2]
+        # elif t <= 0.5:
+        #     newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], target_angles[1], target_angles[2]
         else:
             newpoints[0][3], newpoints[0][4], newpoints[0][5] = target_angles[0], target_angles[1], target_angles[2]
         curve.append(newpoints[0])
