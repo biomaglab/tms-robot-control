@@ -191,6 +191,9 @@ class Server():
             self.set_feed_back()
             self.set_move_thread()
             sleep(2)
+            if any(coord is None for coord in self.coordinate):
+                print("Please, restart robot")
+                return False
             if self.robot_mode == 4:
                 self.client_dash.EnableRobot()
                 sleep(1)
@@ -208,7 +211,7 @@ class Server():
     def set_move_thread(self):
         if self.global_state["connect"]:
             thread = Thread(target=self.move_thread)
-            thread.setDaemon(True)
+            thread.daemon = True
             thread.start()
             self.thread_move = thread
 
