@@ -68,7 +68,7 @@ def reset_robot(data):
     print("Resetting robot control")
 
 if __name__ == '__main__':
-    rc = RemoteControl('http://127.0.0.1:5000')
+    rc = RemoteControl('http://Biomag:5000')
     rc.connect()
     robot = Robot.RobotControl(rc)
     previous_robot_status = False

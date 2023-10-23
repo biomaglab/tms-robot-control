@@ -42,4 +42,4 @@ def restart_robot_main_loop(sid):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, port=port, host='0.0.0.0', loop='asyncio')
+    uvicorn.run(app, port=port, host='Biomag', loop='asyncio')
