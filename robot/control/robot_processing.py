@@ -508,3 +508,33 @@ class TrackerProcessing:
         target_in_robot[3], target_in_robot[5] = target_in_robot[5], target_in_robot[3]
 
         return target_in_robot
+
+
+class PID:
+    def __init__(self, Kp, Td, Ti, dt):
+        self.Kp = Kp
+        self.Td = Td
+        self.Ti = Ti
+        self.curr_error = np.zeros(6)
+        self.prev_error = np.zeros(6)
+        self.sum_error = np.zeros(6)
+        self.prev_error_deriv = np.zeros(6)
+        self.curr_error_deriv = np.zeros(6)
+        self.control = np.zeros(6)
+        self.dt = dt
+
+    def update_control(self, current_error, reset_prev=False):
+        self.prev_error = self.curr_error
+        self.curr_error = np.array(current_error)
+
+        # Calculating the integral error
+        self.sum_error = self.sum_error + self.curr_error * self.dt
+
+        # Calculating the derivative error
+        self.curr_error_deriv = (self.curr_error - self.prev_error) / self.dt
+
+        # Calculating the PID Control
+        self.control = self.Kp * self.curr_error + self.Ti * self.sum_error + self.Td * self.curr_error_deriv
+
+    def get_control(self):
+        return self.control

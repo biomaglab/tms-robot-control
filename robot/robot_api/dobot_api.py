@@ -302,8 +302,11 @@ class Server():
             offset_rz = 0
             self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
 
-    def TuneTarget(self, distance_to_target):
-        self.distance_to_target = distance_to_target
+    def TuneTarget(self, distance_to_target, controller):
+        print(distance_to_target)
+        controller.update_control(distance_to_target)
+        self.distance_to_target = list(controller.get_control())
+        print(self.distance_to_target)
         self.motion_type = const.ROBOT_MOTIONS["tunning"]
         self.status_move = True
 

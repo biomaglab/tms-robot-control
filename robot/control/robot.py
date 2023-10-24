@@ -72,6 +72,7 @@ class RobotControl:
                 target = np.array(target).reshape(4, 4)
                 self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
+                self.controller = robot_process.PID(0.5, 0.5, 0.01, const.SLEEP_ROBOT)
                 print("Setting robot target")
 
     def OnResetProcessTracker(self, data):
@@ -246,7 +247,7 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target):
+    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target, controller):
         """
         There are two types of robot movements.
         We can imagine in two concentric spheres of different sizes. The inside sphere is to compensate for small head movements.
@@ -317,7 +318,7 @@ class RobotControl:
                         np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
                         and self.motion_step_flag != const.ROBOT_MOTIONS["arc"]:
                     # tunes the robot position based on neuronavigation
-                    self.trck_init_robot.TuneTarget(self.distance_to_target)
+                    self.trck_init_robot.TuneTarget(self.distance_to_target, controller)
                 else:
                     self.trck_init_robot.SendCoordinatesControl(new_robot_target_coordinates, self.motion_step_flag)
 
@@ -361,7 +362,7 @@ class RobotControl:
                         new_robot_coordinates = robot_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
                         tunning_to_target = self.OnTuneTCP()
                         robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                 coord_head_tracker_filtered, tunning_to_target)
+                                                 coord_head_tracker_filtered, tunning_to_target, self.controller)
                     else:
                         print("Head is moving too much")
                         self.trck_init_robot.StopRobot()
