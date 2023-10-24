@@ -64,7 +64,7 @@ class RobotControl:
             self.target_index = data["target_index"]
             target = data["target"]
             if not self.robot_tracker_flag:
-                self.trck_init_robot.StopRobot()
+                self.trck_init_robot.ForceStopRobot()
                 self.m_change_robot_to_head = [None] * 9
                 self.target_force_sensor_data = 0
                 print("Removing robot target")
