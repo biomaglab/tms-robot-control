@@ -1,5 +1,8 @@
-#Robot
+# Please set up the site or coil, choose the robot model, and decide if you want to use force sensing
 SITE = "usp_coil"
+ROBOT = "dobot" #elfin, dobot, or ur
+FORCE_TORQUE_SENSOR = False
+
 # Define the required offset to align the coil and robot end effector
 if SITE == "usp_coil":
     ROBOT_RX_OFFSET = 0
@@ -22,42 +25,69 @@ else:
     ROBOT_RY_OFFSET = 0
     ROBOT_RZ_OFFSET = 0
 
-SLEEP_ROBOT = 0.005
+if ROBOT == "dobot":
+    # Robot settings
+    ROBOT_WORKING_SPACE = 1500  # mm
+    ROBOT_DOBOT_DASHBOARD_PORT = 29999
+    ROBOT_DOBOT_MOVE_PORT = 30003
+    ROBOT_DOBOT_FEED_PORT = 30004
+    ROBOT_DOBOT_TOOL_ID = 0
+    ROBOT_DOBOT_TIMEOUT_START_MOTION = 10
+    ROBOT_DOBOT_TIMEOUT_MOTION = 45
+    SLEEP_ROBOT = 0.005
+    # Filtering head motion
+    ROBOT_HEAD_VELOCITY_THRESHOLD = 30 #mm/s
+    # Tunning motion
+    ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE = 50
+    ROBOT_TARGET_TUNING_THRESHOLD_ANGLE = 15
+    # Arc motion
+    ROBOT_ARC_THRESHOLD_DISTANCE = 100 #mm
+    ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE = 45 #°
+    ROBOT_ARC_BEZIER_CURVE_STEP = 0.4 # step size between 0 and 1. 0.1 generates 10 points; 0.01 generates 100 points along the curve path
+    ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC = 40 #mm
+    ROBOT_VERSOR_SCALE_FACTOR = 50
+    ROBOT_MIDDLE_ARC_SCALE_FACTOR = 4
+    # Check robot tracker registration
+    ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm
+    # Force and torque sensor
+    ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
+    ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
+    # Robot States
+    ROBOT_DOBOT_MOVE_STATE = {"error": 9}
+elif ROBOT == "elfin":
+    # Robot settings
+    # Robot Working Space is defined as 800mm in Elfin 5 manual. For safety, the value is reduced by 5%.
+    # For debug, feel free to use 1000 mm
+    ROBOT_WORKING_SPACE = 1000 #mm
+    ROBOT_ElFIN_PORT = 10003
+    SLEEP_ROBOT = 0.0
+    # Filtering head motion
+    ROBOT_HEAD_VELOCITY_THRESHOLD = 20  # mm/s
+    # Tunning motion
+    ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE = 30
+    ROBOT_TARGET_TUNING_THRESHOLD_ANGLE = 5
+    # Arc motion
+    ROBOT_ARC_THRESHOLD_DISTANCE = 80  # mm
+    ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE = 30  # °
+    ROBOT_MIDDLE_ARC_SCALE_FACTOR = 1.5
+    ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC = 40  # mm
+    ROBOT_VERSOR_SCALE_FACTOR = 50
+    # Check robot tracker registration
+    ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1  # mm
+    # Force and torque sensor
+    ROBOT_FORCE_SENSOR_THRESHOLD = 10  # N
+    ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30  # % of init force
+    # Robot States
+    ROBOT_ELFIN_MOVE_STATE = {"free to move": 0,
+                              "in motion": 1009,
+                              "waiting for execution": 1013,
+                              "error": 1025}
 
-ROBOT_ElFIN_PORT = 10003
-
-ROBOT_DOBOT_DASHBOARD_PORT = 29999
-ROBOT_DOBOT_MOVE_PORT = 30003
-ROBOT_DOBOT_FEED_PORT = 30004
-ROBOT_DOBOT_TOOL_ID = 0
-ROBOT_DOBOT_TIMEOUT_START_MOTION = 10
-ROBOT_DOBOT_TIMEOUT_MOTION = 45
+# Please, do not change the following constants.
 
 ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3, 'tunning': 4}
-ROBOT_HEAD_VELOCITY_THRESHOLD = 30 #mm/s
-ROBOT_ARC_THRESHOLD_DISTANCE = 100 #mm
-ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE = 45 #°
-ROBOT_ARC_BEZIER_CURVE_STEP = 0.4 # step size between 0 and 1. 0.1 generates 10 points; 0.01 generates 100 points along the curve path
-ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC = 40 #mm
-ROBOT_VERSOR_SCALE_FACTOR = 50
-ROBOT_MIDDLE_ARC_SCALE_FACTOR = 4
-ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm
-ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
-ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
-ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE = 50
-ROBOT_TARGET_TUNING_THRESHOLD_ANGLE = 15
 
-FORCE_TORQUE_SENSOR = False
-
-#Robot Working Space is defined as 800mm in Elfin manual. For safety, the value is reduced by 5%.
-ROBOT_WORKING_SPACE = 1500 #mm
-ROBOT_ELFIN_MOVE_STATE = {"free to move": 0,
-                    "in motion": 1009,
-                    "waiting for execution": 1013,
-                    "error": 1025}
-ROBOT_DOBOT_MOVE_STATE = {"error": 9}
-
-#Publisher messages
+# Publisher messages from invesalius
 PUB_MESSAGES = ['Connect to robot',
                 'Robot navigation mode',
                 'Update robot target',
