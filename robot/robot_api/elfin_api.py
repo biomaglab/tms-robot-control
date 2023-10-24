@@ -75,6 +75,9 @@ class Server():
         self.cobot.GrpStop()
         sleep(0.05)
 
+    def ForceStopRobot(self):
+        self.StopRobot()
+
     def Close(self):
         self.StopRobot()
         #TODO: robot function to close? self.cobot.close()
