@@ -1,7 +1,4 @@
-
 import numpy as np
-
-import robot.control.elfin_processing as elfin_process
 
 
 class RobotCoordinates:
