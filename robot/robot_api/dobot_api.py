@@ -290,7 +290,7 @@ class Server():
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
-            return -self.force_torque_data[2]
+            return self.force_torque_data
         else:
             return False
 

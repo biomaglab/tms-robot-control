@@ -81,6 +81,7 @@ if __name__ == '__main__':
 
             for i in range(len(buf)):
                 if topic[i] in const.PUB_MESSAGES:
+                    #print(topic)
                     get_function = {const.FUNCTION_CONNECT_TO_ROBOT: robot.OnRobotConnection,
                                     const.FUNCTION_ROBOT_NAVIGATION_MODE: robot.OnUpdateRobotNavigationMode,
                                     const.FUNCTION_UPDATE_ROBOT_TARGET: robot.OnUpdateRobotTargetMatrix,

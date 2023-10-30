@@ -1,7 +1,10 @@
 # Please set up the site or coil, choose the robot model, and decide if you want to use force sensing
 SITE = "usp_coil"
 ROBOT = "dobot" #elfin, dobot, or ur
-FORCE_TORQUE_SENSOR = False
+FORCE_TORQUE_SENSOR = True
+DISPLAY_POA = True
+
+TEMP_FILE = 'tmp'
 
 # Define the required offset to align the coil and robot end effector
 if SITE == "usp_coil":
