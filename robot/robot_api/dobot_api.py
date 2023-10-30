@@ -296,17 +296,19 @@ class Server():
 
     def CompensateForce(self, flag):
         status = self.client_dash.RobotMode()
+        print("CompensateForce")
         if not status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
             if not flag:
                 self.StopRobot()
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            offset_x = 0
-            offset_y = 0
-            offset_z = -1
-            offset_rx = 0
-            offset_ry = 0
-            offset_rz = 0
-            self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
+            else:
+                offset_x = 0
+                offset_y = 0
+                offset_z = -2
+                offset_rx = 0
+                offset_ry = 0
+                offset_rz = 0
+                self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
 
     def TuneTarget(self, distance_to_target):
         self.distance_to_target = distance_to_target

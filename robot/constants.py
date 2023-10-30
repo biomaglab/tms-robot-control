@@ -54,7 +54,7 @@ if ROBOT == "dobot":
     ROBOT_TRANSFORMATION_MATRIX_THRESHOLD = 1 #mm
     # Force and torque sensor
     ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
-    ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30 #% of init force
+    ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 100 #% of init force
     # Robot States
     ROBOT_DOBOT_MOVE_STATE = {"error": 9}
 elif ROBOT == "elfin":

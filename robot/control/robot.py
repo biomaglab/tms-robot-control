@@ -11,6 +11,7 @@ import robot.transformations as tr
 import robot.robot_api.elfin_api as elfin
 import robot.robot_api.dobot_api as dobot
 import robot.control.coordinates as coordinates
+import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
 
 
@@ -31,7 +32,7 @@ class RobotControl:
         self.robot_coord_list = []
         self.matrix_tracker_to_robot = []
 
-        self.new_force_sensor_data = []
+        self.new_force_sensor_data = 0
         self.target_force_sensor_data = 5
         self.compensate_force_flag = False
 
@@ -46,7 +47,7 @@ class RobotControl:
         self.REF_FLAG = False
         listener = keyboard.Listener(on_press=self._on_press)
         listener.start()
-        self.status = True
+        #self.status = True
 
         self.robot_tracker_flag = False
         self.target_index = None
@@ -291,7 +292,7 @@ class RobotControl:
                 self.rc.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target, ft_values):
+    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target, ft_values=False):
         """
         There are two types of robot movements.
         We can imagine in two concentric spheres of different sizes. The inside sphere is to compensate for small head movements.
@@ -365,7 +366,7 @@ class RobotControl:
                     self.trck_init_robot.TuneTarget(self.distance_to_target)
                     self.inside_circle = True
                     #print('Distance to target: ', self.distance_to_target)
-                    if self.inside_circle and self.prev_state_flag == 1:
+                    if const.FORCE_TORQUE_SENSOR and self.inside_circle and self.prev_state_flag == 1:
                         self.force_ref = ft_values[0:3]
                         self.moment_ref = ft_values[3:6]
                         print('Normalised!')
@@ -395,67 +396,65 @@ class RobotControl:
         marker_coil_flag = markers_flag[2]
         coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
 
-        # TODO: condition for const.FORCE_TORQUE_SENSOR
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
-
+        # TODO: condition for const.FORCE_TORQUE_SENSOR
         ft_values = np.array(self.trck_init_robot.GetForceSensorData())
-        # true f-t value
-        current_F = ft_values[0:3]
-        current_M = ft_values[3:6]
-        # normalised f-t value
-        F_normalised = current_F - self.force_ref
-        M_normalised = current_M - self.moment_ref
-        self.F_dq.append(F_normalised)
-        self.M_dq.append(M_normalised)
+        if const.FORCE_TORQUE_SENSOR:
+            # true f-t value
+            current_F = ft_values[0:3]
+            current_M = ft_values[3:6]
+            # normalised f-t value
+            F_normalised = current_F - self.force_ref
+            M_normalised = current_M - self.moment_ref
+            self.F_dq.append(F_normalised)
+            self.M_dq.append(M_normalised)
 
-        if self.REF_FLAG:
-            self.force_ref = current_F
-            self.moment_ref = current_M
-            self.REF_FLAG = False
+            if self.REF_FLAG:
+                self.force_ref = current_F
+                self.moment_ref = current_M
+                self.REF_FLAG = False
 
-        # smoothed f-t value, to increase size of filter increase deque size
-        F_avg = np.mean(self.F_dq, axis=0)
-        M_avg = np.mean(self.M_dq, axis=0)
-        point_of_application = ft.find_r(F_avg, M_avg)
+            # smoothed f-t value, to increase size of filter increase deque size
+            F_avg = np.mean(self.F_dq, axis=0)
+            M_avg = np.mean(self.M_dq, axis=0)
+            point_of_application = ft.find_r(F_avg, M_avg)
 
-        point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
+            point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
 
-        if const.DISPLAY_POA and len(point_of_application) == 3:
-            with open(const.TEMP_FILE, 'a') as tmpfile:
-                tmpfile.write(f'{point_of_application}\n')
+            if const.DISPLAY_POA and len(point_of_application) == 3:
+                with open(const.TEMP_FILE, 'a') as tmpfile:
+                    tmpfile.write(f'{point_of_application}\n')
 
-        self.new_force_sensor_data = F_normalised[2]
+            self.new_force_sensor_data = -F_normalised[2]
+            # Calculate vector of point of application vs centre
+            distance = [point_of_application[0], point_of_application[1]]
+            # self.ft_distance_offset = [point_of_application[0], point_of_application[1]]
+            # TODO: Change this entire part to compensate force properly in a feedback loop
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
             coord_head_tracker_in_robot = robot_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
         else:
             coord_head_tracker_in_robot = coord_head_tracker_filtered
 
-        # Calculate vector of point of application vs centre
-        distance = [point_of_application[0], point_of_application[1]]
-        #self.ft_distance_offset = [point_of_application[0], point_of_application[1]]
-
-        # TODO: Change this entire part to compensate force properly in a feedback loop
-
         #CHECK IF TARGET FROM INVESALIUS
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
-            if self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
+            if self.new_force_sensor_data <= const.ROBOT_FORCE_SENSOR_THRESHOLD or self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
                 self.compensate_force_flag = False
                 #CHECK IF HEAD IS VISIBLE
                 if coord_head_tracker_in_robot is not None and marker_head_flag and marker_coil_flag:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                         new_robot_coordinates = robot_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
-                        if np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
-                            if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
-                                if self.status:
-                                    self.SensorUpdateTarget(distance, self.status)
-                                    self.status = False
+                        # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
+                        #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
+                        #         if self.status:
+                        #             self.SensorUpdateTarget(distance, self.status)
+                        #             self.status = False
                         tunning_to_target = self.OnTuneTCP()
                         robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                 coord_head_tracker_filtered, tunning_to_target, ft_values)
+                                                                coord_head_tracker_filtered, tunning_to_target, ft_values)
                     else:
                         print("Head is moving too much")
                         self.trck_init_robot.StopRobot()
@@ -464,9 +463,10 @@ class RobotControl:
                     self.trck_init_robot.StopRobot()
             else:
                 #print("Compensating Force")
-                self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                print(self.new_force_sensor_data)
                 self.compensate_force_flag = True
-                time.sleep(0.05)
+                self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                time.sleep(0.5)
         else:
             #print("Navigation is off")
             pass
