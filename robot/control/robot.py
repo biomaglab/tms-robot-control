@@ -332,11 +332,11 @@ class RobotControl:
                     self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]
 
                 if self.motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
-                    new_robot_target_coordinates = self.target_linear_out
+                    new_robot_target = self.target_linear_out
                     if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
                         self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
                         self.target_arc = target_arc
-                        new_robot_target_coordinates = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
+                        new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
                 elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
                     #UPDATE arc motion target
@@ -347,14 +347,17 @@ class RobotControl:
                         elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
                             self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                             self.target_arc = tunning_to_target
-                    new_robot_target_coordinates = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
+                    new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
                     if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
                        self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                       new_robot_target_coordinates = tunning_to_target
+                       new_robot_target = tunning_to_target
+                else:
+                    self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+                    new_robot_target = tunning_to_target
             else:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                new_robot_target_coordinates = tunning_to_target
+                new_robot_target = tunning_to_target
 
             if not self.coil_at_target_state:
                 if (np.sqrt(
@@ -363,7 +366,8 @@ class RobotControl:
                         np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
                         and self.motion_step_flag != const.ROBOT_MOTIONS["arc"]:
                     # tunes the robot position based on neuronavigation
-                    self.trck_init_robot.TuneTarget(self.distance_to_target)
+                    new_robot_target = self.distance_to_target
+                    self.motion_step_flag = const.ROBOT_MOTIONS["tunning"]
                     self.inside_circle = True
                     #print('Distance to target: ', self.distance_to_target)
                     if const.FORCE_TORQUE_SENSOR and self.inside_circle and self.prev_state_flag == 1:
@@ -372,11 +376,11 @@ class RobotControl:
                         print('Normalised!')
                         # print(self.force_ref)
                     self.prev_state_flag = 0
-
                 else:
-                    self.trck_init_robot.SendCoordinatesControl(new_robot_target_coordinates, self.motion_step_flag)
                     self.inside_circle = False
                     self.prev_state_flag = 1
+
+                self.trck_init_robot.SendTargetToControl(new_robot_target, self.motion_step_flag)
 
             self.trck_init_robot.coil_at_target_state(self.coil_at_target_state)
 

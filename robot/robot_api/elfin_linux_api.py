@@ -27,7 +27,7 @@ class Server():
             self.coordinate = coord
         return self.coordinate
 
-    def SendCoordinatesControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
+    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
          Status 1009 means robot in motion.
@@ -40,10 +40,18 @@ class Server():
                 self.cobot.MoveC(target)
             elif status == const.ROBOT_MOVE_STATE["error"]:
                 self.StopRobot()
+        elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
+            self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+            # self.cobot.SetOverride(0.1)  # Setting robot's movement speed
+            abs_distance_to_target = [abs(x) for x in target]
+            direction = abs_distance_to_target.index(max(abs_distance_to_target))
+            CompenDistance = [direction, 1, target[direction]]
+            self.cobot.MoveRelL(CompenDistance)
+            self.cobot.SetToolCoordinateMotion(0)
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
-            return self.cobot.ReadForceSensorData()[2]
+            return self.cobot.ReadForceSensorData()
         else:
             return False
 
@@ -56,17 +64,6 @@ class Server():
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
-            self.cobot.SetToolCoordinateMotion(0)
-
-    def TuneTarget(self, distance_to_target):
-        status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
-            self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            abs_distance_to_target = [abs(x) for x in distance_to_target]
-            direction = abs_distance_to_target.index(max(abs_distance_to_target))
-            CompenDistance = [direction, 1, distance_to_target[direction]]
-            self.cobot.MoveRelL(CompenDistance)
             self.cobot.SetToolCoordinateMotion(0)
 
     def StopRobot(self):

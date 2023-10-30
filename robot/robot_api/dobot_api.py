@@ -143,7 +143,6 @@ class Server():
 
         self.status_move = False
         self.target = [None] * 6
-        self.distance_to_target = [None] * 6
         self.coil_at_target_flag = False
         self.motion_type = const.ROBOT_MOTIONS["normal"]
 
@@ -260,23 +259,22 @@ class Server():
                             self.StopRobot()
                             break
                 elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
-                    offset_x = self.distance_to_target[0]
-                    offset_y = self.distance_to_target[1]
-                    offset_z = self.distance_to_target[2]
-                    offset_rx = self.distance_to_target[3]
-                    offset_ry = self.distance_to_target[4]
-                    offset_rz = self.distance_to_target[5]
+                    offset_x = self.target[0]
+                    offset_y = self.target[1]
+                    offset_z = self.target[2]
+                    offset_rx = self.target[3]
+                    offset_ry = self.target[4]
+                    offset_rz = self.target[5]
                     self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
                                                  tool=const.ROBOT_DOBOT_TOOL_ID)
                     self.motion_loop()
 
             sleep(0.001)
 
-
     def coil_at_target_state(self, coil_at_target_state):
         self.coil_at_target_flag = coil_at_target_state
 
-    def SendCoordinatesControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
+    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
          Status 1009 means robot in motion.
@@ -309,14 +307,6 @@ class Server():
                 offset_ry = 0
                 offset_rz = 0
                 self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
-
-    def TuneTarget(self, distance_to_target):
-        self.distance_to_target = distance_to_target
-        self.motion_type = const.ROBOT_MOTIONS["tunning"]
-        self.status_move = True
-        if not self.global_state["move"]:
-            self.global_state["move"] = True
-            self.set_move_thread()
 
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
