@@ -135,4 +135,4 @@ dmypy.json
 
 *.patch
 
-/tmp
+*/tmp
