@@ -13,6 +13,7 @@ class Server():
         self.port_number = port_number
         self.remote_control = remote_control
         self.coordinate = [None]*6
+        self.coil_at_target_flag = False
 
     def Initialize(self):
         message_size = 1024
@@ -27,6 +28,9 @@ class Server():
             self.coordinate = coord
         return self.coordinate
 
+    def coil_at_target_state(self, coil_at_target_state):
+        self.coil_at_target_flag = coil_at_target_state
+
     def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
@@ -36,18 +40,20 @@ class Server():
         if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
             self.cobot.MoveL(target)
         elif motion_type == const.ROBOT_MOTIONS["arc"]:
-            if status == const.ROBOT_MOVE_STATE["free to move"]:
-                self.cobot.MoveC(target)
-            elif status == const.ROBOT_MOVE_STATE["error"]:
+            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+                target_arc = target[1][:3] + target[2]
+                self.cobot.MoveC(target_arc)
+            elif status == const.ROBOT_ELFIN_MOVE_STATE["error"]:
                 self.StopRobot()
-        elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
-            self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-            # self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            abs_distance_to_target = [abs(x) for x in target]
-            direction = abs_distance_to_target.index(max(abs_distance_to_target))
-            CompenDistance = [direction, 1, target[direction]]
-            self.cobot.MoveRelL(CompenDistance)
-            self.cobot.SetToolCoordinateMotion(0)
+        elif motion_type == const.ROBOT_MOTIONS["tunning"]:
+            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+                self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+                # self.cobot.SetOverride(0.1)  # Setting robot's movement speed
+                abs_distance_to_target = [abs(x) for x in target]
+                direction = abs_distance_to_target.index(max(abs_distance_to_target))
+                CompenDistance = [direction, 1, target[direction]]
+                self.cobot.MoveRelL(CompenDistance)
+                self.cobot.SetToolCoordinateMotion(0)
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
@@ -313,12 +319,12 @@ class Elfin:
         error_state = bool(read_robot_state[2])
         if error_state:
             #ErrorState
-            return const.ROBOT_MOVE_STATE["error"]
+            return const.ROBOT_ELFIN_MOVE_STATE["error"]
         if moving_state:
             #robot is moving
-            return const.ROBOT_MOVE_STATE["in motion"]
+            return const.ROBOT_ELFIN_MOVE_STATE["in motion"]
         # robot is not moving
-        return const.ROBOT_MOVE_STATE["free to move"]
+        return const.ROBOT_ELFIN_MOVE_STATE["free to move"]
 
 
     def MoveHoming(self):
