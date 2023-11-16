@@ -240,6 +240,15 @@ class RobotControl:
         data = {'data': connected}
         self.remote_control.send_message(topic, data)
 
+    # TODO: Unused for now; all robots should have a similar logic and interface for reconnecting,
+    #   that's why this function was moved here from Elfin robot class. However, how reconnecting
+    #   works exactly needs to be thought through later.
+    def ReconnectToRobot(self):
+        topic = 'Update robot status'
+        data = {'robot_status': False}
+        self.remote_control.send_message(topic, data)
+        self.robot.Reconnect()
+
     def SensorUpdateTarget(self, distance, status):
         topic = 'Update target from FT values'
         data = {'data' : (distance, status)}

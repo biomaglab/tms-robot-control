@@ -24,6 +24,17 @@ class Server():
     def IsConnected(self):
         return self.cobot.connected
 
+    def Reconnect(self):
+        print("Trying to reconnect to robot...")
+        while not self.IsConnected():
+            self.Connect()
+            sleep(1)
+            print("Trying to reconnect to robot...")
+
+        self.cobot.GrpStop()
+        sleep(0.1)
+        print("Reconnected!")
+
     def GetCoordinates(self):
         coordinates = self.cobot.ReadPcsActualPos()
         if coordinates:
@@ -111,18 +122,6 @@ class Elfin:
 
         except:
             print("Failed to connect")
-
-    def reconnect(self):
-        topic = 'Update robot status'
-        data = {'robot_status': False}
-        self.remote_control.send_message(topic, data)
-        print("Trying to reconnect to robot...")
-        while self.connect(self.ip, self.port, self.message_size, self.robot_id) is False:
-            sleep(1)
-            print("Trying to reconnect to robot...")
-        self.GrpStop()
-        sleep(0.1)
-        print("Reconnected!")
 
     def send(self, message):
         self.mySocket.sendall(message.encode('utf-8'))
