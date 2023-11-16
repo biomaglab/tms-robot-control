@@ -129,8 +129,7 @@ class Server():
 
         self.stop_threads = False
 
-        self.global_state = {}
-        self.global_state["move"] = False
+        self.moving = False
         self.thread_move = False
 
         self.coordinates = [None]*6
@@ -184,7 +183,7 @@ class Server():
             self.client_dash = DobotApiDashboard(self.ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
             self.client_move = DobotApiMove(self.ip, int(const.ROBOT_DOBOT_MOVE_PORT))
             self.client_feed = Dobot(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
-            self.global_state["move"] = False
+            self.moving = False
             self.set_feed_back()
             self.set_move_thread()
             sleep(2)
@@ -239,7 +238,7 @@ class Server():
 
     def move_thread(self):
         while True:
-            if not self.global_state["move"]:
+            if not self.moving:
                 self.StopRobot()
                 break
             if self.status_move and not self.target_reached and not self.running_status:
@@ -259,7 +258,7 @@ class Server():
                         if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
                             self.StopRobot()
                             break
-                        if not self.global_state["move"]:
+                        if not self.moving:
                             self.StopRobot()
                             break
                 elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
@@ -286,8 +285,8 @@ class Server():
         self.target = target
         self.motion_type = motion_type
         self.status_move = True
-        if not self.global_state["move"]:
-            self.global_state["move"] = True
+        if not self.moving:
+            self.moving = True
             self.set_move_thread()
 
     def GetForceSensorData(self):
@@ -322,8 +321,8 @@ class Server():
 
     def ForceStopRobot(self):
         self.StopRobot()
-        if self.global_state["move"]:
-            self.global_state["move"] = False
+        if self.moving:
+            self.moving = False
             print("ForceStopRobot")
             if self.thread_move:
                 try:
@@ -334,7 +333,7 @@ class Server():
     def Close(self):
         self.StopRobot()
         self.connected = False
-        self.global_state["move"] = False
+        self.moving = False
         if self.thread_move:
             try:
                 self.thread_move.join()
