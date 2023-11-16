@@ -67,8 +67,31 @@ def reset_robot(data):
     robot_control.__init__(remote_control)
     print("Resetting robot control")
 
+# Run the script like this: python main_loop.py [host] [port].
+#
+# If not given, use the defaults, as shown below.
+def get_command_line_arguments():
+    default_host = 'Biomag'
+    default_port = 5000
+
+    if len(sys.argv) == 3:
+        host = sys.argv[1]
+        port = int(sys.argv[2])
+    elif len(sys.argv) == 2:
+        host = default_host
+        port = int(sys.argv[1])
+    else:
+        host = default_host
+        port = default_port
+
+    return host, port
+
 if __name__ == '__main__':
-    remote_control = RemoteControl('http://Biomag:5000')
+    host, port = get_command_line_arguments()
+
+    url = 'http://{}:{}'.format(host, port)
+
+    remote_control = RemoteControl(url)
     remote_control.connect()
 
     robot_control = Robot.RobotControl(remote_control)
