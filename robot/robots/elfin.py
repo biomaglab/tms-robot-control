@@ -7,16 +7,15 @@ class Server():
     """
     The class for communicating with the robot.
     """
-    def __init__(self, ip, port, remote_control):
+    def __init__(self, ip, port):
         self.ip = ip
         self.port = port
-        self.remote_control = remote_control
         self.coordinates = [None]*6
         self.coil_at_target_flag = False
 
         message_size = 1024
         robot_id = 0
-        self.cobot = Elfin(self.remote_control)
+        self.cobot = Elfin()
 
     def Connect(self):
         self.cobot.connect(self.ip, self.port, message_size, robot_id)
@@ -99,12 +98,11 @@ class Server():
         #TODO: robot function to close? self.cobot.close()
 
 class Elfin:
-    def __init__(self, remote_control):
+    def __init__(self):
         """
         Class to communicate with elfin robot. This class follows "HansRobot Communication Protocol Interface".
         """
         self.connected = False
-        self.remote_control = remote_control
         self.end_msg = ",;"
 
     def connect(self, ip, port, message_size, robot_id):

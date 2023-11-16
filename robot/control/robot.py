@@ -21,7 +21,7 @@ class RobotControl:
 
         self.process_tracker = robot_process.TrackerProcessing()
 
-        self.robot_coordinates = coordinates.RobotCoordinates(remote_control)
+        self.robot_coordinates = coordinates.RobotCoordinates()
         self.tracker_coordinates = coordinates.TrackerCoordinates()
 
         self.robot = None
@@ -206,11 +206,11 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
 
         if robot_model == "elfin":
-            self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.remote_control)
+            self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT)
             self.robot.Connect()
 
         elif robot_model == "dobot":
-            self.robot = dobot.Server(robot_IP, self.remote_control)
+            self.robot = dobot.Server(robot_IP)
             self.robot.Connect()
 
         elif robot_model == "ur":

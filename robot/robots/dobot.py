@@ -120,7 +120,7 @@ class Server():
     """
     The class for communicating with the robot.
     """
-    def __init__(self, ip, remote_control):
+    def __init__(self, ip):
         self.ip = ip
 
         self.client_dash = None
@@ -133,7 +133,6 @@ class Server():
         self.global_state["move"] = False
         self.thread_move = False
 
-        self.remote_control = remote_control
         self.coordinates = [None]*6
         self.force_torque_data = [None] * 6
         self.robot_mode = 0
