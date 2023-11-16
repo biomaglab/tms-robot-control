@@ -120,8 +120,8 @@ class Server():
     """
     The class for communicating with the robot.
     """
-    def __init__(self, server_ip, remote_control):
-        self.server_ip = server_ip
+    def __init__(self, ip, remote_control):
+        self.ip = ip
 
         self.client_dash = None
         self.client_feed = None
@@ -181,9 +181,9 @@ class Server():
             self.client_feed = None
             self.client_move = None
         try:
-            self.client_dash = DobotApiDashboard(self.server_ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
-            self.client_move = DobotApiMove(self.server_ip, int(const.ROBOT_DOBOT_MOVE_PORT))
-            self.client_feed = Dobot(self.server_ip, int(const.ROBOT_DOBOT_FEED_PORT))
+            self.client_dash = DobotApiDashboard(self.ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
+            self.client_move = DobotApiMove(self.ip, int(const.ROBOT_DOBOT_MOVE_PORT))
+            self.client_feed = Dobot(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
             self.global_state["connect"] = True
             self.global_state["move"] = False
             self.set_feed_back()

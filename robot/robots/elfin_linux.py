@@ -7,9 +7,9 @@ class Server():
     """
     The class for communicating with the robot.
     """
-    def __init__(self, server_ip, port_number, remote_control):
-        self.server_ip = server_ip
-        self.port_number = port_number
+    def __init__(self, ip, port, remote_control):
+        self.ip = ip
+        self.port = port
         self.remote_control = remote_control
         self.coordinates = [None]*6
         self.coil_at_target_flag = False
@@ -19,7 +19,7 @@ class Server():
         self.cobot = Elfin(self.remote_control)
 
     def Connect(self):
-        connected = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
+        connected = self.cobot.connect(self.ip, self.port, message_size, robot_id)
         return connected
 
     def GetCoordinates(self):
@@ -93,13 +93,13 @@ class Elfin:
         self.remote_control = remote_control
         self.end_msg = ",;"
 
-    def connect(self, server_ip, port_number, message_size, robot_id):
+    def connect(self, ip, port, message_size, robot_id):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
-            mySocket.connect((server_ip, port_number))
+            mySocket.connect((ip, port))
 
-            self.server_ip = server_ip
-            self.port_number = port_number
+            self.ip = ip
+            self.port = port
             self.message_size = message_size
             self.robot_id = str(robot_id)
             self.mySocket = mySocket
@@ -114,7 +114,7 @@ class Elfin:
         data = {'robot_status': False}
         self.remote_control.send_message(topic, data)
         print("Trying to reconnect to robot...")
-        while self.connect(self.server_ip, self.port_number, self.message_size, self.robot_id) is False:
+        while self.connect(self.ip, self.port, self.message_size, self.robot_id) is False:
             sleep(1)
             print("Trying to reconnect to robot...")
         self.GrpStop()
