@@ -116,9 +116,9 @@ MyType = np.dtype([(
     ('actual_quaternion', np.float64, (4, )),
     ('reserve3', np.byte, (24, ))])
 
-class Server():
+class Dobot:
     """
-    The class for communicating with the robot.
+    The class for communicating with Dobot robot.
     """
     def __init__(self, ip):
         self.ip = ip
@@ -182,7 +182,7 @@ class Server():
         try:
             self.client_dash = DobotApiDashboard(self.ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
             self.client_move = DobotApiMove(self.ip, int(const.ROBOT_DOBOT_MOVE_PORT))
-            self.client_feed = Dobot(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
+            self.client_feed = DobotConnection(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
             self.moving = False
             self.set_feed_back()
             self.set_move_thread()
@@ -341,7 +341,7 @@ class Server():
                 pass
         #TODO: robot function to close? self.cobot.close()
 
-class Dobot:
+class DobotConnection:
     def __init__(self, ip, port):
         self.ip = ip
         self.port = port
@@ -354,10 +354,10 @@ class Dobot:
             except socket.error:
                 print(socket.error)
                 raise Exception(
-                    f"Unable to set socket connection use port {self.port} !", socket.error)
+                    f"Unable to set socket connection using port {self.port} !", socket.error)
         else:
             raise Exception(
-                f"Connect to dashboard server need use port {self.port} !")
+                f"Connection to dobot needs to use one of ports: 29999, 30003, 30004 !")
 
     def send_data(self, string):
         try:
@@ -389,7 +389,7 @@ class Dobot:
         self.close()
 
 
-class DobotApiDashboard(Dobot):
+class DobotApiDashboard(DobotConnection):
     """
     Define class dobot_api_dashboard to establish a connection to Dobot
     """
@@ -713,7 +713,7 @@ class DobotApiDashboard(Dobot):
         return self.wait_reply()
 
 
-class DobotApiMove(Dobot):
+class DobotApiMove(DobotConnection):
     """
     Define class dobot_api_move to establish a connection to Dobot
     """

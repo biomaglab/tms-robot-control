@@ -206,11 +206,11 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
 
         if robot_model == "elfin":
-            self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT)
+            self.robot = elfin.Elfin(robot_IP, const.ROBOT_ElFIN_PORT)
             self.robot.Connect()
 
         elif robot_model == "dobot":
-            self.robot = dobot.Server(robot_IP)
+            self.robot = dobot.Dobot(robot_IP)
             self.robot.Connect()
 
         elif robot_model == "ur":
