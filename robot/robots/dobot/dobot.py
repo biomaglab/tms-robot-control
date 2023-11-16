@@ -8,6 +8,236 @@ import robot.constants as const
 import robot.control.robot_processing as robot_process
 from robot.robots.dobot.dobot_connection import DobotApiDashboard, DobotApiMove, DobotConnection
 
+
+class Dobot:
+    """
+    The class for communicating with Dobot robot.
+    """
+    def __init__(self, ip):
+        self.ip = ip
+
+        self.client_dash = None
+        self.client_feed = None
+        self.client_move = None
+
+        self.stop_threads = False
+
+        self.moving = False
+        self.thread_move = False
+
+        self.coordinates = [None]*6
+        self.force_torque_data = [None] * 6
+        self.robot_mode = 0
+        self.running_status = 0
+
+        self.status_move = False
+        self.target = [None] * 6
+        self.target_reached = False
+        self.motion_type = const.ROBOT_MOTIONS["normal"]
+
+        self.connected = False
+
+    def Connect(self):
+        if self.connected:
+            self.client_dash = None
+            self.client_feed = None
+            self.client_move = None
+        try:
+            self.client_dash = DobotApiDashboard(self.ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
+            self.client_move = DobotApiMove(self.ip, int(const.ROBOT_DOBOT_MOVE_PORT))
+            self.client_feed = DobotConnection(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
+            self.moving = False
+
+            self._set_feedback()
+            self._set_move_thread()
+
+            sleep(2)
+            if any(coord is None for coord in self.coordinates):
+                print("Please, restart robot")
+                return
+
+            if self.robot_mode == 4:
+                self.client_dash.EnableRobot()
+                sleep(1)
+
+            if self.robot_mode == 9:
+                self.client_dash.ClearError()
+                sleep(1)
+
+            self.connected = True
+
+        except Exception as e:
+            print("Attention!", f"Connection Error:{e}")
+
+    def IsConnected(self):
+        return self.connected
+
+    def GetCoordinates(self):
+        return self.coordinates
+
+    def SetTargetReached(self, target_reached):
+        self.target_reached = target_reached
+
+    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
+        """
+        It's not possible to send a move command to elfin if the robot is during a move.
+         Status 1009 means robot in motion.
+        """
+        self.target = target
+        self.motion_type = motion_type
+        self.status_move = True
+        if not self.moving:
+            self.moving = True
+            self._set_move_thread()
+
+    def GetForceSensorData(self):
+        if const.FORCE_TORQUE_SENSOR:
+            return self.force_torque_data
+        else:
+            return False
+
+    def CompensateForce(self, flag):
+        status = self.client_dash.RobotMode()
+        print("CompensateForce")
+        if not status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+            if not flag:
+                self.StopRobot()
+            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
+            else:
+                offset_x = 0
+                offset_y = 0
+                offset_z = -2
+                offset_rx = 0
+                offset_ry = 0
+                offset_rz = 0
+                self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
+
+    def StopRobot(self):
+        # Takes some microseconds to the robot actual stops after the command.
+        # The sleep time is required to guarantee the stop
+        self.status_move = False
+        #if self.running_status == 1:
+        self.client_dash.ResetRobot()
+        #sleep(0.05)
+
+    def ForceStopRobot(self):
+        self.StopRobot()
+        if self.moving:
+            self.moving = False
+            print("ForceStopRobot")
+            if self.thread_move:
+                try:
+                    self.thread_move.join()
+                except RuntimeError:
+                    pass
+
+    def Close(self):
+        self.StopRobot()
+        self.connected = False
+        self.moving = False
+        if self.thread_move:
+            try:
+                self.thread_move.join()
+            except RuntimeError:
+                pass
+        #TODO: robot function to close? self.cobot.close()
+
+    ## Internal methods
+
+    def _set_feedback(self):
+        if self.connected:
+            thread = Thread(target=self._feedback)
+            thread.setDaemon(True)
+            thread.start()
+
+    def _feedback(self):
+        hasRead = 0
+        while True:
+            if not self.connected:
+                break
+            data = bytes()
+            while hasRead < 1440:
+                temp = self.client_feed.socket_dobot.recv(1440 - hasRead)
+                if len(temp) > 0:
+                    hasRead += len(temp)
+                    data += temp
+            hasRead = 0
+
+            a = np.frombuffer(data, dtype=MyType)
+
+            # Refresh coordinate points
+            self.coordinates = a["tool_vector_actual"][0]
+            self.force_torque_data = a["six_force_value"][0]
+            #OR self.force_torque_data = a["actual_TCP_force"][0]
+            self.robot_mode = int(a["robot_mode"][0])
+            self.running_status = int(a["running_status"][0])
+
+            #sleep(0.001)
+
+    def _set_move_thread(self):
+        if self.connected:
+            thread = Thread(target=self._move_thread)
+            thread.daemon = True
+            thread.start()
+            self.thread_move = thread
+
+    def _motion_loop(self):
+        timeout_start = time.time()
+        while self.running_status != 1:
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_START_MOTION:
+                print("break")
+                self.StopRobot()
+                break
+            sleep(0.001)
+
+        while self.running_status == 1:
+            status = int(self.robot_mode)
+            if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+                self.StopRobot()
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+                self.StopRobot()
+                print("break")
+                break
+            sleep(0.001)
+
+    def _move_thread(self):
+        while True:
+            if not self.moving:
+                self.StopRobot()
+                break
+            if self.status_move and not self.target_reached and not self.running_status:
+                print('moving')
+                if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
+                    self.client_move.MoveL(self.target)
+                    self._motion_loop()
+                elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
+                    curve_set = robot_process.bezier_curve(np.asarray(self.target))
+                    target = self.target
+                    for curve_point in curve_set:
+                        self.client_move.ServoP(curve_point)
+                        self._motion_loop()
+                        if self.motion_type != const.ROBOT_MOTIONS["arc"]:
+                            self.StopRobot()
+                            break
+                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
+                            self.StopRobot()
+                            break
+                        if not self.moving:
+                            self.StopRobot()
+                            break
+                elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
+                    offset_x = self.target[0]
+                    offset_y = self.target[1]
+                    offset_z = self.target[2]
+                    offset_rx = self.target[3]
+                    offset_ry = self.target[4]
+                    offset_rz = self.target[5]
+                    self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
+                                                 tool=const.ROBOT_DOBOT_TOOL_ID)
+                    self._motion_loop()
+
+            sleep(0.001)
+
 # Port Feedback
 MyType = np.dtype([(
     'len',
@@ -115,230 +345,3 @@ MyType = np.dtype([(
     ('target_quaternion', np.float64, (4, )),
     ('actual_quaternion', np.float64, (4, )),
     ('reserve3', np.byte, (24, ))])
-
-class Dobot:
-    """
-    The class for communicating with Dobot robot.
-    """
-    def __init__(self, ip):
-        self.ip = ip
-
-        self.client_dash = None
-        self.client_feed = None
-        self.client_move = None
-
-        self.stop_threads = False
-
-        self.moving = False
-        self.thread_move = False
-
-        self.coordinates = [None]*6
-        self.force_torque_data = [None] * 6
-        self.robot_mode = 0
-        self.running_status = 0
-
-        self.status_move = False
-        self.target = [None] * 6
-        self.target_reached = False
-        self.motion_type = const.ROBOT_MOTIONS["normal"]
-
-        self.connected = False
-
-    def Connect(self):
-        if self.connected:
-            self.client_dash = None
-            self.client_feed = None
-            self.client_move = None
-        try:
-            self.client_dash = DobotApiDashboard(self.ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
-            self.client_move = DobotApiMove(self.ip, int(const.ROBOT_DOBOT_MOVE_PORT))
-            self.client_feed = DobotConnection(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
-            self.moving = False
-            self.set_feed_back()
-            self.set_move_thread()
-            sleep(2)
-            if any(coord is None for coord in self.coordinates):
-                print("Please, restart robot")
-                return
-
-            if self.robot_mode == 4:
-                self.client_dash.EnableRobot()
-                sleep(1)
-
-            if self.robot_mode == 9:
-                self.client_dash.ClearError()
-                sleep(1)
-
-            self.connected = True
-
-        except Exception as e:
-            print("Attention!", f"Connection Error:{e}")
-
-    def IsConnected(self):
-        return self.connected
-
-    def GetCoordinates(self):
-        return self.coordinates
-
-    def SetTargetReached(self, target_reached):
-        self.target_reached = target_reached
-
-    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
-        """
-        It's not possible to send a move command to elfin if the robot is during a move.
-         Status 1009 means robot in motion.
-        """
-        self.target = target
-        self.motion_type = motion_type
-        self.status_move = True
-        if not self.moving:
-            self.moving = True
-            self.set_move_thread()
-
-    def GetForceSensorData(self):
-        if const.FORCE_TORQUE_SENSOR:
-            return self.force_torque_data
-        else:
-            return False
-
-    def CompensateForce(self, flag):
-        status = self.client_dash.RobotMode()
-        print("CompensateForce")
-        if not status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
-            if not flag:
-                self.StopRobot()
-            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            else:
-                offset_x = 0
-                offset_y = 0
-                offset_z = -2
-                offset_rx = 0
-                offset_ry = 0
-                offset_rz = 0
-                self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool=const.ROBOT_DOBOT_TOOL_ID)
-
-    def StopRobot(self):
-        # Takes some microseconds to the robot actual stops after the command.
-        # The sleep time is required to guarantee the stop
-        self.status_move = False
-        #if self.running_status == 1:
-        self.client_dash.ResetRobot()
-        #sleep(0.05)
-
-    def ForceStopRobot(self):
-        self.StopRobot()
-        if self.moving:
-            self.moving = False
-            print("ForceStopRobot")
-            if self.thread_move:
-                try:
-                    self.thread_move.join()
-                except RuntimeError:
-                    pass
-
-    def Close(self):
-        self.StopRobot()
-        self.connected = False
-        self.moving = False
-        if self.thread_move:
-            try:
-                self.thread_move.join()
-            except RuntimeError:
-                pass
-        #TODO: robot function to close? self.cobot.close()
-
-    ## Internal methods
-
-    def set_feed_back(self):
-        if self.connected:
-            thread = Thread(target=self.feed_back)
-            thread.setDaemon(True)
-            thread.start()
-
-    def feed_back(self):
-        hasRead = 0
-        while True:
-            if not self.connected:
-                break
-            data = bytes()
-            while hasRead < 1440:
-                temp = self.client_feed.socket_dobot.recv(1440 - hasRead)
-                if len(temp) > 0:
-                    hasRead += len(temp)
-                    data += temp
-            hasRead = 0
-
-            a = np.frombuffer(data, dtype=MyType)
-
-            # Refresh coordinate points
-            self.coordinates = a["tool_vector_actual"][0]
-            self.force_torque_data = a["six_force_value"][0]
-            #OR self.force_torque_data = a["actual_TCP_force"][0]
-            self.robot_mode = int(a["robot_mode"][0])
-            self.running_status = int(a["running_status"][0])
-
-            #sleep(0.001)
-
-    def set_move_thread(self):
-        if self.connected:
-            thread = Thread(target=self.move_thread)
-            thread.daemon = True
-            thread.start()
-            self.thread_move = thread
-
-    def motion_loop(self):
-        timeout_start = time.time()
-        while self.running_status != 1:
-            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_START_MOTION:
-                print("break")
-                self.StopRobot()
-                break
-            sleep(0.001)
-
-        while self.running_status == 1:
-            status = int(self.robot_mode)
-            if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
-                self.StopRobot()
-            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
-                self.StopRobot()
-                print("break")
-                break
-            sleep(0.001)
-
-    def move_thread(self):
-        while True:
-            if not self.moving:
-                self.StopRobot()
-                break
-            if self.status_move and not self.target_reached and not self.running_status:
-                print('moving')
-                if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
-                    self.client_move.MoveL(self.target)
-                    self.motion_loop()
-                elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
-                    curve_set = robot_process.bezier_curve(np.asarray(self.target))
-                    target = self.target
-                    for curve_point in curve_set:
-                        self.client_move.ServoP(curve_point)
-                        self.motion_loop()
-                        if self.motion_type != const.ROBOT_MOTIONS["arc"]:
-                            self.StopRobot()
-                            break
-                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
-                            self.StopRobot()
-                            break
-                        if not self.moving:
-                            self.StopRobot()
-                            break
-                elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
-                    offset_x = self.target[0]
-                    offset_y = self.target[1]
-                    offset_z = self.target[2]
-                    offset_rx = self.target[3]
-                    offset_ry = self.target[4]
-                    offset_rz = self.target[5]
-                    self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
-                                                 tool=const.ROBOT_DOBOT_TOOL_ID)
-                    self.motion_loop()
-
-            sleep(0.001)
