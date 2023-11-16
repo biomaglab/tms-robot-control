@@ -68,7 +68,7 @@ def reset_robot(data):
     print("Resetting robot control")
 
 if __name__ == '__main__':
-    rc = RemoteControl('http://Biomag:5000')
+    rc = RemoteControl('http://127.0.0.1:5000')
     rc.connect()
     robot = Robot.RobotControl(rc)
     previous_robot_status = False
@@ -81,7 +81,6 @@ if __name__ == '__main__':
 
             for i in range(len(buf)):
                 if topic[i] in const.PUB_MESSAGES:
-                    #print(topic)
                     get_function = {const.FUNCTION_CONNECT_TO_ROBOT: robot.OnRobotConnection,
                                     const.FUNCTION_ROBOT_NAVIGATION_MODE: robot.OnUpdateRobotNavigationMode,
                                     const.FUNCTION_UPDATE_ROBOT_TARGET: robot.OnUpdateRobotTargetMatrix,
@@ -109,4 +108,3 @@ if __name__ == '__main__':
                 previous_robot_status = robot_status
 
         time.sleep(const.SLEEP_ROBOT)
-
