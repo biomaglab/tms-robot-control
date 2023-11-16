@@ -135,7 +135,7 @@ class Server():
         self.thread_move = False
 
         self.remote_control = remote_control
-        self.coordinate = [None]*6
+        self.coordinates = [None]*6
         self.force_torque_data = [None] * 6
         self.robot_mode = 0
         self.running_status = 0
@@ -167,7 +167,7 @@ class Server():
             a = np.frombuffer(data, dtype=MyType)
 
             # Refresh coordinate points
-            self.coordinate = a["tool_vector_actual"][0]
+            self.coordinates = a["tool_vector_actual"][0]
             self.force_torque_data = a["six_force_value"][0]
             #OR self.force_torque_data = a["actual_TCP_force"][0]
             self.robot_mode = int(a["robot_mode"][0])
@@ -189,7 +189,7 @@ class Server():
             self.set_feed_back()
             self.set_move_thread()
             sleep(2)
-            if any(coord is None for coord in self.coordinate):
+            if any(coord is None for coord in self.coordinates):
                 print("Please, restart robot")
                 return False
             if self.robot_mode == 4:
@@ -203,8 +203,8 @@ class Server():
             print("Attention!", f"Connection Error:{e}")
             return False
 
-    def Run(self):
-        return self.coordinate
+    def GetCoordinates(self):
+        return self.coordinates
 
     def set_move_thread(self):
         if self.global_state["connect"]:

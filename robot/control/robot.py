@@ -268,7 +268,7 @@ class RobotControl:
             self.REF_FLAG = True
 
     def update_robot_coordinates(self):
-        coord_robot_raw = self.robot.Run()
+        coord_robot_raw = self.robot.GetCoordinates()
         self.robot_coordinates.SetRobotCoordinates(coord_robot_raw)
 
     def robot_motion_reset(self):

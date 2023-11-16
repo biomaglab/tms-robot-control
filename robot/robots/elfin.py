@@ -11,7 +11,7 @@ class Server():
         self.server_ip = server_ip
         self.port_number = port_number
         self.remote_control = remote_control
-        self.coordinate = [None]*6
+        self.coordinates = [None]*6
         self.coil_at_target_flag = False
 
         message_size = 1024
@@ -22,10 +22,10 @@ class Server():
         connected = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
         return connected
 
-    def Run(self):
-        coord = self.cobot.ReadPcsActualPos()
-        if coord:
-            self.coordinate = coord
+    def GetCoordinates(self):
+        coordinates = self.cobot.ReadPcsActualPos()
+        if coordinates:
+            self.coordinates = coordinates
         return self.coordinate
 
     def coil_at_target_state(self, coil_at_target_state):
