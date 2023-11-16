@@ -144,36 +144,6 @@ class Dobot:
 
         self.connected = False
 
-    def set_feed_back(self):
-        if self.connected:
-            thread = Thread(target=self.feed_back)
-            thread.setDaemon(True)
-            thread.start()
-
-    def feed_back(self):
-        hasRead = 0
-        while True:
-            if not self.connected:
-                break
-            data = bytes()
-            while hasRead < 1440:
-                temp = self.client_feed.socket_dobot.recv(1440 - hasRead)
-                if len(temp) > 0:
-                    hasRead += len(temp)
-                    data += temp
-            hasRead = 0
-
-            a = np.frombuffer(data, dtype=MyType)
-
-            # Refresh coordinate points
-            self.coordinates = a["tool_vector_actual"][0]
-            self.force_torque_data = a["six_force_value"][0]
-            #OR self.force_torque_data = a["actual_TCP_force"][0]
-            self.robot_mode = int(a["robot_mode"][0])
-            self.running_status = int(a["running_status"][0])
-
-            #sleep(0.001)
-
     def Connect(self):
         if self.connected:
             self.client_dash = None
@@ -209,70 +179,6 @@ class Dobot:
 
     def GetCoordinates(self):
         return self.coordinates
-
-    def set_move_thread(self):
-        if self.connected:
-            thread = Thread(target=self.move_thread)
-            thread.daemon = True
-            thread.start()
-            self.thread_move = thread
-
-    def motion_loop(self):
-        timeout_start = time.time()
-        while self.running_status != 1:
-            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_START_MOTION:
-                print("break")
-                self.StopRobot()
-                break
-            sleep(0.001)
-
-        while self.running_status == 1:
-            status = int(self.robot_mode)
-            if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
-                self.StopRobot()
-            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
-                self.StopRobot()
-                print("break")
-                break
-            sleep(0.001)
-
-    def move_thread(self):
-        while True:
-            if not self.moving:
-                self.StopRobot()
-                break
-            if self.status_move and not self.target_reached and not self.running_status:
-                print('moving')
-                if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
-                    self.client_move.MoveL(self.target)
-                    self.motion_loop()
-                elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
-                    curve_set = robot_process.bezier_curve(np.asarray(self.target))
-                    target = self.target
-                    for curve_point in curve_set:
-                        self.client_move.ServoP(curve_point)
-                        self.motion_loop()
-                        if self.motion_type != const.ROBOT_MOTIONS["arc"]:
-                            self.StopRobot()
-                            break
-                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
-                            self.StopRobot()
-                            break
-                        if not self.moving:
-                            self.StopRobot()
-                            break
-                elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
-                    offset_x = self.target[0]
-                    offset_y = self.target[1]
-                    offset_z = self.target[2]
-                    offset_rx = self.target[3]
-                    offset_ry = self.target[4]
-                    offset_rz = self.target[5]
-                    self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
-                                                 tool=const.ROBOT_DOBOT_TOOL_ID)
-                    self.motion_loop()
-
-            sleep(0.001)
 
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
@@ -340,3 +246,99 @@ class Dobot:
             except RuntimeError:
                 pass
         #TODO: robot function to close? self.cobot.close()
+
+    ## Internal methods
+
+    def set_feed_back(self):
+        if self.connected:
+            thread = Thread(target=self.feed_back)
+            thread.setDaemon(True)
+            thread.start()
+
+    def feed_back(self):
+        hasRead = 0
+        while True:
+            if not self.connected:
+                break
+            data = bytes()
+            while hasRead < 1440:
+                temp = self.client_feed.socket_dobot.recv(1440 - hasRead)
+                if len(temp) > 0:
+                    hasRead += len(temp)
+                    data += temp
+            hasRead = 0
+
+            a = np.frombuffer(data, dtype=MyType)
+
+            # Refresh coordinate points
+            self.coordinates = a["tool_vector_actual"][0]
+            self.force_torque_data = a["six_force_value"][0]
+            #OR self.force_torque_data = a["actual_TCP_force"][0]
+            self.robot_mode = int(a["robot_mode"][0])
+            self.running_status = int(a["running_status"][0])
+
+            #sleep(0.001)
+
+    def set_move_thread(self):
+        if self.connected:
+            thread = Thread(target=self.move_thread)
+            thread.daemon = True
+            thread.start()
+            self.thread_move = thread
+
+    def motion_loop(self):
+        timeout_start = time.time()
+        while self.running_status != 1:
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_START_MOTION:
+                print("break")
+                self.StopRobot()
+                break
+            sleep(0.001)
+
+        while self.running_status == 1:
+            status = int(self.robot_mode)
+            if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+                self.StopRobot()
+            if time.time() > timeout_start + const.ROBOT_DOBOT_TIMEOUT_MOTION:
+                self.StopRobot()
+                print("break")
+                break
+            sleep(0.001)
+
+    def move_thread(self):
+        while True:
+            if not self.moving:
+                self.StopRobot()
+                break
+            if self.status_move and not self.target_reached and not self.running_status:
+                print('moving')
+                if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
+                    self.client_move.MoveL(self.target)
+                    self.motion_loop()
+                elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
+                    curve_set = robot_process.bezier_curve(np.asarray(self.target))
+                    target = self.target
+                    for curve_point in curve_set:
+                        self.client_move.ServoP(curve_point)
+                        self.motion_loop()
+                        if self.motion_type != const.ROBOT_MOTIONS["arc"]:
+                            self.StopRobot()
+                            break
+                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
+                            self.StopRobot()
+                            break
+                        if not self.moving:
+                            self.StopRobot()
+                            break
+                elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
+                    offset_x = self.target[0]
+                    offset_y = self.target[1]
+                    offset_z = self.target[2]
+                    offset_rx = self.target[3]
+                    offset_ry = self.target[4]
+                    offset_rz = self.target[5]
+                    self.client_move.RelMovLTool(offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz,
+                                                 tool=const.ROBOT_DOBOT_TOOL_ID)
+                    self.motion_loop()
+
+            sleep(0.001)
