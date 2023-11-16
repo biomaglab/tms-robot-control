@@ -38,7 +38,7 @@ class Elfin():
         coordinates = self.connection.ReadPcsActualPos()
         if coordinates:
             self.coordinates = coordinates
-        return self.coordinate
+        return self.coordinates
 
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
