@@ -9,6 +9,7 @@ import robot.constants as const
 import robot.transformations as tr
 
 import robot.robot_api.elfin_api as elfin
+import robot.robot_api.elfin_linux_api as elfin_linux
 import robot.robot_api.dobot_api as dobot
 import robot.control.coordinates as coordinates
 import robot.control.ft as ft
@@ -203,9 +204,16 @@ class RobotControl:
         if robot_model == "elfin":
             self.trck_init_robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
             status_connection = self.trck_init_robot.Initialize()
+        elif robot_model == "elfin_linux":
+            self.trck_init_robot = elfin_linux.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
+            status_connection = self.trck_init_robot.Initialize()
         elif robot_model == "dobot":
             self.trck_init_robot = dobot.Server(robot_IP, self.rc)
             status_connection = self.trck_init_robot.Initialize()
+        else:
+            print('Unknown robot model.')
+            status_connection = False
+
         if status_connection:
             print('Connect to robot tracking device.')
         else:
