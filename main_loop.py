@@ -64,49 +64,54 @@ class RemoteControl:
         self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
 
 def reset_robot(data):
-    robot.__init__(rc)
+    robot_control.__init__(remote_control)
     print("Resetting robot control")
 
 if __name__ == '__main__':
-    rc = RemoteControl('http://Biomag:5000')
-    rc.connect()
-    robot = Robot.RobotControl(rc)
+    remote_control = RemoteControl('http://Biomag:5000')
+    remote_control.connect()
+
+    robot_control = Robot.RobotControl(remote_control)
+
     previous_robot_status = False
     while True:
-        buf = rc.get_buffer()
+        buf = remote_control.get_buffer()
         if len(buf) == 0:
             pass
+
         elif any(item in [d['topic'] for d in buf] for item in const.PUB_MESSAGES):
             topic = [d['topic'] for d in buf]
 
             for i in range(len(buf)):
                 if topic[i] in const.PUB_MESSAGES:
-                    #print(topic)
-                    get_function = {const.FUNCTION_CONNECT_TO_ROBOT: robot.OnRobotConnection,
-                                    const.FUNCTION_ROBOT_NAVIGATION_MODE: robot.OnUpdateRobotNavigationMode,
-                                    const.FUNCTION_UPDATE_ROBOT_TARGET: robot.OnUpdateRobotTargetMatrix,
-                                    const.FUNCTION_RESET_ROBOT_PROCESS: robot.OnResetProcessTracker,
-                                    const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot.OnUpdateCoordinates,
-                                    const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot.OnUpdateTrackerFiducialsMatrix,
-                                    const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot.OnCreatePoint,
-                                    const.FUNCTION_RESET_ROBOT_MATRIX: robot.OnResetRobotMatrix,
-                                    const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot.OnRobotMatrixEstimation,
-                                    const.FUNCTION_LOAD_ROBOT_MATRIX: robot.OnLoadRobotMatrix,
-                                    const.FUNCTION_RESET_ROBOT: reset_robot,
-                                    const.FUNCTION_COIL_AT_TARGET: robot.OnCoilAtTarget,
-                                    const.FUNCTION_DISTANCE_TO_TARGET: robot.OnDistanceToTarget,
-                                    }
+                    get_function = {
+                        const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
+                        const.FUNCTION_ROBOT_NAVIGATION_MODE: robot_control.OnUpdateRobotNavigationMode,
+                        const.FUNCTION_UPDATE_ROBOT_TARGET: robot_control.OnUpdateRobotTargetMatrix,
+                        const.FUNCTION_RESET_ROBOT_PROCESS: robot_control.OnResetProcessTracker,
+                        const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot_control.OnUpdateCoordinates,
+                        const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot_control.OnUpdateTrackerFiducialsMatrix,
+                        const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
+                        const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
+                        const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
+                        const.FUNCTION_LOAD_ROBOT_MATRIX: robot_control.OnLoadRobotMatrix,
+                        const.FUNCTION_RESET_ROBOT: reset_robot,
+                        const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
+                        const.FUNCTION_DISTANCE_TO_TARGET: robot_control.OnDistanceToTarget,
+                    }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
-        if robot.trck_init_robot:
-            robot.update_robot_coordinates()
-            robot_status = robot.robot_control()
+        if robot_control.robot:
+            robot_control.update_robot_coordinates()
+            robot_status = robot_control.get_robot_status()
 
+            # If changed, send robot status to neuronavigation via remote control.
             if previous_robot_status != robot_status:
                 topic = 'Update robot status'
                 data = {'robot_status': robot_status}
-                rc.send_message(topic, data)
-                previous_robot_status = robot_status
+                remote_control.send_message(topic, data)
+
+            previous_robot_status = robot_status
 
         time.sleep(const.SLEEP_ROBOT)
 

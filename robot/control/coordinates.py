@@ -6,8 +6,8 @@ class RobotCoordinates:
     Class to set/send robot coordinates.
     The class is required to avoid acquisition conflict with different threads (coordinates and navigation)
     """
-    def __init__(self, rc):
-        self.rc = rc
+    def __init__(self, remote_control):
+        self.remote_control = remote_control
         self.robot_coord = [None]*6
 
     def SetRobotCoordinates(self, coord):

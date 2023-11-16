@@ -16,16 +16,15 @@ import robot.control.robot_processing as robot_process
 
 
 class RobotControl:
-    def __init__(self, rc):
-        self.rc = rc
+    def __init__(self, remote_control):
+        self.remote_control = remote_control
 
-        self.trk_init = None
         self.process_tracker = robot_process.TrackerProcessing()
 
-        self.robot_coordinates = coordinates.RobotCoordinates(rc)
+        self.robot_coordinates = coordinates.RobotCoordinates(remote_control)
         self.tracker_coordinates = coordinates.TrackerCoordinates()
 
-        self.trck_init_robot = None
+        self.robot = None
         self.robot_mode_status = False
 
         self.tracker_coord_list = []
@@ -76,12 +75,12 @@ class RobotControl:
         self.robot_mode_status = data["robot_mode"]
 
     def OnUpdateRobotTargetMatrix(self, data):
-        if self.trck_init_robot:
+        if self.robot:
             self.robot_tracker_flag = data["robot_tracker_flag"]
             self.target_index = data["target_index"]
             target = data["target"]
             if not self.robot_tracker_flag:
-                self.trck_init_robot.ForceStopRobot()
+                self.robot.ForceStopRobot()
                 self.m_change_robot_to_head = [None] * 9
                 self.target_force_sensor_data = 5
                 print("Removing robot target")
@@ -108,7 +107,7 @@ class RobotControl:
         if self.create_calibration_point():
             topic = 'Coordinates for the robot transformation matrix collected'
             data = {}
-            self.rc.send_message(topic, data)
+            self.remote_control.send_message(topic, data)
 
     def OnResetRobotMatrix(self, data):
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -136,7 +135,7 @@ class RobotControl:
 
             topic = 'Update robot transformation matrix'
             data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
-            self.rc.send_message(topic, data)
+            self.remote_control.send_message(topic, data)
 
         except np.linalg.LinAlgError:
             print("numpy.linalg.LinAlgError")
@@ -201,23 +200,23 @@ class RobotControl:
     def RobotConnection(self, robot_IP, robot_model):
         print("Trying to connect Robot via: ", robot_IP, robot_model)
         if robot_model == "elfin":
-            self.trck_init_robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.rc)
-            status_connection = self.trck_init_robot.Initialize()
+            self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.remote_control)
+            status_connection = self.robot.Initialize()
         elif robot_model == "dobot":
-            self.trck_init_robot = dobot.Server(robot_IP, self.rc)
-            status_connection = self.trck_init_robot.Initialize()
+            self.robot = dobot.Server(robot_IP, self.remote_control)
+            status_connection = self.robot.Initialize()
         if status_connection:
             print('Connect to robot tracking device.')
         else:
             topic = 'Dialog robot destroy'
             data = {}
-            self.rc.send_message(topic, data)
-            self.trck_init_robot = None
+            self.remote_control.send_message(topic, data)
+            self.robot = None
             print('Not possible to connect to robot.')
 
         topic = 'Robot connection status'
         data = {'data': status_connection}
-        self.rc.send_message(topic, data)
+        self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
         topic = 'Update target from FT values'
@@ -225,7 +224,7 @@ class RobotControl:
 
         self.status = False
 
-        self.rc.send_message(topic, data)
+        self.remote_control.send_message(topic, data)
 
     def _on_press(self, key):
         '''
@@ -247,11 +246,11 @@ class RobotControl:
             self.REF_FLAG = True
 
     def update_robot_coordinates(self):
-        coord_robot_raw = self.trck_init_robot.Run()
+        coord_robot_raw = self.robot.Run()
         self.robot_coordinates.SetRobotCoordinates(coord_robot_raw)
 
     def robot_motion_reset(self):
-        self.trck_init_robot.StopRobot()
+        self.robot.StopRobot()
         self.arc_motion_flag = False
         self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
 
@@ -289,7 +288,7 @@ class RobotControl:
                                const.ROBOT_TRANSFORMATION_MATRIX_THRESHOLD):
                 topic = 'Request new robot transformation matrix'
                 data = {}
-                self.rc.send_message(topic, data)
+                self.remote_control.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
     def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target, ft_values=False):
@@ -380,9 +379,9 @@ class RobotControl:
                     self.inside_circle = False
                     self.prev_state_flag = 1
 
-                self.trck_init_robot.SendTargetToControl(new_robot_target, self.motion_step_flag)
+                self.robot.SendTargetToControl(new_robot_target, self.motion_step_flag)
 
-            self.trck_init_robot.coil_at_target_state(self.coil_at_target_state)
+            self.robot.coil_at_target_state(self.coil_at_target_state)
 
             robot_status = True
         else:
@@ -391,7 +390,7 @@ class RobotControl:
 
         return robot_status
 
-    def robot_control(self):
+    def get_robot_status(self):
         robot_status = False
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
         if current_tracker_coordinates[1] is None:
@@ -402,7 +401,7 @@ class RobotControl:
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
         # TODO: condition for const.FORCE_TORQUE_SENSOR
-        ft_values = np.array(self.trck_init_robot.GetForceSensorData())
+        ft_values = np.array(self.robot.GetForceSensorData())
         if const.FORCE_TORQUE_SENSOR:
             # true f-t value
             current_F = ft_values[0:3]
@@ -461,15 +460,15 @@ class RobotControl:
                                                                 coord_head_tracker_filtered, tunning_to_target, ft_values)
                     else:
                         print("Head is moving too much")
-                        self.trck_init_robot.StopRobot()
+                        self.robot.StopRobot()
                 else:
                     print("Head marker is not visible")
-                    self.trck_init_robot.StopRobot()
+                    self.robot.StopRobot()
             else:
                 #print("Compensating Force")
                 print(self.new_force_sensor_data)
                 self.compensate_force_flag = True
-                self.trck_init_robot.CompensateForce(self.compensate_force_flag)
+                self.robot.CompensateForce(self.compensate_force_flag)
                 time.sleep(0.5)
         else:
             #print("Navigation is off")
