@@ -59,7 +59,7 @@ class RobotControl:
         self.target_arc = None
         self.previous_robot_status = False
 
-        self.coil_at_target_state = False
+        self.target_reached = False
         self.distance_to_target = [0]*6
         self.ft_distance_offset = [0, 0]
 
@@ -200,7 +200,7 @@ class RobotControl:
         self.distance_to_target = list(translation) + list(angles_as_deg)
 
     def OnCoilAtTarget(self, data):
-        self.coil_at_target_state = data["state"]
+        self.target_reached = data["state"]
 
     def ConnectToRobot(self, robot_IP, robot_model):
         print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
@@ -389,7 +389,7 @@ class RobotControl:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                 new_robot_target = tunning_to_target
 
-            if not self.coil_at_target_state:
+            if not self.target_reached:
                 if (np.sqrt(
                         np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or
                     np.sqrt(
@@ -412,7 +412,7 @@ class RobotControl:
 
                 self.robot.SendTargetToControl(new_robot_target, self.motion_step_flag)
 
-            self.robot.coil_at_target_state(self.coil_at_target_state)
+            self.robot.SetTargetReached(self.target_reached)
 
             robot_status = True
         else:

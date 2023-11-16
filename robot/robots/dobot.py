@@ -140,7 +140,7 @@ class Server():
 
         self.status_move = False
         self.target = [None] * 6
-        self.coil_at_target_flag = False
+        self.target_reached = False
         self.motion_type = const.ROBOT_MOTIONS["normal"]
 
         self.connected = False
@@ -242,7 +242,7 @@ class Server():
             if not self.global_state["move"]:
                 self.StopRobot()
                 break
-            if self.status_move and not self.coil_at_target_flag and not self.running_status:
+            if self.status_move and not self.target_reached and not self.running_status:
                 print('moving')
                 if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
                     self.client_move.MoveL(self.target)
@@ -275,8 +275,8 @@ class Server():
 
             sleep(0.001)
 
-    def coil_at_target_state(self, coil_at_target_state):
-        self.coil_at_target_flag = coil_at_target_state
+    def SetTargetReached(self, target_reached):
+        self.target_reached = target_reached
 
     def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """

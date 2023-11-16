@@ -11,7 +11,7 @@ class Server():
         self.ip = ip
         self.port = port
         self.coordinates = [None]*6
-        self.coil_at_target_flag = False
+        self.target_reached = False
 
         message_size = 1024
         robot_id = 0
@@ -40,8 +40,8 @@ class Server():
             self.coordinates = coordinates
         return self.coordinate
 
-    def coil_at_target_state(self, coil_at_target_state):
-        self.coil_at_target_flag = coil_at_target_state
+    def SetTargetReached(self, target_reached):
+        self.target_reached = target_reached
 
     def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
