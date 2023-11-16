@@ -8,8 +8,8 @@ import time
 import robot.constants as const
 import robot.transformations as tr
 
-import robot.robot_api.elfin_api as elfin
-import robot.robot_api.dobot_api as dobot
+import robot.robots.elfin as elfin
+import robot.robots.dobot as dobot
 import robot.control.coordinates as coordinates
 import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
@@ -212,6 +212,10 @@ class RobotControl:
         elif robot_model == "dobot":
             self.robot = dobot.Server(robot_IP, self.remote_control)
             connected = self.robot.Initialize()
+
+        elif robot_model == "ur":
+            # TODO: Add Universal Robots robot here.
+            pass
 
         elif robot_model == "test":
             # TODO: Add 'test' robot here.
