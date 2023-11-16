@@ -68,7 +68,12 @@ class RobotControl:
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
-        robot_model = data["robot_model"]
+        if "robot_model" in data:
+            robot_model = data["robot_model"]
+        else:
+            print("No robot model set, defaulting to 'test'")
+            robot_model = "test"
+
         self.RobotConnection(robot_IP, robot_model)
 
     def OnUpdateRobotNavigationMode(self, data):
@@ -198,13 +203,23 @@ class RobotControl:
         self.coil_at_target_state = data["state"]
 
     def RobotConnection(self, robot_IP, robot_model):
-        print("Trying to connect Robot via: ", robot_IP, robot_model)
+        print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
+
         if robot_model == "elfin":
             self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.remote_control)
             status_connection = self.robot.Initialize()
+
         elif robot_model == "dobot":
             self.robot = dobot.Server(robot_IP, self.remote_control)
             status_connection = self.robot.Initialize()
+
+        elif robot_model == "test":
+            # TODO: Add 'test' robot here.
+            pass
+
+        else:
+            assert False, "Unknown robot model"
+
         if status_connection:
             print('Connect to robot tracking device.')
         else:
