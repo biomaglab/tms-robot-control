@@ -207,11 +207,11 @@ class RobotControl:
 
         if robot_model == "elfin":
             self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.remote_control)
-            connected = self.robot.Connect()
+            self.robot.Connect()
 
         elif robot_model == "dobot":
             self.robot = dobot.Server(robot_IP, self.remote_control)
-            connected = self.robot.Connect()
+            self.robot.Connect()
 
         elif robot_model == "ur":
             # TODO: Add Universal Robots robot here.
@@ -224,7 +224,7 @@ class RobotControl:
         else:
             assert False, "Unknown robot model"
 
-        if connected:
+        if self.robot.IsConnected():
             print('Connected to robot tracking device.')
         else:
             # Send message to neuronavigation to close the robot dialog.

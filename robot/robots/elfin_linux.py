@@ -19,8 +19,10 @@ class Server():
         self.cobot = Elfin(self.remote_control)
 
     def Connect(self):
-        connected = self.cobot.connect(self.ip, self.port, message_size, robot_id)
-        return connected
+        self.cobot.connect(self.ip, self.port, message_size, robot_id)
+
+    def IsConnected(self):
+        return self.cobot.connected
 
     def GetCoordinates(self):
         coordinates = self.cobot.ReadPcsActualPos()
@@ -90,6 +92,7 @@ class Elfin:
         """
         Class to communicate with elfin robot. This class follows "HansRobot Communication Protocol Interface".
         """
+        self.connected = False
         self.remote_control = remote_control
         self.end_msg = ",;"
 
@@ -104,10 +107,12 @@ class Elfin:
             self.robot_id = str(robot_id)
             self.mySocket = mySocket
 
+            self.connected = True
+
             return True
 
         except:
-            return False
+            print("Failed to connect")
 
     def reconnect(self):
         topic = 'Update robot status'
@@ -119,7 +124,7 @@ class Elfin:
             print("Trying to reconnect to robot...")
         self.GrpStop()
         sleep(0.1)
-        print("Reconnect!")
+        print("Reconnected!")
 
     def send(self, message):
         self.mySocket.sendall(message.encode('utf-8'))
@@ -127,8 +132,9 @@ class Elfin:
             data = self.mySocket.recv(self.message_size).decode('utf-8').split(',')
         except TimeoutError:
             print("Robot connection error: TimeoutError")
-            self.reconnect()
+            self.connected = False
             return False
+
         status = self.check_status(data)
         if status and type(data) != bool:
             if len(data) > 3:

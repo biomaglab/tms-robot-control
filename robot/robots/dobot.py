@@ -130,7 +130,6 @@ class Server():
         self.stop_threads = False
 
         self.global_state = {}
-        self.global_state["connect"] = False
         self.global_state["move"] = False
         self.thread_move = False
 
@@ -145,8 +144,10 @@ class Server():
         self.coil_at_target_flag = False
         self.motion_type = const.ROBOT_MOTIONS["normal"]
 
+        self.connected = False
+
     def set_feed_back(self):
-        if self.global_state["connect"]:
+        if self.connected:
             thread = Thread(target=self.feed_back)
             thread.setDaemon(True)
             thread.start()
@@ -154,7 +155,7 @@ class Server():
     def feed_back(self):
         hasRead = 0
         while True:
-            if not self.global_state["connect"]:
+            if not self.connected:
                 break
             data = bytes()
             while hasRead < 1440:
@@ -176,7 +177,7 @@ class Server():
             #sleep(0.001)
 
     def Connect(self):
-        if self.global_state["connect"]:
+        if self.connected:
             self.client_dash = None
             self.client_feed = None
             self.client_move = None
@@ -184,30 +185,35 @@ class Server():
             self.client_dash = DobotApiDashboard(self.ip, int(const.ROBOT_DOBOT_DASHBOARD_PORT))
             self.client_move = DobotApiMove(self.ip, int(const.ROBOT_DOBOT_MOVE_PORT))
             self.client_feed = Dobot(self.ip, int(const.ROBOT_DOBOT_FEED_PORT))
-            self.global_state["connect"] = True
             self.global_state["move"] = False
             self.set_feed_back()
             self.set_move_thread()
             sleep(2)
             if any(coord is None for coord in self.coordinates):
                 print("Please, restart robot")
-                return False
+                return
+
             if self.robot_mode == 4:
                 self.client_dash.EnableRobot()
                 sleep(1)
+
             if self.robot_mode == 9:
                 self.client_dash.ClearError()
                 sleep(1)
-            return True
+
+            self.connected = True
+
         except Exception as e:
             print("Attention!", f"Connection Error:{e}")
-            return False
+
+    def IsConnected(self):
+        return self.connected
 
     def GetCoordinates(self):
         return self.coordinates
 
     def set_move_thread(self):
-        if self.global_state["connect"]:
+        if self.connected:
             thread = Thread(target=self.move_thread)
             thread.daemon = True
             thread.start()
@@ -328,7 +334,7 @@ class Server():
 
     def Close(self):
         self.StopRobot()
-        self.global_state["connect"] = False
+        self.connected = False
         self.global_state["move"] = False
         if self.thread_move:
             try:
