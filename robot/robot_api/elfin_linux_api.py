@@ -19,8 +19,9 @@ class Server():
         message_size = 1024
         robot_id = 0
         self.cobot = Elfin(self.remote_control)
-        status_connection = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
-        return status_connection
+
+        connected = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
+        return connected
 
     def Run(self):
         coord = self.cobot.ReadPcsActualPos()

@@ -74,7 +74,7 @@ class RobotControl:
             print("No robot model set, defaulting to 'test'")
             robot_model = "test"
 
-        self.RobotConnection(robot_IP, robot_model)
+        self.ConnectToRobot(robot_IP, robot_model)
 
     def OnUpdateRobotNavigationMode(self, data):
         self.robot_mode_status = data["robot_mode"]
@@ -202,16 +202,16 @@ class RobotControl:
     def OnCoilAtTarget(self, data):
         self.coil_at_target_state = data["state"]
 
-    def RobotConnection(self, robot_IP, robot_model):
+    def ConnectToRobot(self, robot_IP, robot_model):
         print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
 
         if robot_model == "elfin":
             self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.remote_control)
-            status_connection = self.robot.Initialize()
+            connected = self.robot.Initialize()
 
         elif robot_model == "dobot":
             self.robot = dobot.Server(robot_IP, self.remote_control)
-            status_connection = self.robot.Initialize()
+            connected = self.robot.Initialize()
 
         elif robot_model == "test":
             # TODO: Add 'test' robot here.
@@ -220,17 +220,20 @@ class RobotControl:
         else:
             assert False, "Unknown robot model"
 
-        if status_connection:
-            print('Connect to robot tracking device.')
+        if connected:
+            print('Connected to robot tracking device.')
         else:
+            # Send message to neuronavigation to close the robot dialog.
             topic = 'Dialog robot destroy'
             data = {}
             self.remote_control.send_message(topic, data)
-            self.robot = None
-            print('Not possible to connect to robot.')
 
+            self.robot = None
+            print('Unable to connect to robot.')
+
+        # Send message to neuronavigation indicating the state of connection.
         topic = 'Robot connection status'
-        data = {'data': status_connection}
+        data = {'data': connected}
         self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
