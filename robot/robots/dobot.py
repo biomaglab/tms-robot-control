@@ -118,8 +118,7 @@ MyType = np.dtype([(
 
 class Server():
     """
-    This class is similar to tracker devices wrappers.
-    It follows the same functions as the others (Initialize, Run and Close)
+    The class for communicating with the robot.
     """
     def __init__(self, server_ip, remote_control):
         self.server_ip = server_ip
@@ -176,7 +175,7 @@ class Server():
 
             #sleep(0.001)
 
-    def Initialize(self):
+    def Connect(self):
         if self.global_state["connect"]:
             self.client_dash = None
             self.client_feed = None
@@ -425,7 +424,7 @@ class DobotApiDashboard(Dobot):
 
     def SpeedFactor(self, speed):
         """
-        Setting the Global rate   
+        Setting the Global rate
         speed:Rate value(Value range:1~100)
         """
         string = "SpeedFactor({:d})".format(speed)
@@ -887,8 +886,8 @@ class DobotApiMove(Dobot):
         Joint motion
         axis_id: Joint motion axis, optional string value:
             J1+ J2+ J3+ J4+ J5+ J6+
-            J1- J2- J3- J4- J5- J6- 
-            X+ Y+ Z+ Rx+ Ry+ Rz+ 
+            J1- J2- J3- J4- J5- J6-
+            X+ Y+ Z+ Rx+ Ry+ Rz+
             X- Y- Z- Rx- Ry- Rz-
         *dynParams: Parameter Settings（coord_type, user_index, tool_index）
                     coord_type: 1: User coordinate 2: tool coordinate (default value is 1)

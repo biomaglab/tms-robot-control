@@ -207,11 +207,11 @@ class RobotControl:
 
         if robot_model == "elfin":
             self.robot = elfin.Server(robot_IP, const.ROBOT_ElFIN_PORT, self.remote_control)
-            connected = self.robot.Initialize()
+            connected = self.robot.Connect()
 
         elif robot_model == "dobot":
             self.robot = dobot.Server(robot_IP, self.remote_control)
-            connected = self.robot.Initialize()
+            connected = self.robot.Connect()
 
         elif robot_model == "ur":
             # TODO: Add Universal Robots robot here.

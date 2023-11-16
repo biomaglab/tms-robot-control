@@ -5,8 +5,7 @@ import robot.constants as const
 
 class Server():
     """
-    This class is similar to tracker devices wrappers.
-    It follows the same functions as the others (Initialize, Run and Close)
+    The class for communicating with the robot.
     """
     def __init__(self, server_ip, port_number, remote_control):
         self.server_ip = server_ip
@@ -15,11 +14,11 @@ class Server():
         self.coordinate = [None]*6
         self.coil_at_target_flag = False
 
-    def Initialize(self):
         message_size = 1024
         robot_id = 0
         self.cobot = Elfin(self.remote_control)
 
+    def Connect(self):
         connected = self.cobot.connect(self.server_ip, self.port_number, message_size, robot_id)
         return connected
 
