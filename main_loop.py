@@ -4,6 +4,7 @@ import sys
 
 import time
 import socketio
+
 from threading import Lock
 
 import robot.constants as const
@@ -43,8 +44,9 @@ class RemoteControl:
         The conventional pycharm "run" can also be used, but every time InVesalius is started the main_loop will stop and
         requires to be manually started again.
         """
-        python = sys.executable
-        os.execl(python,  '"' + python + '"', *sys.argv)
+        # TODO: Disable for now - there needs to be another way around the problems that InVesalius
+        #   causes here when it starts.
+        pass
 
     def get_buffer(self):
         self.__lock.acquire()
