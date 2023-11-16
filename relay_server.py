@@ -16,11 +16,17 @@ import uvicorn
 
 nest_asyncio.apply()
 
-if len(sys.argv) != 2:
-    print ('Usage: python %s port' % sys.argv[0])
-    sys.exit(1)
+default_host = 'Biomag'
 
-port = int(sys.argv[1])
+if len(sys.argv) == 3:
+    host = sys.argv[1]
+    port = int(sys.argv[2])
+elif len(sys.argv) == 2:
+    host = default_host
+    port = int(sys.argv[1])
+else:
+    print(f'Usage: python {sys.argv[0]} [host] port')
+    sys.exit(1)
 
 sio = socketio.AsyncServer(async_mode='asgi')
 app = socketio.ASGIApp(sio)
@@ -42,4 +48,4 @@ def restart_robot_main_loop(sid):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, port=port, host='Biomag', loop='asyncio')
+    uvicorn.run(app, host=host, port=port, loop='asyncio')
