@@ -18,7 +18,7 @@ class ElfinConnectionLinux:
         self.port = port
         self.connected = False
 
-    def connect(self, ip, port):
+    def connect(self):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
             mySocket.connect((self.ip, self.port))
