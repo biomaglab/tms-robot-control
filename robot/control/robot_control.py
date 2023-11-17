@@ -359,79 +359,81 @@ class RobotControl:
                                                                                current_robot_coordinates)
         distance_angle_target = robot_process.correction_distance_calculation_target(tunning_to_target[3:],
                                                                                      current_robot_coordinates_flip_angle[3:])
-        #Check if the target is inside the working space
-        if robot_process.estimate_robot_target_length(new_robot_coordinates) < const.ROBOT_WORKING_SPACE:
-            #Check the target distance to define the motion mode
+        # Check if the target is outside the working space. If so, return early.
+        if robot_process.estimate_robot_target_length(new_robot_coordinates) >= const.ROBOT_WORKING_SPACE:
+            print("Head is too far from the robot basis")
+            return False
 
-            if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
-                head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-                target_linear_out, middle_arc_point, target_arc = robot_process.compute_arc_motion(
-                                                                            current_robot_coordinates,
-                                                                            head_center_coordinates,
-                                                                            new_robot_coordinates) #needs to be new_robot_coordinates!!
-                if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
-                    self.target_linear_out = target_linear_out
-                    self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]
+        # Check the target distance to define the motion mode.
+        if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or \
+           distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
 
-                if self.motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
-                    new_robot_target = self.target_linear_out
-                    if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
-                        self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
-                        self.target_arc = target_arc
-                        new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
+            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+            target_linear_out, middle_arc_point, target_arc = robot_process.compute_arc_motion(
+                                                                        current_robot_coordinates,
+                                                                        head_center_coordinates,
+                                                                        new_robot_coordinates) #needs to be new_robot_coordinates!!
+            if self.motion_step_flag == const.ROBOT_MOTIONS["normal"]:
+                self.target_linear_out = target_linear_out
+                self.motion_step_flag = const.ROBOT_MOTIONS["linear out"]
 
-                elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
-                    #UPDATE arc motion target
-                    if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
-                        if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
-                            self.target_arc = target_arc
-                            #Avoid small arc motion
-                        elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
-                            self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                            self.target_arc = tunning_to_target
+            if self.motion_step_flag == const.ROBOT_MOTIONS["linear out"]:
+                new_robot_target = self.target_linear_out
+                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
+                    self.motion_step_flag = const.ROBOT_MOTIONS["arc"]
+                    self.target_arc = target_arc
                     new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
-                    if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
-                       self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
-                       new_robot_target = tunning_to_target
-                else:
+            elif self.motion_step_flag == const.ROBOT_MOTIONS["arc"]:
+                #UPDATE arc motion target
+                if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
+                    if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
+                        self.target_arc = target_arc
+                        #Avoid small arc motion
+                    elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
+                        self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+                        self.target_arc = tunning_to_target
+                new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
+
+                if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
                     self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                     new_robot_target = tunning_to_target
             else:
                 self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
                 new_robot_target = tunning_to_target
-
-            if not self.target_reached:
-                if (np.sqrt(
-                        np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or
-                    np.sqrt(
-                        np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
-                        and self.motion_step_flag != const.ROBOT_MOTIONS["arc"]:
-                    # tunes the robot position based on neuronavigation
-                    new_robot_target = self.distance_to_target
-                    self.motion_step_flag = const.ROBOT_MOTIONS["tunning"]
-                    self.inside_circle = True
-                    #print('Distance to target: ', self.distance_to_target)
-                    if const.FORCE_TORQUE_SENSOR and self.inside_circle and self.prev_state_flag == 1:
-                        self.force_ref = ft_values[0:3]
-                        self.moment_ref = ft_values[3:6]
-                        print('Normalised!')
-                        # print(self.force_ref)
-                    self.prev_state_flag = 0
-                else:
-                    self.inside_circle = False
-                    self.prev_state_flag = 1
-
-                self.robot.SendTargetToControl(new_robot_target, self.motion_step_flag)
-
-            self.robot.SetTargetReached(self.target_reached)
-
-            robot_status = True
         else:
-            print("Head is too far from the robot basis")
-            robot_status = False
+            self.motion_step_flag = const.ROBOT_MOTIONS["normal"]
+            new_robot_target = tunning_to_target
 
-        return robot_status
+        # Check if the robot is already in the target position. If so, return early.
+        if self.target_reached:
+            self.robot.SetTargetReached(self.target_reached)
+            return True
+
+        if (np.sqrt(
+                np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or
+            np.sqrt(
+                np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
+                and self.motion_step_flag != const.ROBOT_MOTIONS["arc"]:
+            # tunes the robot position based on neuronavigation
+            new_robot_target = self.distance_to_target
+            self.motion_step_flag = const.ROBOT_MOTIONS["tunning"]
+            self.inside_circle = True
+            #print('Distance to target: ', self.distance_to_target)
+            if const.FORCE_TORQUE_SENSOR and self.inside_circle and self.prev_state_flag == 1:
+                self.force_ref = ft_values[0:3]
+                self.moment_ref = ft_values[3:6]
+                print('Normalised!')
+                # print(self.force_ref)
+            self.prev_state_flag = 0
+        else:
+            self.inside_circle = False
+            self.prev_state_flag = 1
+
+        self.robot.SendTargetToControl(new_robot_target, self.motion_step_flag)
+        self.robot.SetTargetReached(self.target_reached)
+
+        return True
 
     def get_robot_status(self):
         robot_status = False
