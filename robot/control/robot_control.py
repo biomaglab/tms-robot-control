@@ -368,7 +368,7 @@ class RobotControl:
            distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
 
             head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
-            target_linear_out, middle_arc_point, target_arc = robot_process.compute_arc_motion(
+            linear_target, middle_arc_point, target_arc = robot_process.compute_arc_motion(
                                                                         current_robot_coordinates,
                                                                         head_center_coordinates,
                                                                         new_robot_coordinates) #needs to be new_robot_coordinates!!
@@ -376,8 +376,7 @@ class RobotControl:
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                linear_target = target_linear_out
-                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(target_linear_out), 0, 1):
+                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(linear_target), 0, 1):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
                     circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
