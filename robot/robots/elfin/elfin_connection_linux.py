@@ -1,5 +1,7 @@
 from socket import socket, AF_INET, SOCK_STREAM
 
+from robot.robots.elfin.motion_state import MotionState
+
 
 # TODO: The naming for this class could be improved to be descriptive of how it
 #   differs from ElfinConnection.
@@ -219,25 +221,21 @@ class ElfinConnectionLinux:
         """
         Gets the motion state of the robot.
 
-        :return:
-            Current state of motion of robot:
-            0=motion completion;
-            1009=in motion;
-            1013=waiting for execution;
-            1025 =Error reporting
+        :return: A value of the type MotionState, indicating the motion
+            state of the robot.
         """
         message = "ReadRobotState," + str(self.ROBOT_ID)
         read_robot_state = self.send(message)
         moving_state = bool(read_robot_state[0])
         error_state = bool(read_robot_state[2])
+
         if error_state:
-            #ErrorState
-            return const.ROBOT_ELFIN_MOVE_STATE["error"]
+            return MotionState.ERROR
+
         if moving_state:
-            #robot is moving
-            return const.ROBOT_ELFIN_MOVE_STATE["in motion"]
-        # robot is not moving
-        return const.ROBOT_ELFIN_MOVE_STATE["free to move"]
+            return MotionState.IN_MOTION
+
+        return MotionState.FREE_TO_MOVE
 
     def HomeRobot(self):
         """

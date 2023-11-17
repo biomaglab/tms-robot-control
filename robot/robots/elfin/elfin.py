@@ -4,6 +4,7 @@ from robot.constants import MotionType
 
 from robot.robots.elfin.elfin_connection import ElfinConnection
 from robot.robots.elfin.elfin_connection_linux import ElfinConnectionLinux
+from robot.robots.elfin.motion_state import MotionState
 
 
 class Elfin():
@@ -36,22 +37,21 @@ class Elfin():
     def SendTargetToControl(self, target, motion_type=MotionType.NORMAL):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
-         Status 1009 means robot in motion.
         """
-        status = self.connection.GetMotionState()
+        motion_state = self.connection.GetMotionState()
         if motion_type == MotionType.NORMAL or motion_type == MotionType.LINEAR_OUT:
             if self.use_linux_version:
                 self.connection.MoveLinear(target)
             else:
                 self.connection.MoveLinearWithWaypoint(target)
         elif motion_type == MotionType.ARC:
-            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+            if motion_state == MotionState.FREE_TO_MOVE:
                 target_arc = target[1][:3] + target[2]
                 self.connection.MoveCircular(target_arc)
-            elif status == const.ROBOT_ELFIN_MOVE_STATE["error"]:
+            elif motion_state == MotionState.ERROR:
                 self.StopRobot()
         elif motion_type == MotionType.TUNING:
-            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+            if motion_state == MotionState.FREE_TO_MOVE:
                 self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
                 #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
                 abs_distance_to_target = [abs(x) for x in target]
@@ -67,8 +67,8 @@ class Elfin():
             return False
 
     def CompensateForce(self, flag):
-        status = self.connection.GetMotionState()
-        if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+        motion_state = self.connection.GetMotionState()
+        if motion_state == MotionState.FREE_TO_MOVE:
             if not flag:
                 self.StopRobot()
             self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)

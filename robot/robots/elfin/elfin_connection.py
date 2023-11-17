@@ -1,5 +1,7 @@
 from socket import socket, AF_INET, SOCK_STREAM
 
+from robot.robots.elfin.motion_state import MotionState
+
 
 class ElfinConnection:
     MESSAGE_ENDING_CHARS = ",;"
@@ -217,19 +219,27 @@ class ElfinConnection:
         """
         Gets the motion state of the robot.
 
-        :return:
-            Current state of motion of robot:
-            0=motion completion;
-            1009=in motion;
-            1013=waiting for execution;
-            1025 =Error reporting
+        :return: A value of the type MotionState, indicating the motion
+            state of the robot.
         """
         message = "ReadMoveState," + str(self.ROBOT_ID)
         readmovestate = self.send(message)
-        if readmovestate:
-            status = int(readmovestate[0])
-            return status
-        return 1025
+        if not readmovestate:
+            print("Could not read robot motion state")
+            return MotionState.ERROR
+
+        code = int(readmovestate[0])
+        if code == 0:
+            return MotionState.FREE_TO_MOVE
+        elif code == 1009:
+            return MotionState.IN_MOTION
+        elif code == 1013:
+            return MotionState.WAITING_FOR_EXECUTION
+        elif code == 1025:
+            return MotionState.ERROR
+        else:
+            print("Unknown motion state: {}".format(code))
+            return MotionState.UNKNOWN
 
     def HomeRobot(self):
         """

@@ -82,11 +82,6 @@ elif ROBOT == "elfin":
     # Force and torque sensor
     ROBOT_FORCE_SENSOR_THRESHOLD = 10  # N
     ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 30  # % of init force
-    # Robot States
-    ROBOT_ELFIN_MOVE_STATE = {"free to move": 0,
-                              "in motion": 1009,
-                              "waiting for execution": 1013,
-                              "error": 1025}
 
 # Please, do not change the following enum.
 
