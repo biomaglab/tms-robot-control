@@ -64,7 +64,7 @@ class RobotControl:
         self.previous_robot_status = False
 
         self.target_reached = False
-        self.distance_to_target = [0]*6
+        self.displacement_to_target = [0]*6
         self.ft_distance_offset = [0, 0]
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -186,13 +186,13 @@ class RobotControl:
             orientation=robot_coord_flip[3:],
             axes='rzyx',
         )
-        result_frame_X = m_robot[0, 0] * self.distance_to_target[0] + m_robot[0, 1] * self.distance_to_target[1] + m_robot[0, 2] * self.distance_to_target[2] + m_robot[0, 3]
-        result_frame_Y = m_robot[1, 0] * self.distance_to_target[0] + m_robot[1, 1] * self.distance_to_target[1] + m_robot[1, 2] * self.distance_to_target[2] + m_robot[1, 3]
-        result_frame_Z = m_robot[2, 0] * self.distance_to_target[0] + m_robot[2, 1] * self.distance_to_target[1] + m_robot[2, 2] * self.distance_to_target[2] + m_robot[2, 3]
+        result_frame_X = m_robot[0, 0] * self.displacement_to_target[0] + m_robot[0, 1] * self.displacement_to_target[1] + m_robot[0, 2] * self.displacement_to_target[2] + m_robot[0, 3]
+        result_frame_Y = m_robot[1, 0] * self.displacement_to_target[0] + m_robot[1, 1] * self.displacement_to_target[1] + m_robot[1, 2] * self.displacement_to_target[2] + m_robot[1, 3]
+        result_frame_Z = m_robot[2, 0] * self.displacement_to_target[0] + m_robot[2, 1] * self.displacement_to_target[1] + m_robot[2, 2] * self.displacement_to_target[2] + m_robot[2, 3]
 
         m_offset = robot_process.coordinates_to_transformation_matrix(
-            position=self.distance_to_target[:3],
-            orientation=self.distance_to_target[3:],
+            position=self.displacement_to_target[:3],
+            orientation=self.displacement_to_target[3:],
             axes='sxyz',
         )
         m_final = m_robot @ m_offset
@@ -207,7 +207,7 @@ class RobotControl:
         translation, angles_as_deg = self.OnCoilToRobotAlignment(distance)
         translation[0] += self.ft_distance_offset[0]
         translation[1] += self.ft_distance_offset[1]
-        self.distance_to_target = list(translation) + list(angles_as_deg)
+        self.displacement_to_target = list(translation) + list(angles_as_deg)
 
     def OnCoilAtTarget(self, data):
         self.target_reached = data["state"]
@@ -434,15 +434,15 @@ class RobotControl:
         target_tuning_threshold_angle = self.robot_config['target_tuning_threshold_angle']
         target_tuning_threshold_distance = self.robot_config['target_tuning_threshold_distance']
         if (np.sqrt(
-                np.sum(np.square(self.distance_to_target[:3]))) < target_tuning_threshold_distance or
+                np.sum(np.square(self.displacement_to_target[:3]))) < target_tuning_threshold_distance or
             np.sqrt(
-                np.sum(np.square(self.distance_to_target[3:]))) < target_tuning_threshold_angle) \
+                np.sum(np.square(self.displacement_to_target[3:]))) < target_tuning_threshold_angle) \
                 and self.motion_type != MotionType.ARC:
             # tunes the robot position based on neuronavigation
-            tuning_target = self.distance_to_target
+            tuning_target = self.displacement_to_target
             self.motion_type = MotionType.TUNING
             self.inside_circle = True
-            #print('Distance to target: ', self.distance_to_target)
+            #print('Displacement to target: ', self.displacement_to_target)
             if const.FORCE_TORQUE_SENSOR and self.inside_circle and self.prev_state_flag == 1:
                 self.force_ref = ft_values[0:3]
                 self.moment_ref = ft_values[3:6]
@@ -541,7 +541,7 @@ class RobotControl:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                         new_robot_coordinates = robot_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
-                        # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.distance_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
+                        # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
                         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
                         #         if self.status:
                         #             self.SensorUpdateTarget(distance, self.status)
