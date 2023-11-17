@@ -55,8 +55,6 @@ class RobotControl:
         self.m_change_robot_to_head = [None] * 9
 
         self.motion_type = MotionType.NORMAL
-        self.target_linear_out = None
-        self.target_linear_in = None
         self.target_arc = None
         self.previous_robot_status = False
 
@@ -375,12 +373,11 @@ class RobotControl:
                                                                         head_center_coordinates,
                                                                         new_robot_coordinates) #needs to be new_robot_coordinates!!
             if self.motion_type == MotionType.NORMAL:
-                self.target_linear_out = target_linear_out
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                linear_target = self.target_linear_out
-                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
+                linear_target = target_linear_out
+                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(target_linear_out), 0, 1):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
                     circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
