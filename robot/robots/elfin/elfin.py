@@ -65,10 +65,23 @@ class Elfin():
 
         self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
         #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-        abs_displacement = [abs(x) for x in displacement]
-        direction = np.argmax(abs_displacement)
-        CompenDistance = [direction, 1, displacement[direction]]
-        self.connection.MoveLinearRelative(CompenDistance)
+
+        # Move along the axis that has the largest displacement.
+        axis = np.argmax(np.abs(displacement))
+        distance = displacement[axis]
+
+        # Always move to the positive direction; hence set direction to 1.
+        #
+        # TODO: Shouldn't direction be determined based on the sign of the max displacement
+        #   rather than always being positive?
+        direction = 1
+
+        self.connection.MoveLinearRelative(
+            axis=axis,
+            direction=direction,
+            distance=distance,
+        )
+
         self.connection.SetToolCoordinateMotion(0)
 
     def ReadForceSensor(self):
@@ -89,8 +102,17 @@ class Elfin():
             self.StopRobot()
         self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
         #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-        CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
-        self.connection.MoveLinearRelative(CompenDistance)  # Robot moves in specified spatial coordinate directional
+
+        axis = 2
+        # Move to the negative direction; hence set direction to 0.
+        direction = 0
+        distance = 1
+
+        self.connection.MoveLinearRelative(
+            axis=axis,
+            direction=direction,
+            distance=distance,
+        )
         self.connection.SetToolCoordinateMotion(0)
 
     def StopRobot(self):

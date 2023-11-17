@@ -172,22 +172,25 @@ class ElfinConnection:
         message = "MoveB," + str(self.ROBOT_ID) + ',' + target_str
         return self.send(message)
 
-    def MoveLinearRelative(self, distance):
+    def MoveLinearRelative(self, axis, direction, distance):
         """"
-        Moves the robot a given distance from the specified spatial coordinate directional.
-
-        TODO: This description could be clarified further.
+        Moves the robot a given distance along the specified coordinate axis.
 
         Note: There is a singular point in space motion.
 
         TODO: This note could be clarified. How does the singularity affect this function?
 
-        :param: distance: [directionID; direction (0:negative, 1:positive); distance]
+        :param: axis: 0-5, corresponding to x-, y-, z-, rx-, ry-, rz-axes, respectively.
+        :param: direction: 0 for negative, 1 for positive direction along the axis.
+        :param: distance: The distance to move (TODO: unit?)
         :return: True if successful, otherwise False.
         """
-        distance = [str(s) for s in distance]
-        distance = (",".join(distance))
-        message = "MoveRelL," + str(self.ROBOT_ID) + ',' + distance
+        distance_str = [str(s) for s in distance]
+        distance_str = ",".join(distance)
+
+        message = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
+            str(axis) + ',' + str(direction) + ',' + distance_str
+
         self.send(message)
 
     def ReadForceSensor(self):
