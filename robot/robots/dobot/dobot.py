@@ -115,8 +115,8 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
-    def TuneRobot(self, tuning_target):
-        self.target = tuning_target
+    def TuneRobot(self, displacement):
+        self.target = displacement
         self.motion_type = motion_type
         self.status_move = True
         if not self.moving:
