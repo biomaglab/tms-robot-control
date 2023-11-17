@@ -145,8 +145,11 @@ class ElfinConnection:
         """
         Gets the space coordinates of the robot.
 
-        :return: If successful, return x, y, z, rx, ry, rz, where x, y, z are the
-            coordinates in mm and rx, ry, rz are the rotation angles in degrees.
+        :return: Return x, y, z, rx, ry, rz, where
+
+            x, y, z are the coordinates in mm, and
+            rx, ry, rz are the rotation angles in degrees.
+
             If unsuccessful, return False.
         """
         message = "ReadPcsActualPos," + str(self.ROBOT_ID)
@@ -191,9 +194,12 @@ class ElfinConnection:
         """
         Reads the state of the force sensor.
 
-        :return: Fx, Fy, Fz, Mx, My, Mz, where Fx, Fy, Fz are the forces in N and
-            Mx, My, Mz are the torques in Nm. If unsuccessful, returns a list of
-            zeros.
+        :return: Fx, Fy, Fz, Mx, My, Mz, where
+
+            Fx, Fy, Fz are the forces in N, and
+            Mx, My, Mz are the torques in Nm.
+
+            If unsuccessful, returns a list of zeros.
         """
         message = "ReadForceSensorData"
         status = self.send(message)
@@ -219,8 +225,7 @@ class ElfinConnection:
         """
         Gets the motion state of the robot.
 
-        :return: A value of the type MotionState, indicating the motion
-            state of the robot.
+        :return: A MotionState enum value, indicating the motion state of the robot.
         """
         message = "ReadMoveState," + str(self.ROBOT_ID)
         readmovestate = self.send(message)
@@ -243,7 +248,7 @@ class ElfinConnection:
 
     def HomeRobot(self):
         """
-        Homes the robot, that is, returns the robot to the origin.
+        Homes the robot (= returns the robot to the origin).
 
         :return: True if successful, otherwise False.
         """
@@ -275,6 +280,8 @@ class ElfinConnection:
         message = "MoveC," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str + ',' + movement_type_str
         return self.send(message)
 
+    # TODO: The parameters waypoint and target should be given here as two separate arguments,
+    #   see MoveCircular function above for reference.
     def MoveLinearWithWaypoint(self, target):
         """
         Moves the robot to the specified space coordinates through a waypoint, using linear motion.
