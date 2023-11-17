@@ -379,11 +379,11 @@ class RobotControl:
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                new_robot_target = self.target_linear_out
+                linear_target = self.target_linear_out
                 if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.target_linear_out), 0, 1):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
-                    new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
+                    circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
             elif self.motion_type == MotionType.ARC:
                 #UPDATE arc motion target
@@ -394,17 +394,17 @@ class RobotControl:
                     elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tunning_to_target
-                new_robot_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
+                circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
                 if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
-                    new_robot_target = tunning_to_target
+                    linear_target = tunning_to_target
             else:
                 self.motion_type = MotionType.NORMAL
-                new_robot_target = tunning_to_target
+                linear_target = tunning_to_target
         else:
             self.motion_type = MotionType.NORMAL
-            new_robot_target = tunning_to_target
+            linear_target = tunning_to_target
 
         # Check if the robot is already in the target position. If so, return early.
         if self.target_reached:
@@ -417,7 +417,7 @@ class RobotControl:
                 np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
                 and self.motion_type != MotionType.ARC:
             # tunes the robot position based on neuronavigation
-            new_robot_target = self.distance_to_target
+            tuning_target = self.distance_to_target
             self.motion_type = MotionType.TUNING
             self.inside_circle = True
             #print('Distance to target: ', self.distance_to_target)
@@ -435,13 +435,13 @@ class RobotControl:
         if self.motion_type == MotionType.NORMAL or \
            self.motion_type == MotionType.LINEAR_OUT:
 
-            self.robot.MoveLinear(new_robot_target)
+            self.robot.MoveLinear(linear_target)
 
         elif self.motion_type == MotionType.ARC:
-            self.robot.MoveCircular(new_robot_target)
+            self.robot.MoveCircular(circular_target)
 
         elif self.motion_type == MotionType.TUNING:
-            self.robot.TuneRobot(new_robot_target)
+            self.robot.TuneRobot(tuning_target)
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?

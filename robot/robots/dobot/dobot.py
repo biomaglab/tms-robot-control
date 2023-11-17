@@ -88,27 +88,24 @@ class Dobot:
     #   variable (self.target) for each. After that change is implemented,
     #   the functions below will branch off.
 
-    # For motion types "normal" and "linear out"
-    def MoveLinear(self, target):
-        self.target = target
+    def MoveLinear(self, linear_target):
+        self.target = linear_target
         self.motion_type = motion_type
         self.status_move = True
         if not self.moving:
             self.moving = True
             self._set_move_thread()
 
-    # For motion type "arc"
-    def MoveCircular(self, target):
-        self.target = target
+    def MoveCircular(self, circular_target):
+        self.target = circular_target
         self.motion_type = motion_type
         self.status_move = True
         if not self.moving:
             self.moving = True
             self._set_move_thread()
 
-    # For motion type "tuning"
-    def TuneRobot(self, target):
-        self.target = target
+    def TuneRobot(self, tuning_target):
+        self.target = tuning_target
         self.motion_type = motion_type
         self.status_move = True
         if not self.moving:

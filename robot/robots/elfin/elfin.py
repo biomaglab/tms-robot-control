@@ -36,18 +36,18 @@ class Elfin():
 
     # Note: It is not possible to send a move command to elfin during movement.
 
-    def MoveLinear(self, target):
+    def MoveLinear(self, linear_target):
         motion_state = self.connection.GetMotionState()
         # TODO: Should motion state be used here to check that robot is free to move?
 
         # TODO: Why does this branch to two different functions, depending on if
         #  the Linux version is used or not?
         if self.use_linux_version:
-            self.connection.MoveLinear(target)
+            self.connection.MoveLinear(linear_target)
         else:
-            self.connection.MoveLinearWithWaypoint(target)
+            self.connection.MoveLinearWithWaypoint(linear_target)
 
-    def MoveCircular(self, target):
+    def MoveCircular(self, circular_target):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is in an error state, stop the robot and return early.
@@ -55,10 +55,10 @@ class Elfin():
             self.StopRobot()
             return
 
-        target_arc = target[1][:3] + target[2]
+        target_arc = circular_target[1][:3] + circular_target[2]
         self.connection.MoveCircular(target_arc)
 
-    def TuneRobot(self, target):
+    def TuneRobot(self, tuning_target):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is not free to move, return early.
@@ -69,9 +69,9 @@ class Elfin():
 
         self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
         #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-        abs_distance_to_target = [abs(x) for x in target]
+        abs_distance_to_target = [abs(x) for x in tuning_target]
         direction = abs_distance_to_target.index(max(abs_distance_to_target))
-        CompenDistance = [direction, 1, target[direction]]
+        CompenDistance = [direction, 1, tuning_target[direction]]
         self.connection.MoveLinearRelative(CompenDistance)
         self.connection.SetToolCoordinateMotion(0)
 
