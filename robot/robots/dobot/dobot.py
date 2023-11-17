@@ -5,6 +5,7 @@ import time
 import numpy as np
 from threading import Thread
 import robot.constants as const
+from robot.constants import MotionType
 import robot.control.robot_processing as robot_process
 from robot.robots.dobot.dobot_connection import DobotApiDashboard, DobotApiMove, DobotConnection
 
@@ -33,7 +34,7 @@ class Dobot:
         self.status_move = False
         self.target = [None] * 6
         self.target_reached = False
-        self.motion_type = const.ROBOT_MOTIONS["normal"]
+        self.motion_type = MotionType.NORMAL
 
         self.connected = False
 
@@ -78,7 +79,7 @@ class Dobot:
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
 
-    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
+    def SendTargetToControl(self, target, motion_type=MotionType.NORMAL):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
          Status 1009 means robot in motion.
@@ -207,16 +208,16 @@ class Dobot:
                 break
             if self.status_move and not self.target_reached and not self.running_status:
                 print('moving')
-                if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
+                if self.motion_type == MotionType.NORMAL or self.motion_type == MotionType.LINEAR_OUT:
                     self.client_move.MoveLinear(self.target)
                     self._motion_loop()
-                elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
+                elif self.motion_type == MotionType.ARC:
                     curve_set = robot_process.bezier_curve(np.asarray(self.target))
                     target = self.target
                     for curve_point in curve_set:
                         self.client_move.ServoP(curve_point)
                         self._motion_loop()
-                        if self.motion_type != const.ROBOT_MOTIONS["arc"]:
+                        if self.motion_type != MotionType.ARC:
                             self.StopRobot()
                             break
                         if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
@@ -225,7 +226,7 @@ class Dobot:
                         if not self.moving:
                             self.StopRobot()
                             break
-                elif self.motion_type == const.ROBOT_MOTIONS["tunning"]:
+                elif self.motion_type == MotionType.TUNING:
                     offset_x = self.target[0]
                     offset_y = self.target[1]
                     offset_z = self.target[2]

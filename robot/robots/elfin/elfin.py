@@ -1,5 +1,6 @@
 from time import sleep
 import robot.constants as const
+from robot.constants import MotionType
 
 from robot.robots.elfin.elfin_connection import ElfinConnection
 from robot.robots.elfin.elfin_connection_linux import ElfinConnectionLinux
@@ -32,24 +33,24 @@ class Elfin():
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
 
-    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
+    def SendTargetToControl(self, target, motion_type=MotionType.NORMAL):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
          Status 1009 means robot in motion.
         """
         status = self.connection.GetMotionState()
-        if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
+        if motion_type == MotionType.NORMAL or motion_type == MotionType.LINEAR_OUT:
             if self.use_linux_version:
                 self.connection.MoveLinear(target)
             else:
                 self.connection.MoveLinearWithWaypoint(target)
-        elif motion_type == const.ROBOT_MOTIONS["arc"]:
+        elif motion_type == MotionType.ARC:
             if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
                 target_arc = target[1][:3] + target[2]
                 self.connection.MoveCircular(target_arc)
             elif status == const.ROBOT_ELFIN_MOVE_STATE["error"]:
                 self.StopRobot()
-        elif motion_type == const.ROBOT_MOTIONS["tunning"]:
+        elif motion_type == MotionType.TUNING:
             if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
                 self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
                 #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed

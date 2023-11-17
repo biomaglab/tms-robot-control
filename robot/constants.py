@@ -1,3 +1,5 @@
+from enum import Enum
+
 # Please set up the site or coil, choose the robot model, and decide if you want to use force sensing
 SITE = "usp_coil"
 ROBOT = "dobot" #elfin, dobot, or ur
@@ -86,9 +88,14 @@ elif ROBOT == "elfin":
                               "waiting for execution": 1013,
                               "error": 1025}
 
-# Please, do not change the following constants.
+# Please, do not change the following enum.
 
-ROBOT_MOTIONS = {"normal": 0, "linear out": 1, "arc": 2, 'force linear out': 3, 'tunning': 4}
+class MotionType(Enum):
+    NORMAL = 0
+    LINEAR_OUT = 1
+    ARC = 2
+    FORCE_LINEAR_OUT = 3
+    TUNING = 4
 
 # Publisher messages from invesalius
 PUB_MESSAGES = ['Connect to robot',
