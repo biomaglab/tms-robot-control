@@ -379,7 +379,6 @@ class RobotControl:
                 if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(linear_target), 0, 1):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
-                    circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
             elif self.motion_type == MotionType.ARC:
                 #UPDATE arc motion target
@@ -390,7 +389,6 @@ class RobotControl:
                     elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tunning_to_target
-                circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
 
                 if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
@@ -434,6 +432,7 @@ class RobotControl:
             self.robot.MoveLinear(linear_target)
 
         elif self.motion_type == MotionType.ARC:
+            circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
             self.robot.MoveCircular(circular_target)
 
         elif self.motion_type == MotionType.TUNING:
