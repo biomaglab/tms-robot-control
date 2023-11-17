@@ -129,12 +129,10 @@ class Dobot:
         else:
             return False
 
-    def CompensateForce(self, flag):
+    def CompensateForce(self):
         status = self.client_dashboard.RobotMode()
         print("CompensateForce")
         if status != self.ERROR_STATUS:
-            if not flag:
-                self.StopRobot()
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
             else:
                 offset_x = 0

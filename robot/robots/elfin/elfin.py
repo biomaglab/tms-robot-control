@@ -91,15 +91,13 @@ class Elfin():
 
         return self.connection.ReadForceSensor()
 
-    def CompensateForce(self, flag):
+    def CompensateForce(self):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is not free to move, return early.
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        if not flag:
-            self.StopRobot()
         self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
         #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
 

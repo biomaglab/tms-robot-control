@@ -39,7 +39,6 @@ class RobotControl:
 
         self.new_force_sensor_data = 0
         self.target_force_sensor_data = 5
-        self.compensate_force_flag = False
 
         # reference force and moment values
         self.force_ref = np.array([0.0, 0.0, 0.0])
@@ -534,7 +533,6 @@ class RobotControl:
             if self.new_force_sensor_data <= force_sensor_threshold or \
                self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
 
-                self.compensate_force_flag = False
                 #CHECK IF HEAD IS VISIBLE
                 if coord_head_tracker_in_robot is not None and marker_head_flag and marker_coil_flag:
                     #CHECK HEAD VELOCITY
@@ -557,8 +555,7 @@ class RobotControl:
             else:
                 #print("Compensating Force")
                 print(self.new_force_sensor_data)
-                self.compensate_force_flag = True
-                self.robot.CompensateForce(self.compensate_force_flag)
+                self.robot.CompensateForce()
                 time.sleep(0.5)
         else:
             #print("Navigation is off")
