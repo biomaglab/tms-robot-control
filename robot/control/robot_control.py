@@ -205,11 +205,11 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
 
         if robot_model == "elfin":
-            self.robot = elfin.Elfin(robot_IP, const.ROBOT_ElFIN_PORT)
+            self.robot = elfin.Elfin(robot_IP)
             self.robot.Connect()
 
         elif robot_model == "elfin_linux":
-            self.robot = elfin.Elfin(robot_IP, const.ROBOT_ElFIN_PORT, use_linux_version=True)
+            self.robot = elfin.Elfin(robot_IP, use_linux_version=True)
             self.robot.Connect()
 
         elif robot_model == "dobot":

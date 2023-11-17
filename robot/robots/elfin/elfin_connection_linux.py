@@ -6,6 +6,7 @@ from robot.robots.elfin.motion_state import MotionState
 # TODO: The naming for this class could be improved to be descriptive of how it
 #   differs from ElfinConnection.
 class ElfinConnectionLinux:
+    PORT = 10003
     MESSAGE_ENDING_CHARS = ",;"
     MESSAGE_SIZE = 1024
     ROBOT_ID = 0
@@ -17,13 +18,12 @@ class ElfinConnectionLinux:
         This class follows "HansRobot Communication Protocol Interface".
         """
         self.ip = ip
-        self.port = port
         self.connected = False
 
     def connect(self):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
-            mySocket.connect((self.ip, self.port))
+            mySocket.connect((self.ip, self.PORT))
 
             self.mySocket = mySocket
 

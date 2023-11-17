@@ -4,24 +4,24 @@ from robot.robots.elfin.motion_state import MotionState
 
 
 class ElfinConnection:
+    PORT = 10003
     MESSAGE_ENDING_CHARS = ",;"
     MESSAGE_SIZE = 1024
     ROBOT_ID = 0
 
-    def __init__(self, ip, port):
+    def __init__(self, ip):
         """
         Class for low-level communication with Elfin robot.
 
         This class follows "HansRobot Communication Protocol Interface".
         """
         self.ip = ip
-        self.port = port
         self.connected = False
 
     def connect(self):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
-            mySocket.connect((self.ip, self.port))
+            mySocket.connect((self.ip, self.PORT))
 
             self.mySocket = mySocket
 

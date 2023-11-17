@@ -56,7 +56,6 @@ elif ROBOT == "elfin":
     # Robot Working Space is defined as 800mm in Elfin 5 manual. For safety, the value is reduced by 5%.
     # For debug, feel free to use 1000 mm
     ROBOT_WORKING_SPACE = 1000 #mm
-    ROBOT_ElFIN_PORT = 10003
     SLEEP_ROBOT = 0.0
     # Filtering head motion
     ROBOT_HEAD_VELOCITY_THRESHOLD = 20  # mm/s

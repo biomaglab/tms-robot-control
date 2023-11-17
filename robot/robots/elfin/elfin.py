@@ -11,13 +11,13 @@ class Elfin():
     """
     The class for communicating with Elfin robot.
     """
-    def __init__(self, ip, port, use_linux_version=False):
+    def __init__(self, ip, use_linux_version=False):
         self.coordinates = [None]*6
         self.target_reached = False
 
         self.use_linux_version = use_linux_version
 
-        self.connection = ElfinConnectionLinux(ip, port) if self.use_linux_version else ElfinConnection(ip, port)
+        self.connection = ElfinConnectionLinux(ip) if self.use_linux_version else ElfinConnection(ip)
 
     def Connect(self):
         self.connection.connect()
