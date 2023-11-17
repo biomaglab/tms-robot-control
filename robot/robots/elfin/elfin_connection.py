@@ -6,21 +6,21 @@ class ElfinConnection:
     MESSAGE_SIZE = 1024
     ROBOT_ID = 0
 
-    def __init__(self):
+    def __init__(self, ip, port):
         """
         Class for low-level communication with Elfin robot.
 
         This class follows "HansRobot Communication Protocol Interface".
         """
+        self.ip = ip
+        self.port = port
         self.connected = False
 
-    def connect(self, ip, port):
+    def connect(self):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
-            mySocket.connect((ip, port))
+            mySocket.connect((self.ip, self.port))
 
-            self.ip = ip
-            self.port = port
             self.mySocket = mySocket
 
             self.connected = True

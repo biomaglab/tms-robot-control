@@ -1,28 +1,28 @@
 from socket import socket, AF_INET, SOCK_STREAM
 
 
-# TODO: What is this, how does it differ, why does it exist? The naming should be improved.
+# TODO: The naming for this class could be improved to be descriptive of how it
+#   differs from ElfinConnection.
 class ElfinConnectionLinux:
     MESSAGE_ENDING_CHARS = ",;"
     MESSAGE_SIZE = 1024
     ROBOT_ID = 0
 
-    def __init__(self):
+    def __init__(self, ip, port):
         """
         Class for low-level communication with Elfin robot.
 
         This class follows "HansRobot Communication Protocol Interface".
         """
+        self.ip = ip
+        self.port = port
         self.connected = False
-        self.end_msg = ",;"
 
     def connect(self, ip, port):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
-            mySocket.connect((ip, port))
+            mySocket.connect((self.ip, self.port))
 
-            self.ip = ip
-            self.port = port
             self.mySocket = mySocket
 
             self.connected = True
