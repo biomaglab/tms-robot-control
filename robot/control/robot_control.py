@@ -439,7 +439,6 @@ class RobotControl:
                 np.sum(np.square(self.displacement_to_target[3:]))) < target_tuning_threshold_angle) \
                 and self.motion_type != MotionType.ARC:
             # tunes the robot position based on neuronavigation
-            tuning_target = self.displacement_to_target
             self.motion_type = MotionType.TUNING
             self.inside_circle = True
             #print('Displacement to target: ', self.displacement_to_target)
@@ -467,7 +466,7 @@ class RobotControl:
             self.robot.MoveCircular(start_position, waypoint, target)
 
         elif self.motion_type == MotionType.TUNING:
-            self.robot.TuneRobot(tuning_target)
+            self.robot.TuneRobot(self.displacement_to_target)
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?

@@ -1,7 +1,9 @@
 from time import sleep
+
+import numpy as np
+
 import robot.constants as const
 from robot.constants import MotionType
-
 from robot.robots.elfin.elfin_connection import ElfinConnection
 from robot.robots.elfin.elfin_connection_linux import ElfinConnectionLinux
 from robot.robots.elfin.motion_state import MotionState
@@ -52,7 +54,7 @@ class Elfin():
 
         self.connection.MoveCircular(start_position, waypoint[:3], target)
 
-    def TuneRobot(self, tuning_target):
+    def TuneRobot(self, displacement):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is not free to move, return early.
@@ -63,9 +65,9 @@ class Elfin():
 
         self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
         #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-        abs_distance_to_target = [abs(x) for x in tuning_target]
-        direction = abs_distance_to_target.index(max(abs_distance_to_target))
-        CompenDistance = [direction, 1, tuning_target[direction]]
+        abs_displacement = [abs(x) for x in displacement]
+        direction = np.argmax(abs_displacement)
+        CompenDistance = [direction, 1, displacement[direction]]
         self.connection.MoveLinearRelative(CompenDistance)
         self.connection.SetToolCoordinateMotion(0)
 
