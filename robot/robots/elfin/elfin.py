@@ -47,7 +47,7 @@ class Elfin():
         else:
             self.connection.MoveLinearWithWaypoint(linear_target)
 
-    def MoveCircular(self, circular_target):
+    def MoveCircular(self, start_position, waypoint, target):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is in an error state, stop the robot and return early.
@@ -55,8 +55,7 @@ class Elfin():
             self.StopRobot()
             return
 
-        target_arc = circular_target[1][:3] + circular_target[2]
-        self.connection.MoveCircular(target_arc)
+        self.connection.MoveCircular(start_position, waypoint[:3], target)
 
     def TuneRobot(self, tuning_target):
         motion_state = self.connection.GetMotionState()

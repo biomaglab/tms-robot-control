@@ -247,25 +247,26 @@ class ElfinConnectionLinux:
         status = self.send(message)
         return status
 
-    def MoveCircular(self, target):
+    def MoveCircular(self, start_position, waypoint, target):
         """
         Moves the robot to the specified space coordinates using circular motion.
 
-        TODO: Improve parameter description.
-        :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
+        :param: start_position: [x, y, z], where x, y, z are the coordinates in mm.
+        :param: waypoint: [x, y, z], where x, y, z are the coordinates in mm.
+        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
+            and rx, ry, rz are the rotation angles in degrees.
         :return: True if successful, otherwise False.
         """
-        start_position, middle_position, final_target = target
+        start_position_str = [str(s) for s in start_position]
+        start_position_str = ",".join(start_position)
 
-        start_position = [str(s) for s in start_position]
-        middle_position = [str(s) for s in middle_position]
-        final_target = [str(s) for s in final_target]
+        waypoint_str = [str(s) for s in waypoint]
+        waypoint_str = ",".join(waypoint_str)
 
-        start_position = (",".join(start_position))
-        middle_position = (",".join(middle_position))
-        final_target = (",".join(final_target))
+        target_str = [str(s) for s in target]
+        target_str = ",".join(final_target)
 
-        message = "MoveC," + str(self.ROBOT_ID) + ',' + start_position + ',' + middle_position + ',' + final_target + \
+        message = "MoveC," + str(self.ROBOT_ID) + ',' + start_position_str + ',' + waypoint_str + ',' + target_str + \
                   ',0,0,1,10,10,1,TCP,Base,0'
         # FixedPosure,nMoveCType,dRadLen,dVelocity,dAcc,dRadius,sTcpName,sUcsName,strCmdID
         return self.send(message)

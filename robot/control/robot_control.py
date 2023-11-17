@@ -432,8 +432,11 @@ class RobotControl:
             self.robot.MoveLinear(linear_target)
 
         elif self.motion_type == MotionType.ARC:
-            circular_target = current_robot_coordinates_flip_angle, middle_arc_point, self.target_arc
-            self.robot.MoveCircular(circular_target)
+            start_position = current_robot_coordinates_flip_angle
+            waypoint = middle_arc_point
+            target = self.target_arc
+
+            self.robot.MoveCircular(start_position, waypoint, target)
 
         elif self.motion_type == MotionType.TUNING:
             self.robot.TuneRobot(tuning_target)

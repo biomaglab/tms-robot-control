@@ -251,17 +251,28 @@ class ElfinConnection:
         status = self.send(message)
         return status
 
-    def MoveCircular(self, target):
+    def MoveCircular(self, start_position, waypoint, target):
         """
         Moves the robot to the specified space coordinates using circular motion.
 
-        TODO: Improve parameter description.
-        :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
+        :param: start_position: [x, y, z], where x, y, z are the coordinates in mm.
+        :param: waypoint: [x, y, z], where x, y, z are the coordinates in mm.
+        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
+            and rx, ry, rz are the rotation angles in degrees.
         :return: True if successful, otherwise False.
         """
-        target = [str(s) for s in target]
-        target = (",".join(target))
-        message = "MoveC," + str(self.ROBOT_ID) + ',' + target + ',0'
+        # Note: The start position is unused in this version of the Elfin API.
+
+        waypoint_str = [str(s) for s in waypoint]
+        waypoint_str = ",".join(waypoint_str)
+
+        target_str = [str(s) for s in target]
+        target_str = ",".join(target_str)
+
+        # Always use movement type 0.
+        movement_type_str = '0'
+
+        message = "MoveC," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str + ',' + movement_type_str
         return self.send(message)
 
     def MoveLinearWithWaypoint(self, target):

@@ -80,7 +80,7 @@ class Dobot:
         self.target_reached = target_reached
 
     # TODO: Note that MoveLinear, MoveCircular, and
-    #   TuneRobot functions are identical at this stage.
+    #   TuneRobot functions are almost identical at this stage.
     #   This is because the distinction between the motion types
     #   should really go deeper into the structure of this class,
     #   because the different motion types have different structure and
@@ -96,8 +96,10 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
-    def MoveCircular(self, circular_target):
-        self.target = circular_target
+    def MoveCircular(self, start_position, waypoint, target):
+        # TODO: Start position, waypoint, and target should be stored in three separate
+        #   variables, not in one variable (self.target).
+        self.target = start_position, waypoint, target
         self.motion_type = motion_type
         self.status_move = True
         if not self.moving:
