@@ -111,7 +111,7 @@ def estimate_head_velocity(coord_vel, timestamp):
 
     return velocity, distance
 
-def compute_versors(init_point, final_point, scale=const.ROBOT_VERSOR_SCALE_FACTOR):
+def compute_versors(init_point, final_point, scale):
     init_point = np.array(init_point)
     final_point = np.array(final_point)
     norm = (sum((final_point - init_point) ** 2)) ** 0.5
@@ -119,10 +119,14 @@ def compute_versors(init_point, final_point, scale=const.ROBOT_VERSOR_SCALE_FACT
 
     return versor_factor
 
-def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_robot_coordinates):
+def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_robot_coordinates, versor_scale_factor, middle_arc_scale_factor):
     head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2]
 
-    versor_factor_move_out = compute_versors(head_center, current_robot_coordinates[:3])
+    versor_factor_move_out = compute_versors(
+        init_point=head_center,
+        final_point=current_robot_coordinates[:3],
+        scale=versor_scale_factor,
+    )
     init_move_out_point = current_robot_coordinates[0] + versor_factor_move_out[0], \
                           current_robot_coordinates[1] + versor_factor_move_out[1], \
                           current_robot_coordinates[2] + versor_factor_move_out[2], \
@@ -132,13 +136,22 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
                     (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
                     (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
 
-    versor_factor_middle_arc = (np.array(compute_versors(head_center, middle_point))) * const.ROBOT_MIDDLE_ARC_SCALE_FACTOR
+    versors = compute_versors(
+        init_point=head_center,
+        final_point=middle_point,
+        scale=versor_scale_factor,
+    )
+    versor_factor_middle_arc = np.array(versors) * middle_arc_scale_factor
     middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
                        middle_point[1] + versor_factor_middle_arc[1], \
                        middle_point[2] + versor_factor_middle_arc[2], \
                        new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
 
-    versor_factor_arc = compute_versors(head_center, new_robot_coordinates[:3])
+    versor_factor_arc = compute_versors(
+        init_point=head_center,
+        final_point=new_robot_coordinates[:3],
+        scale=versor_scale_factor,
+    )
     final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
                           new_robot_coordinates[1] + versor_factor_arc[1], \
                           new_robot_coordinates[2] + versor_factor_arc[2], \
@@ -190,7 +203,7 @@ def update_robot_target(tracker_coordinates,  robot_coordinates):
 
     return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
 
-def bezier_curve(points):
+def bezier_curve(points, step):
     """
     Code based on https://github.com/torresjrjr/Bezier.py
     Returns a point interpolated by the Bezier process for arc motion
@@ -200,7 +213,8 @@ def bezier_curve(points):
     OUTPUTS:
         curve        list of numpy arrays
     """
-    t_values = np.arange(0, 1, const.ROBOT_ARC_BEZIER_CURVE_STEP) #define the number of points along the path
+    # Defines the number of points along the path.
+    t_values = np.arange(0, 1, step)
     t_values = np.append(t_values, 1)
     curve = []
     init_angles = points[0, 3:]
@@ -363,7 +377,9 @@ class KalmanTracker:
 
 
 class TrackerProcessing:
-    def __init__(self):
+    def __init__(self, robot_config):
+        self.robot_config = robot_config
+
         self.coord_vel = []
         self.timestamp = []
         self.velocity_vector = []
@@ -413,7 +429,8 @@ class TrackerProcessing:
                 self.velocity_std = np.std(self.velocity_vector)
                 del self.velocity_vector[0]
 
-            if self.velocity_std > const.ROBOT_HEAD_VELOCITY_THRESHOLD:
+            head_velocity_threshold = self.robot_config['head_velocity_threshold']
+            if self.velocity_std > head_velocity_threshold:
                 self.coord_vel = []
                 self.timestamp = []
                 return False

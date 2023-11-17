@@ -22,8 +22,9 @@ class Dobot:
     TIMEOUT_MOTION = 45
     ERROR_STATUS = 9
 
-    def __init__(self, ip):
+    def __init__(self, ip, robot_config):
         self.ip = ip
+        self.robot_config = robot_config
 
         self.client_dashboard = None
         self.client_feedback = None
@@ -251,7 +252,11 @@ class Dobot:
                     self.client_movement.MoveLinear(self.target)
                     self._motion_loop()
                 elif self.motion_type == MotionType.ARC:
-                    curve_set = robot_process.bezier_curve(np.asarray(self.target))
+                    arc_bezier_curve_step = self.robot_config['arc_bezier_curve_step']
+                    curve_set = robot_process.bezier_curve(
+                        points=np.asarray(self.target),
+                        step=arc_bezier_curve_step,
+                    )
                     target = self.target
                     for curve_point in curve_set:
                         self.client_movement.ServoP(curve_point)
@@ -259,7 +264,9 @@ class Dobot:
                         if self.motion_type != MotionType.ARC:
                             self.StopRobot()
                             break
-                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, const.ROBOT_ARC_THRESHOLD_DISTANCE):
+
+                        arc_threshold_distance = self.robot_config['arc_threshold_distance']
+                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, arc_threshold_distance):
                             self.StopRobot()
                             break
                         if not self.moving:

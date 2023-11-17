@@ -88,15 +88,42 @@ def get_command_line_arguments():
 
     return host, port
 
+def get_environment_variables():
+    site = os.getenv('SITE')
+    if site is None:
+      print("SITE environment variable not provided, exiting")
+      return None, None
+
+    robot = os.getenv('ROBOT')
+    if robot is None:
+      print("ROBOT environment variable not provided, using robot: 'test'")
+      robot = 'test'
+
+    return site, robot
+
+
 if __name__ == '__main__':
     host, port = get_command_line_arguments()
 
+    site, robot = get_environment_variables()
+    if site is None or robot is None:
+        exit(1)
+
+    # Connect to neuronavigation
     url = 'http://{}:{}'.format(host, port)
 
     remote_control = RemoteControl(url)
     remote_control.connect()
 
-    robot_control = Robot.RobotControl(remote_control)
+    # Initialize robot controller
+    site_config = const.SITE_CONFIG[site]
+    robot_config = const.ROBOT_CONFIG[robot]
+
+    robot_control = Robot.RobotControl(
+        remote_control=remote_control,
+        site_config=site_config,
+        robot_config=robot_config,
+    )
 
     previous_robot_status = False
     while True:
@@ -138,5 +165,4 @@ if __name__ == '__main__':
 
             previous_robot_status = robot_status
 
-        time.sleep(const.SLEEP_ROBOT)
-
+        time.sleep(robot_config['sleep'])

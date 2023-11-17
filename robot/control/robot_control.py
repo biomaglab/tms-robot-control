@@ -17,10 +17,15 @@ import robot.control.robot_processing as robot_process
 
 
 class RobotControl:
-    def __init__(self, remote_control):
+    def __init__(self, remote_control, site_config, robot_config):
         self.remote_control = remote_control
 
-        self.process_tracker = robot_process.TrackerProcessing()
+        self.site_config = site_config
+        self.robot_config = robot_config
+
+        self.process_tracker = robot_process.TrackerProcessing(
+            robot_config=robot_config,
+        )
 
         self.robot_coordinates = coordinates.RobotCoordinates()
         self.tracker_coordinates = coordinates.TrackerCoordinates()
@@ -152,9 +157,15 @@ class RobotControl:
 
     def OnCoilToRobotAlignment(self, distance):
         xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
-        Rx = tr.rotation_matrix(const.ROBOT_RX_OFFSET, xaxis)
-        Ry = tr.rotation_matrix(const.ROBOT_RY_OFFSET, yaxis)
-        Rz = tr.rotation_matrix(const.ROBOT_RZ_OFFSET, zaxis)
+
+        rx_offset = self.site_config['rx_offset']
+        ry_offset = self.site_config['ry_offset']
+        rz_offset = self.site_config['rz_offset']
+
+        Rx = tr.rotation_matrix(rx_offset, xaxis)
+        Ry = tr.rotation_matrix(ry_offset, yaxis)
+        Rz = tr.rotation_matrix(rz_offset, zaxis)
+
         rotation_alignment_matrix = tr.concatenate_matrices(Rx, Ry, Rz)
 
         fix_axis = -distance[0], distance[1], distance[2], -distance[3], distance[4], distance[5]
@@ -213,7 +224,7 @@ class RobotControl:
             self.robot.Connect()
 
         elif robot_model == "dobot":
-            self.robot = dobot.Dobot(robot_IP)
+            self.robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
             self.robot.Connect()
 
         elif robot_model == "ur":
@@ -326,8 +337,9 @@ class RobotControl:
     def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
                                          marker_obj_flag):
         if marker_obj_flag:
+            transformation_matrix_threshold = self.robot_config['transformation_matrix_threshold']
             if not np.allclose(np.array(current_tracker_coordinates_in_robot)[:3], np.array(coord_obj_tracker_in_robot)[:3], 0,
-                               const.ROBOT_TRANSFORMATION_MATRIX_THRESHOLD):
+                               transformation_matrix_threshold):
                 topic = 'Request new robot transformation matrix'
                 data = {}
                 self.remote_control.send_message(topic, data)
@@ -336,13 +348,17 @@ class RobotControl:
     def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target, ft_values=False):
         """
         There are two types of robot movements.
+
         We can imagine in two concentric spheres of different sizes. The inside sphere is to compensate for small head movements.
          It was named "normal" moves.
+
         The outside sphere is for the arc motion. The arc motion is a safety feature for long robot movements.
          Even for a new target or a sudden huge head movement.
+
         1) normal:
             A linear move from the actual position until the target position.
-            This movement just happens when move distance is below a threshold (const.ROBOT_ARC_THRESHOLD_DISTANCE)
+            This movement just happens when move distance is below a threshold ("robot_arc_threshold_distance" in robot config)
+
         2) arc motion:
             It can be divided into three parts.
                 The first one represents the movement from the inner sphere to the outer sphere.
@@ -359,19 +375,28 @@ class RobotControl:
         distance_angle_target = robot_process.correction_distance_calculation_target(tunning_to_target[3:],
                                                                                      current_robot_coordinates_flip_angle[3:])
         # Check if the target is outside the working space. If so, return early.
-        if robot_process.estimate_robot_target_length(new_robot_coordinates) >= const.ROBOT_WORKING_SPACE:
+        robot_working_space = self.robot_config['robot_working_space']
+        if robot_process.estimate_robot_target_length(new_robot_coordinates) >= robot_working_space:
             print("Head is too far from the robot basis")
             return False
 
         # Check the target distance to define the motion mode.
-        if distance_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE or \
-           distance_angle_target >= const.ROBOT_ARC_THRESHOLD_DISTANCE_ANGLE:
+        arc_threshold_distance = self.robot_config['arc_threshold_distance']
+        arc_threshold_angle = self.robot_config['arc_threshold_angle']
+        if distance_target >= arc_threshold_distance or \
+           distance_angle_target >= arc_threshold_angle:
 
             head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+
+            versor_scale_factor = self.robot_config['versor_scale_factor']
+            middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
             linear_target, middle_arc_point, target_arc = robot_process.compute_arc_motion(
-                                                                        current_robot_coordinates,
-                                                                        head_center_coordinates,
-                                                                        new_robot_coordinates) #needs to be new_robot_coordinates!!
+                current_robot_coordinates=current_robot_coordinates,
+                head_center_coordinates=head_center_coordinates,
+                new_robot_coordinates=new_robot_coordinates,  #needs to be new_robot_coordinates!!
+                versor_scale_factor=versor_scale_factor,
+                middle_arc_scale_factor=middle_arc_scale_factor,
+            )
             if self.motion_type == MotionType.NORMAL:
                 self.motion_type = MotionType.LINEAR_OUT
 
@@ -382,11 +407,12 @@ class RobotControl:
 
             elif self.motion_type == MotionType.ARC:
                 #UPDATE arc motion target
-                if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, const.ROBOT_THRESHOLD_TO_UPDATE_TARGET_ARC):
-                    if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= const.ROBOT_ARC_THRESHOLD_DISTANCE:
+                threshold_to_update_target_arc = self.robot_config['threshold_to_update_target_arc']
+                if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, threshold_to_update_target_arc):
+                    if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= arc_threshold_distance:
                         self.target_arc = target_arc
                         #Avoid small arc motion
-                    elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < const.ROBOT_ARC_THRESHOLD_DISTANCE/2:
+                    elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < arc_threshold_distance / 2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tunning_to_target
 
@@ -405,10 +431,12 @@ class RobotControl:
             self.robot.SetTargetReached(self.target_reached)
             return True
 
+        target_tuning_threshold_angle = self.robot_config['target_tuning_threshold_angle']
+        target_tuning_threshold_distance = self.robot_config['target_tuning_threshold_distance']
         if (np.sqrt(
-                np.sum(np.square(self.distance_to_target[:3]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_DISTANCE or
+                np.sum(np.square(self.distance_to_target[:3]))) < target_tuning_threshold_distance or
             np.sqrt(
-                np.sum(np.square(self.distance_to_target[3:]))) < const.ROBOT_TARGET_TUNING_THRESHOLD_ANGLE) \
+                np.sum(np.square(self.distance_to_target[3:]))) < target_tuning_threshold_angle) \
                 and self.motion_type != MotionType.ARC:
             # tunes the robot position based on neuronavigation
             tuning_target = self.distance_to_target
@@ -502,7 +530,11 @@ class RobotControl:
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
-            if self.new_force_sensor_data <= const.ROBOT_FORCE_SENSOR_THRESHOLD or self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (const.ROBOT_FORCE_SENSOR_SCALE_THRESHOLD / 100))):
+            force_sensor_threshold = self.robot_config['force_sensor_threshold']
+            force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
+            if self.new_force_sensor_data <= force_sensor_threshold or \
+               self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
+
                 self.compensate_force_flag = False
                 #CHECK IF HEAD IS VISIBLE
                 if coord_head_tracker_in_robot is not None and marker_head_flag and marker_coil_flag:
