@@ -167,9 +167,9 @@ class ElfinConnection:
             and rx, ry, rz are the rotation angles in degrees.
         :return: True if successful, otherwise False.
         """
-        target = [str(s) for s in target]
-        target = (",".join(target))
-        message = "MoveL," + str(self.ROBOT_ID) + ',' + target
+        target_str = [str(s) for s in target]
+        target_str = ",".join(target_str)
+        message = "MoveB," + str(self.ROBOT_ID) + ',' + target_str
         return self.send(message)
 
     def MoveLinearRelative(self, distance):

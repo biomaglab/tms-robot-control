@@ -40,14 +40,7 @@ class Elfin():
         motion_state = self.connection.GetMotionState()
         # TODO: Should motion state be used here to check that robot is free to move?
 
-        # TODO: Why does this branch to two different functions, depending on if
-        #  the Linux version is used or not?
-        if self.use_linux_version:
-            self.connection.MoveLinear(linear_target)
-        else:
-            # FIXME: This is not going to work: MoveLinearWithWaypoint expects
-            #   two arguments (the waypoint and the target).
-            self.connection.MoveLinearWithWaypoint(linear_target)
+        self.connection.MoveLinear(linear_target)
 
     def MoveCircular(self, start_position, waypoint, target):
         motion_state = self.connection.GetMotionState()
