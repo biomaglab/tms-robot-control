@@ -431,7 +431,22 @@ class RobotControl:
             self.inside_circle = False
             self.prev_state_flag = 1
 
-        self.robot.SendTargetToControl(new_robot_target, self.motion_type)
+        # Branch to different movement functions, depending on the motion type.
+        if self.motion_type == MotionType.NORMAL or \
+           self.motion_type == MotionType.LINEAR_OUT:
+
+            self.robot.MoveToTargetNormal(new_robot_target)
+
+        elif self.motion_type == MotionType.ARC:
+            self.robot.MoveToTargetArc(new_robot_target)
+
+        elif self.motion_type == MotionType.TUNING:
+            self.robot.MoveToTargetTuning(new_robot_target)
+
+        elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
+            # TODO: Should this be implemented?
+            pass
+
         self.robot.SetTargetReached(self.target_reached)
 
         return True

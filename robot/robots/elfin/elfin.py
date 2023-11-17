@@ -34,31 +34,40 @@ class Elfin():
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
 
-    def SendTargetToControl(self, target, motion_type=MotionType.NORMAL):
-        """
-        It's not possible to send a move command to elfin if the robot is during a move.
-        """
+    # Note: It is not possible to send a move command to elfin during movement.
+
+    # For motion types "normal" and "linear out"
+    def MoveToTargetNormal(self, target):
         motion_state = self.connection.GetMotionState()
-        if motion_type == MotionType.NORMAL or motion_type == MotionType.LINEAR_OUT:
-            if self.use_linux_version:
-                self.connection.MoveLinear(target)
-            else:
-                self.connection.MoveLinearWithWaypoint(target)
-        elif motion_type == MotionType.ARC:
-            if motion_state == MotionState.FREE_TO_MOVE:
-                target_arc = target[1][:3] + target[2]
-                self.connection.MoveCircular(target_arc)
-            elif motion_state == MotionState.ERROR:
-                self.StopRobot()
-        elif motion_type == MotionType.TUNING:
-            if motion_state == MotionState.FREE_TO_MOVE:
-                self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-                #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-                abs_distance_to_target = [abs(x) for x in target]
-                direction = abs_distance_to_target.index(max(abs_distance_to_target))
-                CompenDistance = [direction, 1, target[direction]]
-                self.connection.MoveLinearRelative(CompenDistance)
-                self.connection.SetToolCoordinateMotion(0)
+        # TODO: Should motion state be used here to check that robot is free to move?
+
+        # TODO: Why does this branch to two different functions, depending on if
+        #  the Linux version is used or not?
+        if self.use_linux_version:
+            self.connection.MoveLinear(target)
+        else:
+            self.connection.MoveLinearWithWaypoint(target)
+
+    # For motion type "arc"
+    def MoveToTargetArc(self, target):
+        motion_state = self.connection.GetMotionState()
+        if motion_state == MotionState.FREE_TO_MOVE:
+            target_arc = target[1][:3] + target[2]
+            self.connection.MoveCircular(target_arc)
+        elif motion_state == MotionState.ERROR:
+            self.StopRobot()
+
+    # For motion type "tuning"
+    def MoveToTargetTuning(self, target):
+        motion_state = self.connection.GetMotionState()
+        if motion_state == MotionState.FREE_TO_MOVE:
+            self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+            #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
+            abs_distance_to_target = [abs(x) for x in target]
+            direction = abs_distance_to_target.index(max(abs_distance_to_target))
+            CompenDistance = [direction, 1, target[direction]]
+            self.connection.MoveLinearRelative(CompenDistance)
+            self.connection.SetToolCoordinateMotion(0)
 
     def ReadForceSensor(self):
         if const.FORCE_TORQUE_SENSOR:

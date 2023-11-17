@@ -79,11 +79,35 @@ class Dobot:
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
 
-    def SendTargetToControl(self, target, motion_type=MotionType.NORMAL):
-        """
-        It's not possible to send a move command to elfin if the robot is during a move.
-         Status 1009 means robot in motion.
-        """
+    # TODO: Note that MoveToTargetNormal, MoveToTargetArc, and
+    #   MoveToTargetTuning functions are identical at this stage.
+    #   This is because the distinction between the motion types
+    #   should really go deeper into the structure of this class,
+    #   because the different motion types have different structure and
+    #   meaning for the parameter 'target'. Hence, we should not use the same
+    #   variable (self.target) for each. After that change is implemented,
+    #   the functions below will branch off.
+
+    # For motion types "normal" and "linear out"
+    def MoveToTargetNormal(self, target):
+        self.target = target
+        self.motion_type = motion_type
+        self.status_move = True
+        if not self.moving:
+            self.moving = True
+            self._set_move_thread()
+
+    # For motion type "arc"
+    def MoveToTargetArc(self, target):
+        self.target = target
+        self.motion_type = motion_type
+        self.status_move = True
+        if not self.moving:
+            self.moving = True
+            self._set_move_thread()
+
+    # For motion type "tuning"
+    def MoveToTargetTuning(self, target):
         self.target = target
         self.motion_type = motion_type
         self.status_move = True
