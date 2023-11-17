@@ -45,6 +45,8 @@ class Elfin():
         if self.use_linux_version:
             self.connection.MoveLinear(linear_target)
         else:
+            # FIXME: This is not going to work: MoveLinearWithWaypoint expects
+            #   two arguments (the waypoint and the target).
             self.connection.MoveLinearWithWaypoint(linear_target)
 
     def MoveCircular(self, start_position, waypoint, target):

@@ -258,8 +258,11 @@ class ElfinConnectionLinux:
 
         :param: start_position: [x, y, z], where x, y, z are the coordinates in mm.
         :param: waypoint: [x, y, z], where x, y, z are the coordinates in mm.
-        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
-            and rx, ry, rz are the rotation angles in degrees.
+        :param: target: [x, y, z, rx, ry, rz], where
+
+            x, y, z are the coordinates in mm, and
+            rx, ry, rz are the rotation angles in degrees.
+
         :return: True if successful, otherwise False.
         """
         start_position_str = [str(s) for s in start_position]
@@ -276,17 +279,23 @@ class ElfinConnectionLinux:
         # FixedPosure,nMoveCType,dRadLen,dVelocity,dAcc,dRadius,sTcpName,sUcsName,strCmdID
         return self.send(message)
 
-    # TODO: The parameters waypoint and target should be given here as two separate arguments,
-    #   see MoveCircular function above for reference.
-    def MoveLinearWithWaypoint(self, target):
+    def MoveLinearWithWaypoint(self, waypoint, target):
         """
         Moves the robot to the specified space coordinates through a waypoint, using linear motion.
 
-        TODO: Improve parameter description.
-        :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
-        :return:
+        :param: waypoint: [x, y, z], where x, y, z are the coordinates in mm.
+        :param: target: [x, y, z, rx, ry, rz], where
+
+            x, y, z are the coordinates in mm, and
+            rx, ry, rz are the rotation angles in degrees.
+
+        :return: True if successful, otherwise False.
         """
-        target = [str(s) for s in target]
-        target = (",".join(target))
-        message = "MoveB," + str(self.ROBOT_ID) + ',' + target
+        waypoint_str = [str(s) for s in waypoint_str]
+        waypoint_str = ",".join(waypoint_str)
+
+        target_str = [str(s) for s in target_str]
+        target_str = ",".join(target_str)
+
+        message = "MoveB," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str
         return self.send(message)
