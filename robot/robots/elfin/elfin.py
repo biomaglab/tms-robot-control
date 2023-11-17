@@ -68,14 +68,18 @@ class Elfin():
 
     def CompensateForce(self, flag):
         motion_state = self.connection.GetMotionState()
-        if motion_state == MotionState.FREE_TO_MOVE:
-            if not flag:
-                self.StopRobot()
-            self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-            #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-            CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
-            self.connection.MoveLinearRelative(CompenDistance)  # Robot moves in specified spatial coordinate directional
-            self.connection.SetToolCoordinateMotion(0)
+
+        # If the robot is not free to move, return early.
+        if motion_state != MotionState.FREE_TO_MOVE:
+            return
+
+        if not flag:
+            self.StopRobot()
+        self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+        #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
+        CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
+        self.connection.MoveLinearRelative(CompenDistance)  # Robot moves in specified spatial coordinate directional
+        self.connection.SetToolCoordinateMotion(0)
 
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
