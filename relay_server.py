@@ -16,7 +16,7 @@ import uvicorn
 
 nest_asyncio.apply()
 
-default_host = 'Biomag'
+default_host = '0.0.0.0'
 
 if len(sys.argv) == 3:
     host = sys.argv[1]

@@ -73,7 +73,7 @@ def reset_robot(data):
 #
 # If not given, use the defaults, as shown below.
 def get_command_line_arguments():
-    default_host = 'Biomag'
+    default_host = '127.0.0.1'
     default_port = 5000
 
     if len(sys.argv) == 3:
