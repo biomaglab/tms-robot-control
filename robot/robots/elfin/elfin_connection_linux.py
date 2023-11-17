@@ -22,10 +22,10 @@ class ElfinConnectionLinux:
 
     def connect(self):
         try:
-            mySocket = socket(AF_INET, SOCK_STREAM)
-            mySocket.connect((self.ip, self.PORT))
+            new_socket = socket(AF_INET, SOCK_STREAM)
+            new_socket.connect((self.ip, self.PORT))
 
-            self.mySocket = mySocket
+            self.socket = new_socket
 
             self.connected = True
 
@@ -35,9 +35,9 @@ class ElfinConnectionLinux:
     def send(self, message):
         message_with_ending = message + self.MESSAGE_ENDING_CHARS
         encoded_message = message_with_ending.encode('utf-8')
-        self.mySocket.sendall(encoded_message)
+        self.socket.sendall(encoded_message)
         try:
-            data = self.mySocket.recv(self.MESSAGE_SIZE).decode('utf-8').split(',')
+            data = self.socket.recv(self.MESSAGE_SIZE).decode('utf-8').split(',')
         except TimeoutError:
             print("Robot connection error: TimeoutError")
             self.connected = False
