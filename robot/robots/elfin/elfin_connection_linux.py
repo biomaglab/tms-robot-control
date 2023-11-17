@@ -4,6 +4,8 @@ from socket import socket, AF_INET, SOCK_STREAM
 # TODO: What is this, how does it differ, why does it exist? The naming should be improved.
 class ElfinConnectionLinux:
     MESSAGE_ENDING_CHARS = ",;"
+    MESSAGE_SIZE = 1024
+    ROBOT_ID = 0
 
     def __init__(self):
         """
@@ -14,15 +16,13 @@ class ElfinConnectionLinux:
         self.connected = False
         self.end_msg = ",;"
 
-    def connect(self, ip, port, message_size, robot_id):
+    def connect(self, ip, port):
         try:
             mySocket = socket(AF_INET, SOCK_STREAM)
             mySocket.connect((ip, port))
 
             self.ip = ip
             self.port = port
-            self.message_size = message_size
-            self.robot_id = str(robot_id)
             self.mySocket = mySocket
 
             self.connected = True
@@ -35,7 +35,7 @@ class ElfinConnectionLinux:
         encoded_message = message_with_ending.encode('utf-8')
         self.mySocket.sendall(encoded_message)
         try:
-            data = self.mySocket.recv(self.message_size).decode('utf-8').split(',')
+            data = self.mySocket.recv(self.MESSAGE_SIZE).decode('utf-8').split(',')
         except TimeoutError:
             print("Robot connection error: TimeoutError")
             self.connected = False
@@ -114,7 +114,7 @@ class ElfinConnectionLinux:
             if Error Return False
             if not Error Return True
         """
-        message = "GrpPowerOn," + self.robot_id
+        message = "GrpPowerOn," + str(self.ROBOT_ID)
         status = self.send(message)
         return status
 
@@ -125,7 +125,7 @@ class ElfinConnectionLinux:
             if Error Return False
             if not Error Return True
         """
-        message = "GrpPowerOff," + self.robot_id
+        message = "GrpPowerOff," + str(self.ROBOT_ID)
         status = self.send(message)
         return status
 
@@ -136,7 +136,7 @@ class ElfinConnectionLinux:
             if Error Return False
             if not Error Return True
         """
-        message = "GrpStop," + self.robot_id
+        message = "GrpStop," + str(self.ROBOT_ID)
         status = self.send(message)
         return status
 
@@ -150,7 +150,7 @@ class ElfinConnectionLinux:
             if not Error Return True
         """
 
-        message = "SetOverride," + self.robot_id + ',' + str(override)
+        message = "SetOverride," + str(self.ROBOT_ID) + ',' + str(override)
         status = self.send(message)
         return status
 
@@ -160,7 +160,7 @@ class ElfinConnectionLinux:
             if True Return x,y,z,a,b,c
             if Error Return False
         """
-        message = "ReadActPos," + self.robot_id
+        message = "ReadActPos," + str(self.ROBOT_ID)
         coord = self.send(message)
         if coord:
             return [float(s) for s in coord][6:12]
@@ -175,7 +175,7 @@ class ElfinConnectionLinux:
         """
         target = [str(s) for s in target]
         target = (",".join(target))
-        message = "MoveL," + self.robot_id + ',' + target
+        message = "MoveL," + str(self.ROBOT_ID) + ',' + target
         return self.send(message)
 
     def MoveRelL(self, distance):
@@ -187,7 +187,7 @@ class ElfinConnectionLinux:
         """
         distance = [str(s) for s in distance]
         distance = (",".join(distance))
-        message = "MoveRelL," + self.robot_id + ',' + distance
+        message = "MoveRelL," + str(self.ROBOT_ID) + ',' + distance
         self.send(message)
 
     def ReadForceSensorData(self):
@@ -211,7 +211,7 @@ class ElfinConnectionLinux:
             if Error Return False
             if not Error Return True
         """
-        message = "SetToolMotion," + self.robot_id + ',' + str(status)
+        message = "SetToolMotion," + str(self.ROBOT_ID) + ',' + str(status)
         status = self.send(message)
         return status
 
@@ -225,7 +225,7 @@ class ElfinConnectionLinux:
             1013=waiting for execution;
             1025 =Error reporting
         """
-        message = "ReadRobotState," + self.robot_id
+        message = "ReadRobotState," + str(self.ROBOT_ID)
         read_robot_state = self.send(message)
         moving_state = bool(read_robot_state[0])
         error_state = bool(read_robot_state[2])
@@ -246,7 +246,7 @@ class ElfinConnectionLinux:
             if Error Return False
             if not Error Return True
         """
-        message = "MoveHoming," + self.robot_id
+        message = "MoveHoming," + str(self.ROBOT_ID)
         status = self.send(message)
         return status
 
@@ -266,7 +266,7 @@ class ElfinConnectionLinux:
         middle_position = (",".join(middle_position))
         final_target = (",".join(final_target))
 
-        message = "MoveC," + self.robot_id + ',' + start_position + ',' + middle_position + ',' + final_target + \
+        message = "MoveC," + str(self.ROBOT_ID) + ',' + start_position + ',' + middle_position + ',' + final_target + \
                   ',0,0,1,10,10,1,TCP,Base,0'
         # FixedPosure,nMoveCType,dRadLen,dVelocity,dAcc,dRadius,sTcpName,sUcsName,strCmdID
         return self.send(message)
@@ -279,5 +279,5 @@ class ElfinConnectionLinux:
         """
         target = [str(s) for s in target]
         target = (",".join(target))
-        message = "MoveB," + self.robot_id + ',' + target
+        message = "MoveB," + str(self.ROBOT_ID) + ',' + target
         return self.send(message)

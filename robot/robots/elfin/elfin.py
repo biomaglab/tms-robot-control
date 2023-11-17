@@ -17,12 +17,10 @@ class Elfin():
 
         self.use_linux_version = use_linux_version
 
-        message_size = 1024
-        robot_id = 0
         self.connection = ElfinConnectionLinux() if self.use_linux_version else ElfinConnection()
 
     def Connect(self):
-        self.connection.connect(self.ip, self.port, message_size, robot_id)
+        self.connection.connect(self.ip, self.port)
 
     def IsConnected(self):
         return self.connection.connected
