@@ -156,7 +156,7 @@ class ElfinConnectionLinux:
 
         return coord
 
-    def MoveL(self, target):
+    def MoveLinear(self, target):
         """
         Moves the robot to the specified space coordinates using linear motion.
 
@@ -169,7 +169,7 @@ class ElfinConnectionLinux:
         message = "MoveL," + str(self.ROBOT_ID) + ',' + target
         return self.send(message)
 
-    def MoveRelL(self, distance):
+    def MoveLinearRelative(self, distance):
         """"
         Moves the robot a given distance from the specified spatial coordinate directional.
 
@@ -249,9 +249,9 @@ class ElfinConnectionLinux:
         status = self.send(message)
         return status
 
-    def MoveC(self, target):
+    def MoveCircular(self, target):
         """
-        Moves the robot to the specified space coordinates using arc motion.
+        Moves the robot to the specified space coordinates using circular motion.
 
         TODO: Improve parameter description.
         :param: Through position[X,Y,Z],GoalCoord[X,Y,Z,RX,RY,RZ],Type[0 or 1],;
@@ -272,7 +272,7 @@ class ElfinConnectionLinux:
         # FixedPosure,nMoveCType,dRadLen,dVelocity,dAcc,dRadius,sTcpName,sUcsName,strCmdID
         return self.send(message)
 
-    def MoveB(self, target):
+    def MoveLinearWithWaypoint(self, target):
         """
         Moves the robot to the specified space coordinates through a waypoint, using linear motion.
 

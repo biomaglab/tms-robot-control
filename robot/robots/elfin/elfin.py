@@ -51,13 +51,13 @@ class Elfin():
         status = self.connection.GetMotionState()
         if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
             if self.use_linux_version:
-                self.connection.MoveL(target)
+                self.connection.MoveLinear(target)
             else:
-                self.connection.MoveB(target)
+                self.connection.MoveLinearWithWaypoint(target)
         elif motion_type == const.ROBOT_MOTIONS["arc"]:
             if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
                 target_arc = target[1][:3] + target[2]
-                self.connection.MoveC(target_arc)
+                self.connection.MoveCircular(target_arc)
             elif status == const.ROBOT_ELFIN_MOVE_STATE["error"]:
                 self.StopRobot()
         elif motion_type == const.ROBOT_MOTIONS["tunning"]:
@@ -67,10 +67,10 @@ class Elfin():
                 abs_distance_to_target = [abs(x) for x in target]
                 direction = abs_distance_to_target.index(max(abs_distance_to_target))
                 CompenDistance = [direction, 1, target[direction]]
-                self.connection.MoveRelL(CompenDistance)
+                self.connection.MoveLinearRelative(CompenDistance)
                 self.connection.SetToolCoordinateMotion(0)
 
-    def GetForceSensorData(self):
+    def ReadForceSensor(self):
         if const.FORCE_TORQUE_SENSOR:
             return self.connection.ReadForceSensor()
         else:
@@ -84,7 +84,7 @@ class Elfin():
             self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
             #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
             CompenDistance = [2, 0, 1]  # [directionID; direction (0:negative, 1:positive); distance]
-            self.connection.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
+            self.connection.MoveLinearRelative(CompenDistance)  # Robot moves in specified spatial coordinate directional
             self.connection.SetToolCoordinateMotion(0)
 
     def StopRobot(self):

@@ -436,7 +436,7 @@ class RobotControl:
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
         # TODO: condition for const.FORCE_TORQUE_SENSOR
-        ft_values = np.array(self.robot.GetForceSensorData())
+        ft_values = np.array(self.robot.ReadForceSensor())
         if const.FORCE_TORQUE_SENSOR:
             # true f-t value
             current_F = ft_values[0:3]

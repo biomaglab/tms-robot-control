@@ -394,7 +394,7 @@ class DobotApiMove(DobotConnection):
         self.send_data(string)
         return self.wait_reply()
 
-    def MoveL(self, target):
+    def MoveLinear(self, target):
         """
         Coordinate system motion interface (linear motion mode)
         x: A number in the Cartesian coordinate system x
@@ -497,7 +497,7 @@ class DobotApiMove(DobotConnection):
         self.send_data(string)
         return self.wait_reply()
 
-    def MoveC(self, target):
+    def MoveCircular(self, target):
         """
         Circular motion instruction
         x1, y1, z1, a1, b1, c1 :Is the point value of intermediate point coordinates

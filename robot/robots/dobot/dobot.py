@@ -90,7 +90,7 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
-    def GetForceSensorData(self):
+    def ReadForceSensor(self):
         if const.FORCE_TORQUE_SENSOR:
             return self.force_torque_data
         else:
@@ -208,7 +208,7 @@ class Dobot:
             if self.status_move and not self.target_reached and not self.running_status:
                 print('moving')
                 if self.motion_type == const.ROBOT_MOTIONS["normal"] or self.motion_type == const.ROBOT_MOTIONS["linear out"]:
-                    self.client_move.MoveL(self.target)
+                    self.client_move.MoveLinear(self.target)
                     self._motion_loop()
                 elif self.motion_type == const.ROBOT_MOTIONS["arc"]:
                     curve_set = robot_process.bezier_curve(np.asarray(self.target))
