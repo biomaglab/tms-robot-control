@@ -23,17 +23,6 @@ class Elfin():
     def IsConnected(self):
         return self.connection.connected
 
-    def Reconnect(self):
-        print("Trying to reconnect to robot...")
-        while not self.IsConnected():
-            self.Connect()
-            sleep(1)
-            print("Trying to reconnect to robot...")
-
-        self.connection.StopRobot()
-        sleep(0.1)
-        print("Reconnected!")
-
     def GetCoordinates(self):
         coordinates = self.connection.GetCoordinates()
         if coordinates:

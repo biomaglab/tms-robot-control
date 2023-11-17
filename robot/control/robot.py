@@ -251,7 +251,15 @@ class RobotControl:
         topic = 'Update robot status'
         data = {'robot_status': False}
         self.remote_control.send_message(topic, data)
-        self.robot.Reconnect()
+
+        while not self.robot.IsConnected():
+            self.robot.Connect()
+            sleep(1)
+            print("Trying to reconnect to robot...")
+
+        self.robot.StopRobot()
+        sleep(0.1)
+        print("Reconnected!")
 
     def SensorUpdateTarget(self, distance, status):
         topic = 'Update target from FT values'
