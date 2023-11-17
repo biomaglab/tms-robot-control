@@ -51,29 +51,39 @@ class Elfin():
     # For motion type "arc"
     def MoveToTargetArc(self, target):
         motion_state = self.connection.GetMotionState()
-        if motion_state == MotionState.FREE_TO_MOVE:
-            target_arc = target[1][:3] + target[2]
-            self.connection.MoveCircular(target_arc)
-        elif motion_state == MotionState.ERROR:
+
+        # If the robot is in an error state, stop the robot and return early.
+        if motion_state == MotionState.ERROR:
             self.StopRobot()
+            return
+
+        target_arc = target[1][:3] + target[2]
+        self.connection.MoveCircular(target_arc)
 
     # For motion type "tuning"
     def MoveToTargetTuning(self, target):
         motion_state = self.connection.GetMotionState()
-        if motion_state == MotionState.FREE_TO_MOVE:
-            self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-            #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
-            abs_distance_to_target = [abs(x) for x in target]
-            direction = abs_distance_to_target.index(max(abs_distance_to_target))
-            CompenDistance = [direction, 1, target[direction]]
-            self.connection.MoveLinearRelative(CompenDistance)
-            self.connection.SetToolCoordinateMotion(0)
+
+        # If the robot is not free to move, return early.
+        #
+        # TODO: Should this follow a logic similar to MoveToTargetArc function?
+        if motion_state != MotionState.FREE_TO_MOVE:
+            return
+
+        self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+        #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
+        abs_distance_to_target = [abs(x) for x in target]
+        direction = abs_distance_to_target.index(max(abs_distance_to_target))
+        CompenDistance = [direction, 1, target[direction]]
+        self.connection.MoveLinearRelative(CompenDistance)
+        self.connection.SetToolCoordinateMotion(0)
 
     def ReadForceSensor(self):
-        if const.FORCE_TORQUE_SENSOR:
-            return self.connection.ReadForceSensor()
-        else:
+        # If force sensor is not used, return early.
+        if not const.FORCE_TORQUE_SENSOR:
             return False
+
+        return self.connection.ReadForceSensor()
 
     def CompensateForce(self, flag):
         motion_state = self.connection.GetMotionState()
