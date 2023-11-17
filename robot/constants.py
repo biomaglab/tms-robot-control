@@ -51,8 +51,6 @@ if ROBOT == "dobot":
     # Force and torque sensor
     ROBOT_FORCE_SENSOR_THRESHOLD = 10 #N
     ROBOT_FORCE_SENSOR_SCALE_THRESHOLD = 100 #% of init force
-    # Robot States
-    ROBOT_DOBOT_MOVE_STATE = {"error": 9}
 elif ROBOT == "elfin":
     # Robot settings
     # Robot Working Space is defined as 800mm in Elfin 5 manual. For safety, the value is reduced by 5%.

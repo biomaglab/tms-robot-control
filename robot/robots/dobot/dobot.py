@@ -20,6 +20,7 @@ class Dobot:
     TOOL_ID = 0
     TIMEOUT_START_MOTION = 10
     TIMEOUT_MOTION = 45
+    ERROR_STATUS = 9
 
     def __init__(self, ip):
         self.ip = ip
@@ -130,7 +131,7 @@ class Dobot:
     def CompensateForce(self, flag):
         status = self.client_dashboard.RobotMode()
         print("CompensateForce")
-        if not status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+        if status != self.ERROR_STATUS:
             if not flag:
                 self.StopRobot()
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
@@ -231,7 +232,7 @@ class Dobot:
 
         while self.running_status == 1:
             status = int(self.robot_mode)
-            if status == const.ROBOT_DOBOT_MOVE_STATE["error"]:
+            if status == self.ERROR_STATUS:
                 self.StopRobot()
             if time.time() > timeout_start + self.TIMEOUT_MOTION:
                 self.StopRobot()
