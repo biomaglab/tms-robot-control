@@ -10,3 +10,4 @@ dependencies:
 - numpy
 - opencv
 - wxPython
+- pynput
