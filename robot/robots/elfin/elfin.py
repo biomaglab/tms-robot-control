@@ -36,8 +36,7 @@ class Elfin():
 
     # Note: It is not possible to send a move command to elfin during movement.
 
-    # For motion types "normal" and "linear out"
-    def MoveToTargetNormal(self, target):
+    def MoveLinear(self, target):
         motion_state = self.connection.GetMotionState()
         # TODO: Should motion state be used here to check that robot is free to move?
 
@@ -48,8 +47,7 @@ class Elfin():
         else:
             self.connection.MoveLinearWithWaypoint(target)
 
-    # For motion type "arc"
-    def MoveToTargetArc(self, target):
+    def MoveCircular(self, target):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is in an error state, stop the robot and return early.
@@ -60,13 +58,12 @@ class Elfin():
         target_arc = target[1][:3] + target[2]
         self.connection.MoveCircular(target_arc)
 
-    # For motion type "tuning"
-    def MoveToTargetTuning(self, target):
+    def TuneRobot(self, target):
         motion_state = self.connection.GetMotionState()
 
         # If the robot is not free to move, return early.
         #
-        # TODO: Should this follow a logic similar to MoveToTargetArc function?
+        # TODO: Should this follow a logic similar to MoveCircular function?
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 

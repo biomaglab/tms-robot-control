@@ -435,13 +435,13 @@ class RobotControl:
         if self.motion_type == MotionType.NORMAL or \
            self.motion_type == MotionType.LINEAR_OUT:
 
-            self.robot.MoveToTargetNormal(new_robot_target)
+            self.robot.MoveLinear(new_robot_target)
 
         elif self.motion_type == MotionType.ARC:
-            self.robot.MoveToTargetArc(new_robot_target)
+            self.robot.MoveCircular(new_robot_target)
 
         elif self.motion_type == MotionType.TUNING:
-            self.robot.MoveToTargetTuning(new_robot_target)
+            self.robot.TuneRobot(new_robot_target)
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?

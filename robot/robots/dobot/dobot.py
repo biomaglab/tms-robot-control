@@ -79,8 +79,8 @@ class Dobot:
     def SetTargetReached(self, target_reached):
         self.target_reached = target_reached
 
-    # TODO: Note that MoveToTargetNormal, MoveToTargetArc, and
-    #   MoveToTargetTuning functions are identical at this stage.
+    # TODO: Note that MoveLinear, MoveCircular, and
+    #   TuneRobot functions are identical at this stage.
     #   This is because the distinction between the motion types
     #   should really go deeper into the structure of this class,
     #   because the different motion types have different structure and
@@ -89,7 +89,7 @@ class Dobot:
     #   the functions below will branch off.
 
     # For motion types "normal" and "linear out"
-    def MoveToTargetNormal(self, target):
+    def MoveLinear(self, target):
         self.target = target
         self.motion_type = motion_type
         self.status_move = True
@@ -98,7 +98,7 @@ class Dobot:
             self._set_move_thread()
 
     # For motion type "arc"
-    def MoveToTargetArc(self, target):
+    def MoveCircular(self, target):
         self.target = target
         self.motion_type = motion_type
         self.status_move = True
@@ -107,7 +107,7 @@ class Dobot:
             self._set_move_thread()
 
     # For motion type "tuning"
-    def MoveToTargetTuning(self, target):
+    def TuneRobot(self, target):
         self.target = target
         self.motion_type = motion_type
         self.status_move = True
