@@ -218,8 +218,8 @@ class RobotControl:
             self.robot = elfin.Elfin(robot_IP)
             self.robot.Connect()
 
-        elif robot_model == "elfin_linux":
-            self.robot = elfin.Elfin(robot_IP, use_linux_version=True)
+        elif robot_model == "elfin_new_api":
+            self.robot = elfin.Elfin(robot_IP, use_new_api=True)
             self.robot.Connect()
 
         elif robot_model == "dobot":

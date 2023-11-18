@@ -9,13 +9,15 @@ class ElfinConnection:
     MESSAGE_SIZE = 1024
     ROBOT_ID = 0
 
-    def __init__(self, ip):
+    def __init__(self, ip, use_new_api):
         """
         Class for low-level communication with Elfin robot.
 
         This class follows "HansRobot Communication Protocol Interface".
         """
         self.ip = ip
+        self.use_new_api = use_new_api
+
         self.connected = False
 
     def connect(self):
@@ -152,10 +154,13 @@ class ElfinConnection:
 
             If unsuccessful, return False.
         """
-        message = "ReadPcsActualPos," + str(self.ROBOT_ID)
+        command = "ReadActPos" if self.use_new_api else "ReadPcsActualPos"
+
+        message = command + "," + str(self.ROBOT_ID)
         coord = self.send(message)
         if coord:
-            return [float(s) for s in coord]
+            coordinates = [float(s) for s in coord]
+            return coordinates[6:12] if self.use_new_api else coordinates
 
         return coord
 
@@ -169,7 +174,10 @@ class ElfinConnection:
         """
         target_str = [str(s) for s in target]
         target_str = ",".join(target_str)
-        message = "MoveB," + str(self.ROBOT_ID) + ',' + target_str
+
+        command = "MoveL" if self.use_new_api else "MoveB"
+        message = command + "," + str(self.ROBOT_ID) + ',' + target_str
+
         return self.send(message)
 
     def MoveLinearRelative(self, axis, direction, distance):
@@ -220,7 +228,9 @@ class ElfinConnection:
         :param: int state: 0 = close, 1 = open.
         :return: True if successful, otherwise False.
         """
-        message = "SetToolCoordinateMotion," + str(self.ROBOT_ID) + ',' + str(status)
+        command = "SetToolMotion" if self.use_new_api else "SetToolCoordinateMotion"
+        message = command + "," + str(self.ROBOT_ID) + ',' + str(status)
+
         status = self.send(message)
         return status
 
@@ -230,24 +240,38 @@ class ElfinConnection:
 
         :return: A MotionState enum value, indicating the motion state of the robot.
         """
-        message = "ReadMoveState," + str(self.ROBOT_ID)
-        readmovestate = self.send(message)
-        if not readmovestate:
+        command = "ReadRobotState" if self.use_new_api else "ReadMoveState"
+        message = command + "," + str(self.ROBOT_ID)
+        params = self.send(message)
+
+        if params is None:
             print("Could not read robot motion state")
             return MotionState.ERROR
 
-        code = int(readmovestate[0])
-        if code == 0:
+        if self.use_new_api:
+            moving_state = bool(params[0])
+            error_state = bool(params[2])
+
+            if error_state:
+                return MotionState.ERROR
+
+            if moving_state:
+                return MotionState.IN_MOTION
+
             return MotionState.FREE_TO_MOVE
-        elif code == 1009:
-            return MotionState.IN_MOTION
-        elif code == 1013:
-            return MotionState.WAITING_FOR_EXECUTION
-        elif code == 1025:
-            return MotionState.ERROR
         else:
-            print("Unknown motion state: {}".format(code))
-            return MotionState.UNKNOWN
+            code = int(params[0])
+            if code == 0:
+                return MotionState.FREE_TO_MOVE
+            elif code == 1009:
+                return MotionState.IN_MOTION
+            elif code == 1013:
+                return MotionState.WAITING_FOR_EXECUTION
+            elif code == 1025:
+                return MotionState.ERROR
+            else:
+                print("Unknown motion state: {}".format(code))
+                return MotionState.UNKNOWN
 
     def HomeRobot(self):
         """
@@ -272,7 +296,8 @@ class ElfinConnection:
 
         :return: True if successful, otherwise False.
         """
-        # Note: The start position is unused in this version of the Elfin API.
+        start_position_str = [str(s) for s in start_position]
+        start_position_str = ",".join(start_position)
 
         waypoint_str = [str(s) for s in waypoint]
         waypoint_str = ",".join(waypoint_str)
@@ -283,7 +308,13 @@ class ElfinConnection:
         # Always use movement type 0.
         movement_type_str = '0'
 
-        message = "MoveC," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str + ',' + movement_type_str
+        if self.use_new_api:
+            message = "MoveC," + str(self.ROBOT_ID) + ',' + start_position_str + ',' + waypoint_str + ',' + target_str + \
+                    ',' + movement_type_str + ',0,1,10,10,1,TCP,Base,0'
+        else:
+            # Note: The start position is unused in the old version of the Elfin API.
+            message = "MoveC," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str + ',' + movement_type_str
+
         return self.send(message)
 
     def MoveLinearWithWaypoint(self, waypoint, target):
@@ -298,10 +329,10 @@ class ElfinConnection:
 
         :return: True if successful, otherwise False.
         """
-        waypoint_str = [str(s) for s in waypoint_str]
+        waypoint_str = [str(s) for s in waypoint]
         waypoint_str = ",".join(waypoint_str)
 
-        target_str = [str(s) for s in target_str]
+        target_str = [str(s) for s in target]
         target_str = ",".join(target_str)
 
         message = "MoveB," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str
