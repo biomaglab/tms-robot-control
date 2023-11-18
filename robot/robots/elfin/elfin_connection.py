@@ -72,6 +72,17 @@ class ElfinConnection:
 
         return success, params
 
+    def list_to_str(self, list):
+        """
+        Converts a list of numbers to a string.
+
+        :param: list: A list of numbers, e.g. [1,2,3].
+        :return: A string representation of the list, e.g. "1,2,3".
+        """
+        return ",".join([str(s) for s in list])
+
+    # Robot commands
+
     def PowerUp(self):
         """
         Powers up the robot.
@@ -186,11 +197,8 @@ class ElfinConnection:
             and rx, ry, rz are the rotation angles in degrees.
         :return: True if successful, otherwise False.
         """
-        target_str = [str(s) for s in target]
-        target_str = ",".join(target_str)
-
         command = "MoveL" if self.use_new_api else "MoveB"
-        request = command + "," + str(self.ROBOT_ID) + ',' + target_str
+        request = command + "," + str(self.ROBOT_ID) + ',' + self.list_to_str(target)
 
         return self.send_and_receive(request)
 
@@ -207,11 +215,8 @@ class ElfinConnection:
         :param: distance: The distance to move (TODO: unit?)
         :return: True if successful, otherwise False.
         """
-        distance_str = [str(s) for s in distance]
-        distance_str = ",".join(distance)
-
         request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
-            str(axis) + ',' + str(direction) + ',' + distance_str
+            str(axis) + ',' + str(direction) + ',' + self.list_to_str(distance)
 
         self.send_and_receive(request)
 
@@ -310,24 +315,15 @@ class ElfinConnection:
 
         :return: True if successful, otherwise False.
         """
-        start_position_str = [str(s) for s in start_position]
-        start_position_str = ",".join(start_position)
-
-        waypoint_str = [str(s) for s in waypoint]
-        waypoint_str = ",".join(waypoint_str)
-
-        target_str = [str(s) for s in target]
-        target_str = ",".join(target_str)
-
         # Always use movement type 0.
         movement_type_str = '0'
 
         if self.use_new_api:
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + start_position_str + ',' + waypoint_str + ',' + target_str + \
-                    ',' + movement_type_str + ',0,1,10,10,1,TCP,Base,0'
+            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(start_position) + ',' + self.list_to_str(waypoint) + \
+                    ',' + self.list_to_str(target) + ',' + movement_type_str + ',0,1,10,10,1,TCP,Base,0'
         else:
             # Note: The start position is unused in the old version of the Elfin API.
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str + ',' + movement_type_str
+            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target) + ',' + movement_type_str
 
         return self.send_and_receive(request)
 
@@ -343,11 +339,5 @@ class ElfinConnection:
 
         :return: True if successful, otherwise False.
         """
-        waypoint_str = [str(s) for s in waypoint]
-        waypoint_str = ",".join(waypoint_str)
-
-        target_str = [str(s) for s in target]
-        target_str = ",".join(target_str)
-
-        request = "MoveB," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str
+        request = "MoveB," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target)
         return self.send_and_receive(request)
