@@ -25,9 +25,6 @@ class Elfin():
     def Connect(self):
         return self.connection.connect()
 
-    def IsConnected(self):
-        return self.connection.connected
-
     def GetCoordinates(self):
         success, coordinates = self.connection.GetCoordinates()
 
