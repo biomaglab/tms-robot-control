@@ -47,7 +47,7 @@ class Dobot:
 
         self.connected = False
 
-    def Connect(self):
+    def connect(self):
         if self.connected:
             self.client_dashboard = None
             self.client_feedback = None
@@ -84,17 +84,14 @@ class Dobot:
 
         return self.connected
 
-    def IsConnected(self):
-        return self.connected
-
-    def GetCoordinates(self):
+    def get_coordinates(self):
         return self.coordinates
 
-    def SetTargetReached(self, target_reached):
+    def set_target_reached(self, target_reached):
         self.target_reached = target_reached
 
-    # TODO: Note that MoveLinear, MoveCircular, and
-    #   TuneRobot functions are almost identical at this stage.
+    # TODO: Note that move_linear, move_circular, and
+    #   tune_robot functions are almost identical at this stage.
     #   This is because the distinction between the motion types
     #   should really go deeper into the structure of this class,
     #   because the different motion types have different structure and
@@ -102,7 +99,7 @@ class Dobot:
     #   variable (self.target) for each. After that change is implemented,
     #   the functions below will branch off.
 
-    def MoveLinear(self, linear_target):
+    def move_linear(self, linear_target):
         self.target = linear_target
         self.motion_type = MotionType.NORMAL
         self.status_move = True
@@ -110,7 +107,7 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
-    def MoveCircular(self, start_position, waypoint, target):
+    def move_circular(self, start_position, waypoint, target):
         # TODO: Start position, waypoint, and target should be stored in three separate
         #   variables, not in one variable (self.target).
         self.target = start_position, waypoint, target
@@ -120,7 +117,7 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
-    def TuneRobot(self, displacement):
+    def tune_robot(self, displacement):
         self.target = displacement
         self.motion_type = MotionType.TUNING
         self.status_move = True
@@ -128,12 +125,12 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
-    def ReadForceSensor(self):
+    def read_force_sensor(self):
         # TODO: Should return False if the force sensor cannot be read. Currently the error does
         #   not propagate to the caller.
         return True, self.force_torque_data
 
-    def CompensateForce(self):
+    def compensate_force(self):
         status = self.client_dashboard.RobotMode()
         print("CompensateForce")
         if status != self.ERROR_STATUS:
@@ -154,7 +151,7 @@ class Dobot:
                 tool=self.TOOL_ID
             )
 
-    def StopRobot(self):
+    def stop_robot(self):
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
         self.status_move = False
@@ -162,8 +159,8 @@ class Dobot:
         self.client_dashboard.ResetRobot()
         #sleep(0.05)
 
-    def ForceStopRobot(self):
-        self.StopRobot()
+    def force_stop_robot(self):
+        self.stop_robot()
         if self.moving:
             self.moving = False
             print("ForceStopRobot")
@@ -173,8 +170,8 @@ class Dobot:
                 except RuntimeError:
                     pass
 
-    def Close(self):
-        self.StopRobot()
+    def close(self):
+        self.stop_robot()
         self.connected = False
         self.moving = False
         if self.thread_move:
@@ -228,16 +225,16 @@ class Dobot:
         while self.running_status != 1:
             if time.time() > timeout_start + self.TIMEOUT_START_MOTION:
                 print("break")
-                self.StopRobot()
+                self.stop_robot()
                 break
             sleep(0.001)
 
         while self.running_status == 1:
             status = int(self.robot_mode)
             if status == self.ERROR_STATUS:
-                self.StopRobot()
+                self.stop_robot()
             if time.time() > timeout_start + self.TIMEOUT_MOTION:
-                self.StopRobot()
+                self.stop_robot()
                 print("break")
                 break
             sleep(0.001)
@@ -245,7 +242,7 @@ class Dobot:
     def _move_thread(self):
         while True:
             if not self.moving:
-                self.StopRobot()
+                self.stop_robot()
                 break
             if self.status_move and not self.target_reached and not self.running_status:
                 print('moving')
@@ -263,15 +260,15 @@ class Dobot:
                         self.client_movement.ServoP(curve_point)
                         self._motion_loop()
                         if self.motion_type != MotionType.ARC:
-                            self.StopRobot()
+                            self.stop_robot()
                             break
 
                         arc_threshold_distance = self.robot_config['arc_threshold_distance']
                         if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, arc_threshold_distance):
-                            self.StopRobot()
+                            self.stop_robot()
                             break
                         if not self.moving:
-                            self.StopRobot()
+                            self.stop_robot()
                             break
                 elif self.motion_type == MotionType.TUNING:
                     offset_x = self.target[0]

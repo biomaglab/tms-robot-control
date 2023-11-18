@@ -22,11 +22,11 @@ class Elfin():
             use_new_api=use_new_api,
         )
 
-    def Connect(self):
+    def connect(self):
         return self.connection.connect()
 
-    def GetCoordinates(self):
-        success, coordinates = self.connection.GetCoordinates()
+    def get_coordinates(self):
+        success, coordinates = self.connection.get_coordinates()
 
         # Only update coordinates if the reading was successful.
         if success:
@@ -35,29 +35,29 @@ class Elfin():
         # Return the latest coordinates regardless of the success of the reading.
         return self.coordinates
 
-    def SetTargetReached(self, target_reached):
+    def set_target_reached(self, target_reached):
         self.target_reached = target_reached
 
     # Note: It is not possible to send a move command to elfin during movement.
 
-    def MoveLinear(self, linear_target):
-        motion_state = self.connection.GetMotionState()
+    def move_linear(self, linear_target):
+        motion_state = self.connection.get_motion_state()
         # TODO: Should motion state be used here to check that robot is free to move?
 
-        self.connection.MoveLinear(linear_target)
+        self.connection.move_linear(linear_target)
 
-    def MoveCircular(self, start_position, waypoint, target):
-        motion_state = self.connection.GetMotionState()
+    def move_circular(self, start_position, waypoint, target):
+        motion_state = self.connection.get_motion_state()
 
         # If the robot is in an error state, stop the robot and return early.
         if motion_state == MotionState.ERROR:
-            self.StopRobot()
+            self.stop_robot()
             return
 
-        self.connection.MoveCircular(start_position, waypoint[:3], target)
+        self.connection.move_circular(start_position, waypoint[:3], target)
 
-    def TuneRobot(self, displacement):
-        motion_state = self.connection.GetMotionState()
+    def tune_robot(self, displacement):
+        motion_state = self.connection.get_motion_state()
 
         # If the robot is not free to move, return early.
         #
@@ -65,8 +65,8 @@ class Elfin():
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-        #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
+        self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+        #self.connection.set_speed_ratio(0.1)  # Setting robot's movement speed
 
         # Move along the axis that has the largest displacement.
         axis = np.argmax(np.abs(displacement))
@@ -78,48 +78,48 @@ class Elfin():
         #   rather than always being positive?
         direction = 1
 
-        self.connection.MoveLinearRelative(
+        self.connection.move_linear_relative(
             axis=axis,
             direction=direction,
             distance=distance,
         )
 
-        self.connection.SetToolCoordinateMotion(0)
+        self.connection.set_tool_coordinate_motion(0)
 
-    def ReadForceSensor(self):
-        return self.connection.ReadForceSensor()
+    def read_force_sensor(self):
+        return self.connection.read_force_sensor()
 
-    def CompensateForce(self):
-        motion_state = self.connection.GetMotionState()
+    def compensate_force(self):
+        motion_state = self.connection.get_motion_state()
 
         # If the robot is not free to move, return early.
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        self.connection.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-        #self.connection.SetSpeedRatio(0.1)  # Setting robot's movement speed
+        self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+        #self.connection.set_speed_ratio(0.1)  # Setting robot's movement speed
 
         axis = 2
         # Move to the negative direction; hence set direction to 0.
         direction = 0
         distance = 1
 
-        self.connection.MoveLinearRelative(
+        self.connection.move_linear_relative(
             axis=axis,
             direction=direction,
             distance=distance,
         )
-        self.connection.SetToolCoordinateMotion(0)
+        self.connection.set_tool_coordinate_motion(0)
 
-    def StopRobot(self):
+    def stop_robot(self):
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
-        self.connection.StopRobot()
+        self.connection.stop_robot()
         sleep(0.05)
 
-    def ForceStopRobot(self):
-        self.StopRobot()
+    def force_stop_robot(self):
+        self.stop_robot()
 
-    def Close(self):
-        self.StopRobot()
+    def close(self):
+        self.stop_robot()
         #TODO: robot function to close? self.connection.close()

@@ -88,7 +88,7 @@ class RobotControl:
             self.target_index = data["target_index"]
             target = data["target"]
             if not self.robot_tracker_flag:
-                self.robot.ForceStopRobot()
+                self.robot.force_stop_robot()
                 self.m_change_robot_to_head = [None] * 9
                 self.target_force_sensor_data = 5
                 print("Removing robot target")
@@ -216,15 +216,15 @@ class RobotControl:
 
         if robot_model == "elfin":
             self.robot = elfin.Elfin(robot_IP)
-            success = self.robot.Connect()
+            success = self.robot.connect()
 
         elif robot_model == "elfin_new_api":
             self.robot = elfin.Elfin(robot_IP, use_new_api=True)
-            success = self.robot.Connect()
+            success = self.robot.connect()
 
         elif robot_model == "dobot":
             self.robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
-            success = self.robot.Connect()
+            success = self.robot.connect()
 
         elif robot_model == "ur":
             # TODO: Add Universal Robots robot here.
@@ -263,13 +263,13 @@ class RobotControl:
 
         while True:
             print("Trying to reconnect to robot...")
-            success = self.robot.Connect()
+            success = self.robot.connect()
             if success:
                 break
 
             time.sleep(1)
 
-        self.robot.StopRobot()
+        self.robot.stop_robot()
         time.sleep(0.1)
         print("Reconnected!")
 
@@ -301,11 +301,11 @@ class RobotControl:
             self.REF_FLAG = True
 
     def update_robot_coordinates(self):
-        coord_robot_raw = self.robot.GetCoordinates()
+        coord_robot_raw = self.robot.get_coordinates()
         self.robot_coordinates.SetRobotCoordinates(coord_robot_raw)
 
     def robot_motion_reset(self):
-        self.robot.StopRobot()
+        self.robot.stop_robot()
         self.arc_motion_flag = False
         self.motion_type = MotionType.NORMAL
 
@@ -430,7 +430,7 @@ class RobotControl:
 
         # Check if the robot is already in the target position. If so, return early.
         if self.target_reached:
-            self.robot.SetTargetReached(self.target_reached)
+            self.robot.set_target_reached(self.target_reached)
             return True
 
         target_tuning_threshold_angle = self.robot_config['target_tuning_threshold_angle']
@@ -458,28 +458,28 @@ class RobotControl:
         if self.motion_type == MotionType.NORMAL or \
            self.motion_type == MotionType.LINEAR_OUT:
 
-            self.robot.MoveLinear(linear_target)
+            self.robot.move_linear(linear_target)
 
         elif self.motion_type == MotionType.ARC:
             start_position = current_robot_coordinates_flip_angle
             waypoint = middle_arc_point
             target = self.target_arc
 
-            self.robot.MoveCircular(start_position, waypoint, target)
+            self.robot.move_circular(start_position, waypoint, target)
 
         elif self.motion_type == MotionType.TUNING:
-            self.robot.TuneRobot(self.displacement_to_target)
+            self.robot.tune_robot(self.displacement_to_target)
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?
             pass
 
-        self.robot.SetTargetReached(self.target_reached)
+        self.robot.set_target_reached(self.target_reached)
 
         return True
 
     def read_force_sensor(self):
-        success, force_sensor_values = self.robot.ReadForceSensor()
+        success, force_sensor_values = self.robot.read_force_sensor()
 
         # If force sensor could not be read, return early.
         if not success:
@@ -563,14 +563,14 @@ class RobotControl:
                                                                 coord_head_tracker_filtered, tunning_to_target, ft_values)
                     else:
                         print("Head is moving too much")
-                        self.robot.StopRobot()
+                        self.robot.stop_robot()
                 else:
                     print("Head marker is not visible")
-                    self.robot.StopRobot()
+                    self.robot.stop_robot()
             else:
                 #print("Compensating Force")
                 print(self.new_force_sensor_data)
-                self.robot.CompensateForce()
+                self.robot.compensate_force()
                 time.sleep(0.5)
         else:
             #print("Navigation is off")

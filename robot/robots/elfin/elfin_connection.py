@@ -94,7 +94,7 @@ class ElfinConnection:
 
     # Robot commands
 
-    def PowerUp(self):
+    def power_up(self):
         """
         Powers up the robot.
         Note: Waits until powered up. Power up time is about 44s.
@@ -105,7 +105,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def PowerOutage(self):
+    def power_outage(self):
         """
         Creates a power outage for the robot.
         Note: Waits until power outage is over (3 seconds).
@@ -116,7 +116,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def StartMasterStation(self):
+    def start_master_station(self):
         """
         Starts the master station.
         Note: Waits until the master station is started (approximately 4 seconds).
@@ -127,7 +127,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def StopMasterStation(self):
+    def stop_master_station(self):
         """
         Stops the master station.
         Note: Waits until the master station is stopped (approximately 2 seconds).
@@ -138,7 +138,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def EnableRobotServo(self):
+    def enable_robot_servo(self):
         """
         Enables the robot's servo.
 
@@ -148,7 +148,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def DisableRobotServo(self):
+    def disable_robot_servo(self):
         """
         Disables the robot's servo.
 
@@ -158,7 +158,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def StopRobot(self):
+    def stop_robot(self):
         """
         Stops the robot's movement.
 
@@ -168,7 +168,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def SetSpeedRatio(self, speed_ratio):
+    def set_speed_ratio(self, speed_ratio):
         """
         Sets the speed ratio.
 
@@ -179,7 +179,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def GetCoordinates(self):
+    def get_coordinates(self):
         """
         Gets the space coordinates of the robot.
 
@@ -201,7 +201,7 @@ class ElfinConnection:
 
         return success, coordinates
 
-    def MoveLinear(self, target):
+    def move_linear(self, target):
         """
         Moves the robot to the specified space coordinates using linear motion.
 
@@ -215,7 +215,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def MoveLinearRelative(self, axis, direction, distance):
+    def move_linear_relative(self, axis, direction, distance):
         """"
         Moves the robot a given distance along the specified coordinate axis.
 
@@ -234,7 +234,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def ReadForceSensor(self):
+    def read_force_sensor(self):
         """
         Reads the state of the force sensor.
 
@@ -255,7 +255,7 @@ class ElfinConnection:
 
         return success, force_sensor_values
 
-    def SetToolCoordinateMotion(self, state):
+    def set_tool_coordinate_motion(self, state):
         """
         Sets the tool coordinate motion.
 
@@ -271,7 +271,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def GetMotionState(self):
+    def get_motion_state(self):
         """
         Gets the motion state of the robot.
 
@@ -310,7 +310,7 @@ class ElfinConnection:
                 print("Unknown motion state: {}".format(code))
                 return MotionState.UNKNOWN
 
-    def HomeRobot(self):
+    def home_robot(self):
         """
         Homes the robot (= returns the robot to the origin).
 
@@ -320,7 +320,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def MoveCircular(self, start_position, waypoint, target):
+    def move_circular(self, start_position, waypoint, target):
         """
         Moves the robot to the specified space coordinates using circular motion.
 
@@ -346,7 +346,7 @@ class ElfinConnection:
         success, _ = self.send_and_receive(request)
         return success
 
-    def MoveLinearWithWaypoint(self, waypoint, target):
+    def move_linear_with_waypoint(self, waypoint, target):
         """
         Moves the robot to the specified space coordinates through a waypoint, using linear motion.
 
