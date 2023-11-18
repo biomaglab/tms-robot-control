@@ -99,7 +99,7 @@ class Dobot:
 
     def MoveLinear(self, linear_target):
         self.target = linear_target
-        self.motion_type = motion_type
+        self.motion_type = MotionType.NORMAL
         self.status_move = True
         if not self.moving:
             self.moving = True
@@ -109,7 +109,7 @@ class Dobot:
         # TODO: Start position, waypoint, and target should be stored in three separate
         #   variables, not in one variable (self.target).
         self.target = start_position, waypoint, target
-        self.motion_type = motion_type
+        self.motion_type = MotionType.ARC
         self.status_move = True
         if not self.moving:
             self.moving = True
@@ -117,7 +117,7 @@ class Dobot:
 
     def TuneRobot(self, displacement):
         self.target = displacement
-        self.motion_type = motion_type
+        self.motion_type = MotionType.TUNING
         self.status_move = True
         if not self.moving:
             self.moving = True
@@ -133,22 +133,21 @@ class Dobot:
         print("CompensateForce")
         if status != self.ERROR_STATUS:
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            else:
-                offset_x = 0
-                offset_y = 0
-                offset_z = -2
-                offset_rx = 0
-                offset_ry = 0
-                offset_rz = 0
-                self.client_movement.RelMovLTool(
-                  offset_x,
-                  offset_y,
-                  offset_z,
-                  offset_rx,
-                  offset_ry,
-                  offset_rz,
-                  tool=self.TOOL_ID
-                )
+            offset_x = 0
+            offset_y = 0
+            offset_z = -2
+            offset_rx = 0
+            offset_ry = 0
+            offset_rz = 0
+            self.client_movement.RelMovLTool(
+                offset_x,
+                offset_y,
+                offset_z,
+                offset_rx,
+                offset_ry,
+                offset_rz,
+                tool=self.TOOL_ID
+            )
 
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
