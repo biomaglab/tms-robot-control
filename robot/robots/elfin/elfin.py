@@ -29,9 +29,13 @@ class Elfin():
         return self.connection.connected
 
     def GetCoordinates(self):
-        coordinates = self.connection.GetCoordinates()
-        if coordinates:
+        success, coordinates = self.connection.GetCoordinates()
+
+        # Only update coordinates if the reading was successful.
+        if success:
             self.coordinates = coordinates
+
+        # Return the latest coordinates regardless of the success of the reading.
         return self.coordinates
 
     def SetTargetReached(self, target_reached):

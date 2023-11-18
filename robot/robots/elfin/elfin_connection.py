@@ -172,22 +172,23 @@ class ElfinConnection:
         """
         Gets the space coordinates of the robot.
 
-        :return: Return x, y, z, rx, ry, rz, where
+        :return: A pair of a success indicator and the current coordinates.
+
+            The coordinates are a list [x, y, z, rx, ry, rz], where
 
             x, y, z are the coordinates in mm, and
             rx, ry, rz are the rotation angles in degrees.
-
-            If unsuccessful, return False.
         """
         command = "ReadActPos" if self.use_new_api else "ReadPcsActualPos"
         request = command + "," + str(self.ROBOT_ID)
 
         success, params = self.send_and_receive(request)
-        if params:
-            coordinates = [float(s) for s in params]
-            return coordinates[6:12] if self.use_new_api else coordinates
+        if not success or params is None:
+            coordinates = None
+        else:
+            coordinates = [float(s) for s in params[6:12]] if self.use_new_api else [float(s) for s in params]
 
-        return params
+        return success, coordinates
 
     def MoveLinear(self, target):
         """
