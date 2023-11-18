@@ -2,10 +2,7 @@ from time import sleep
 
 import numpy as np
 
-import robot.constants as const
-from robot.constants import MotionType
 from robot.robots.elfin.elfin_connection import ElfinConnection
-from robot.robots.elfin.elfin_connection_linux import ElfinConnectionLinux
 from robot.robots.elfin.motion_state import MotionState
 
 
