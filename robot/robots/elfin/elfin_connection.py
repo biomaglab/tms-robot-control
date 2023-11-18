@@ -32,31 +32,44 @@ class ElfinConnection:
         except:
             print("Failed to connect")
 
-    def send(self, message):
+    def send_and_receive(self, message):
+        # Send the message to the robot.
         message_with_ending = message + self.MESSAGE_ENDING_CHARS
         encoded_message = message_with_ending.encode('utf-8')
         self.socket.sendall(encoded_message)
+
+        # Receive the response from the robot.
         try:
-            data = self.socket.recv(self.MESSAGE_SIZE).decode('utf-8').split(',')
+            message = self.socket.recv(self.MESSAGE_SIZE).decode('utf-8').split(',')
         except TimeoutError:
             print("Robot connection error: TimeoutError")
             self.connected = False
-            return False
+            return False, None
 
-        status = self.check_status(data)
-        if status and type(data) != bool:
-            if len(data) > 3:
-                return data[2:-1]
-        return status
+        # Process the response.
+        message_code = message[0]
+        status = message[1]
+        error_code = message[2]
 
-    def check_status(self, recv_message):
-        status = recv_message[1]
         if status == 'OK':
-            return True
+            success = True
 
         elif status == 'Fail':
-            print("The message {} is returning the error code: {}".format(recv_message[0], recv_message[2]))
-            return False
+            print("The message {} returned the error code: {}".format(message_code, error_code))
+            success = False
+
+        else:
+            print("Unknown status")
+            success = False
+
+        # XXX: Params returned by Elfin start from element 2 if the command was
+        #   successful, otherwise element 2 is reserved for the error code. It would
+        #   be cleaner if they started from element 3 and error code was 0 if there
+        #   was no error.
+        fetch_params = type(message) != bool and len(message) > 3 and success
+        params = message[2:-1] if fetch_params else None
+
+        return success, params
 
     def PowerUp(self):
         """
@@ -66,7 +79,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "Electrify"
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def PowerOutage(self):
@@ -77,7 +90,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "BlackOut"
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def StartMasterStation(self):
@@ -88,7 +101,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "StartMaster"
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def StopMasterStation(self):
@@ -99,7 +112,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "CloseMaster"
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def EnableRobotServo(self):
@@ -109,7 +122,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "GrpPowerOn," + str(self.ROBOT_ID)
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def DisableRobotServo(self):
@@ -119,7 +132,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "GrpPowerOff," + str(self.ROBOT_ID)
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def StopRobot(self):
@@ -129,7 +142,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "GrpStop," + str(self.ROBOT_ID)
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def SetSpeedRatio(self, speed_ratio):
@@ -140,7 +153,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "SetOverride," + str(self.ROBOT_ID) + ',' + str(speed_ratio)
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def GetCoordinates(self):
@@ -157,7 +170,7 @@ class ElfinConnection:
         command = "ReadActPos" if self.use_new_api else "ReadPcsActualPos"
 
         message = command + "," + str(self.ROBOT_ID)
-        coord = self.send(message)
+        coord = self.send_and_receive(message)
         if coord:
             coordinates = [float(s) for s in coord]
             return coordinates[6:12] if self.use_new_api else coordinates
@@ -178,7 +191,7 @@ class ElfinConnection:
         command = "MoveL" if self.use_new_api else "MoveB"
         message = command + "," + str(self.ROBOT_ID) + ',' + target_str
 
-        return self.send(message)
+        return self.send_and_receive(message)
 
     def MoveLinearRelative(self, axis, direction, distance):
         """"
@@ -199,7 +212,7 @@ class ElfinConnection:
         message = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
             str(axis) + ',' + str(direction) + ',' + distance_str
 
-        self.send(message)
+        self.send_and_receive(message)
 
     def ReadForceSensor(self):
         """
@@ -213,7 +226,7 @@ class ElfinConnection:
             If unsuccessful, returns a list of zeros.
         """
         message = "ReadForceSensorData"
-        status = self.send(message)
+        status = self.send_and_receive(message)
         if status:
             return [float(s) for s in status]
         return [0]*6
@@ -231,7 +244,7 @@ class ElfinConnection:
         command = "SetToolMotion" if self.use_new_api else "SetToolCoordinateMotion"
         message = command + "," + str(self.ROBOT_ID) + ',' + str(status)
 
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def GetMotionState(self):
@@ -242,7 +255,7 @@ class ElfinConnection:
         """
         command = "ReadRobotState" if self.use_new_api else "ReadMoveState"
         message = command + "," + str(self.ROBOT_ID)
-        params = self.send(message)
+        params = self.send_and_receive(message)
 
         if params is None:
             print("Could not read robot motion state")
@@ -280,7 +293,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         message = "MoveHoming," + str(self.ROBOT_ID)
-        status = self.send(message)
+        status = self.send_and_receive(message)
         return status
 
     def MoveCircular(self, start_position, waypoint, target):
@@ -315,7 +328,7 @@ class ElfinConnection:
             # Note: The start position is unused in the old version of the Elfin API.
             message = "MoveC," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str + ',' + movement_type_str
 
-        return self.send(message)
+        return self.send_and_receive(message)
 
     def MoveLinearWithWaypoint(self, waypoint, target):
         """
@@ -336,4 +349,4 @@ class ElfinConnection:
         target_str = ",".join(target_str)
 
         message = "MoveB," + str(self.ROBOT_ID) + ',' + waypoint_str + ',' + target_str
-        return self.send(message)
+        return self.send_and_receive(message)
