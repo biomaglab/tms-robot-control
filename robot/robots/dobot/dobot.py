@@ -52,6 +52,9 @@ class Dobot:
             self.client_dashboard = None
             self.client_feedback = None
             self.client_movement = None
+
+            print("Already connected")
+            return True
         try:
             self.client_dashboard = DobotApiDashboard(self.ip, self.DASHBOARD_PORT)
             self.client_movement = DobotApiMove(self.ip, self.MOVEMENT_PORT)
@@ -78,6 +81,8 @@ class Dobot:
 
         except Exception as e:
             print("Attention!", f"Connection Error:{e}")
+
+        return self.connected
 
     def IsConnected(self):
         return self.connected

@@ -216,15 +216,15 @@ class RobotControl:
 
         if robot_model == "elfin":
             self.robot = elfin.Elfin(robot_IP)
-            self.robot.Connect()
+            success = self.robot.Connect()
 
         elif robot_model == "elfin_new_api":
             self.robot = elfin.Elfin(robot_IP, use_new_api=True)
-            self.robot.Connect()
+            success = self.robot.Connect()
 
         elif robot_model == "dobot":
             self.robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
-            self.robot.Connect()
+            success = self.robot.Connect()
 
         elif robot_model == "ur":
             # TODO: Add Universal Robots robot here.
@@ -237,7 +237,7 @@ class RobotControl:
         else:
             assert False, "Unknown robot model"
 
-        if self.robot.IsConnected():
+        if success:
             print('Connected to robot tracking device.')
         else:
             # Send message to neuronavigation to close the robot dialog.
@@ -250,7 +250,7 @@ class RobotControl:
 
         # Send message to neuronavigation indicating the state of connection.
         topic = 'Robot connection status'
-        data = {'data': connected}
+        data = {'data': success}
         self.remote_control.send_message(topic, data)
 
     # TODO: Unused for now; all robots should have a similar logic and interface for reconnecting,

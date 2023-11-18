@@ -21,6 +21,15 @@ class ElfinConnection:
         self.connected = False
 
     def connect(self):
+        """
+        Connects to the robot.
+
+        :return: True if successful, otherwise False.
+        """
+        if self.connected:
+            print("Already connected")
+            return True
+
         try:
             new_socket = socket(AF_INET, SOCK_STREAM)
             new_socket.connect((self.ip, self.PORT))
@@ -31,6 +40,8 @@ class ElfinConnection:
 
         except:
             print("Failed to connect")
+
+        return self.connected
 
     def send_and_receive(self, request):
         # Send the request to the robot.

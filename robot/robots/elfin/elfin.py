@@ -23,7 +23,7 @@ class Elfin():
         )
 
     def Connect(self):
-        self.connection.connect()
+        return self.connection.connect()
 
     def IsConnected(self):
         return self.connection.connected
