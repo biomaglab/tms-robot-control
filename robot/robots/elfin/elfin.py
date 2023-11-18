@@ -92,9 +92,11 @@ class Elfin():
     def ReadForceSensor(self):
         # If force sensor is not used, return early.
         if not const.FORCE_TORQUE_SENSOR:
-            return False
+            return False, None
 
-        return self.connection.ReadForceSensor()
+        success, force_sensor_values = self.connection.ReadForceSensor()
+
+        return success, force_sensor_values
 
     def CompensateForce(self):
         motion_state = self.connection.GetMotionState()

@@ -227,18 +227,22 @@ class ElfinConnection:
         """
         Reads the state of the force sensor.
 
-        :return: Fx, Fy, Fz, Mx, My, Mz, where
+        :return: A pair of a success indicator and the force sensor values.
+
+            The force sensor values are a list [Fx, Fy, Fz, Mx, My, Mz], where
 
             Fx, Fy, Fz are the forces in N, and
             Mx, My, Mz are the torques in Nm.
-
-            If unsuccessful, returns a list of zeros.
         """
         request = "ReadForceSensorData"
         success, params = self.send_and_receive(request)
-        if params:
-            return [float(s) for s in params]
-        return [0]*6
+
+        if success and params is not None:
+            force_sensor_values = [float(s) for s in params]
+        else:
+            force_sensor_values = None
+
+        return success, force_sensor_values
 
     def SetToolCoordinateMotion(self, state):
         """

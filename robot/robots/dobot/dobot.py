@@ -125,9 +125,11 @@ class Dobot:
 
     def ReadForceSensor(self):
         if const.FORCE_TORQUE_SENSOR:
-            return self.force_torque_data
+            # TODO: Should return False if the force sensor cannot be read. Currently the error does
+            #   not propagate to the caller.
+            return True, self.force_torque_data
         else:
-            return False
+            return False, None
 
     def CompensateForce(self):
         status = self.client_dashboard.RobotMode()

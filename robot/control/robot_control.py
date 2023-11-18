@@ -475,6 +475,48 @@ class RobotControl:
 
         return True
 
+    def read_force_sensor(self):
+        success, force_sensor_values = self.robot.ReadForceSensor()
+
+        # If force sensor could not be read, return early.
+        if not success:
+            print("Error: Could not read the force sensor.")
+            return
+
+        # TODO: condition for const.FORCE_TORQUE_SENSOR
+        ft_values = np.array(force_sensor_values)
+
+        # true f-t value
+        current_F = ft_values[0:3]
+        current_M = ft_values[3:6]
+        # normalised f-t value
+        F_normalised = current_F - self.force_ref
+        M_normalised = current_M - self.moment_ref
+        self.F_dq.append(F_normalised)
+        self.M_dq.append(M_normalised)
+
+        if self.REF_FLAG:
+            self.force_ref = current_F
+            self.moment_ref = current_M
+            self.REF_FLAG = False
+
+        # smoothed f-t value, to increase size of filter increase deque size
+        F_avg = np.mean(self.F_dq, axis=0)
+        M_avg = np.mean(self.M_dq, axis=0)
+        point_of_application = ft.find_r(F_avg, M_avg)
+
+        point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
+
+        if const.DISPLAY_POA and len(point_of_application) == 3:
+            with open(const.TEMP_FILE, 'a') as tmpfile:
+                tmpfile.write(f'{point_of_application}\n')
+
+        self.new_force_sensor_data = -F_normalised[2]
+        # Calculate vector of point of application vs centre
+        distance = [point_of_application[0], point_of_application[1]]
+        # self.ft_distance_offset = [point_of_application[0], point_of_application[1]]
+        # TODO: Change this entire part to compensate force properly in a feedback loop
+
     def get_robot_status(self):
         robot_status = False
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
@@ -485,39 +527,9 @@ class RobotControl:
         coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
-        # TODO: condition for const.FORCE_TORQUE_SENSOR
-        ft_values = np.array(self.robot.ReadForceSensor())
+
         if const.FORCE_TORQUE_SENSOR:
-            # true f-t value
-            current_F = ft_values[0:3]
-            current_M = ft_values[3:6]
-            # normalised f-t value
-            F_normalised = current_F - self.force_ref
-            M_normalised = current_M - self.moment_ref
-            self.F_dq.append(F_normalised)
-            self.M_dq.append(M_normalised)
-
-            if self.REF_FLAG:
-                self.force_ref = current_F
-                self.moment_ref = current_M
-                self.REF_FLAG = False
-
-            # smoothed f-t value, to increase size of filter increase deque size
-            F_avg = np.mean(self.F_dq, axis=0)
-            M_avg = np.mean(self.M_dq, axis=0)
-            point_of_application = ft.find_r(F_avg, M_avg)
-
-            point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
-
-            if const.DISPLAY_POA and len(point_of_application) == 3:
-                with open(const.TEMP_FILE, 'a') as tmpfile:
-                    tmpfile.write(f'{point_of_application}\n')
-
-            self.new_force_sensor_data = -F_normalised[2]
-            # Calculate vector of point of application vs centre
-            distance = [point_of_application[0], point_of_application[1]]
-            # self.ft_distance_offset = [point_of_application[0], point_of_application[1]]
-            # TODO: Change this entire part to compensate force properly in a feedback loop
+            self.read_force_sensor()
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
             coord_head_tracker_in_robot = robot_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
