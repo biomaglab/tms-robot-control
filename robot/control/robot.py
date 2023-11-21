@@ -7,6 +7,7 @@ import time
 
 import robot.constants as const
 import robot.transformations as tr
+from robot.utils import Singleton
 
 import robot.robot_api.elfin_api as elfin
 import robot.robot_api.elfin_linux_api as elfin_linux
@@ -16,7 +17,7 @@ import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
 
 
-class RobotControl:
+class RobotControl(metaclass=Singleton):
     def __init__(self, rc):
         self.rc = rc
 
@@ -96,6 +97,7 @@ class RobotControl:
         self.process_tracker.__init__()
 
     def OnUpdateCoordinates(self, data):
+        print("data ", data)
         if len(data) > 1:
             coord = data["coord"]
             markers_flag = data["markers_flag"]
