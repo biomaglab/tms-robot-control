@@ -43,7 +43,7 @@ class ElfinConnection:
 
         return self.connected
 
-    def send_and_receive(self, request):
+    def _send_and_receive(self, request):
         # Send the request to the robot.
         full_request = request + self.REQUEST_ENDING_CHARS
         self.socket.sendall(full_request.encode('utf-8'))
@@ -102,7 +102,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "Electrify"
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def power_outage(self):
@@ -113,7 +113,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "BlackOut"
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def start_master_station(self):
@@ -124,7 +124,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "StartMaster"
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def stop_master_station(self):
@@ -135,7 +135,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "CloseMaster"
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def enable_robot_servo(self):
@@ -145,7 +145,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "GrpPowerOn," + str(self.ROBOT_ID)
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def disable_robot_servo(self):
@@ -155,7 +155,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "GrpPowerOff," + str(self.ROBOT_ID)
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def stop_robot(self):
@@ -165,7 +165,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "GrpStop," + str(self.ROBOT_ID)
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def set_speed_ratio(self, speed_ratio):
@@ -176,7 +176,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "SetOverride," + str(self.ROBOT_ID) + ',' + str(speed_ratio)
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def get_coordinates(self):
@@ -193,7 +193,7 @@ class ElfinConnection:
         command = "ReadActPos" if self.use_new_api else "ReadPcsActualPos"
         request = command + "," + str(self.ROBOT_ID)
 
-        success, params = self.send_and_receive(request)
+        success, params = self._send_and_receive(request)
         if not success or params is None:
             coordinates = None
         else:
@@ -212,7 +212,7 @@ class ElfinConnection:
         command = "MoveL" if self.use_new_api else "MoveB"
         request = command + "," + str(self.ROBOT_ID) + ',' + self.list_to_str(target)
 
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def move_linear_relative(self, axis, direction, distance):
@@ -231,7 +231,7 @@ class ElfinConnection:
         request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
             str(axis) + ',' + str(direction) + ',' + self.list_to_str(distance)
 
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def read_force_sensor(self):
@@ -246,7 +246,7 @@ class ElfinConnection:
             Mx, My, Mz are the torques in Nm.
         """
         request = "ReadForceSensorData"
-        success, params = self.send_and_receive(request)
+        success, params = self._send_and_receive(request)
 
         if success and params is not None:
             force_sensor_values = [float(s) for s in params]
@@ -268,7 +268,7 @@ class ElfinConnection:
         command = "SetToolMotion" if self.use_new_api else "SetToolCoordinateMotion"
         request = command + "," + str(self.ROBOT_ID) + ',' + str(state)
 
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def get_motion_state(self):
@@ -279,7 +279,7 @@ class ElfinConnection:
         """
         command = "ReadRobotState" if self.use_new_api else "ReadMoveState"
         request = command + "," + str(self.ROBOT_ID)
-        success, params = self.send_and_receive(request)
+        success, params = self._send_and_receive(request)
 
         if not success or params is None:
             print("Could not read robot motion state")
@@ -317,7 +317,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "MoveHoming," + str(self.ROBOT_ID)
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def move_circular(self, start_position, waypoint, target):
@@ -343,7 +343,7 @@ class ElfinConnection:
             # Note: The start position is unused in the old version of the Elfin API.
             request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target) + ',' + movement_type_str
 
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
 
     def move_linear_with_waypoint(self, waypoint, target):
@@ -360,5 +360,5 @@ class ElfinConnection:
         """
         request = "MoveB," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target)
 
-        success, _ = self.send_and_receive(request)
+        success, _ = self._send_and_receive(request)
         return success
