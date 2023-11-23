@@ -8,7 +8,7 @@ import socketio
 from threading import Lock
 
 import robot.constants as const
-import robot.control.robot as Robot
+from robot.control.robot_control import RobotControl
 
 class RemoteControl:
     def __init__(self, remote_host):
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     site_config = const.SITE_CONFIG[site]
     robot_config = const.ROBOT_CONFIG[robot]
 
-    robot_control = Robot.RobotControl(
+    robot_control = RobotControl(
         remote_control=remote_control,
         site_config=site_config,
         robot_config=robot_config,
