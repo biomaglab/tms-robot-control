@@ -17,7 +17,8 @@ import robot.control.robot_processing as robot_process
 
 
 class RobotControl:
-    def __init__(self, remote_control, site_config, robot_config):
+    def __init__(self, robot_type, remote_control, site_config, robot_config):
+        self.robot_type = robot_type
         self.remote_control = remote_control
 
         self.site_config = site_config
@@ -71,13 +72,7 @@ class RobotControl:
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
-        if "robot_model" in data:
-            robot_model = data["robot_model"]
-        else:
-            print("No robot model set, defaulting to 'test'")
-            robot_model = "test"
-
-        self.ConnectToRobot(robot_IP, robot_model)
+        self.ConnectToRobot(robot_IP)
 
     def OnUpdateRobotNavigationMode(self, data):
         self.robot_mode_status = data["robot_mode"]
@@ -211,26 +206,27 @@ class RobotControl:
     def OnCoilAtTarget(self, data):
         self.target_reached = data["state"]
 
-    def ConnectToRobot(self, robot_IP, robot_model):
-        print("Trying to connect to robot '{}' with IP: {}".format(robot_model, robot_IP))
+    def ConnectToRobot(self, robot_IP):
+        robot_type = self.robot_type
+        print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
-        if robot_model == "elfin":
+        if robot_type == "elfin":
             self.robot = elfin.Elfin(robot_IP)
             success = self.robot.connect()
 
-        elif robot_model == "elfin_new_api":
+        elif robot_type == "elfin_new_api":
             self.robot = elfin.Elfin(robot_IP, use_new_api=True)
             success = self.robot.connect()
 
-        elif robot_model == "dobot":
+        elif robot_type == "dobot":
             self.robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
             success = self.robot.connect()
 
-        elif robot_model == "ur":
+        elif robot_type == "ur":
             # TODO: Add Universal Robots robot here.
             pass
 
-        elif robot_model == "test":
+        elif robot_type == "test":
             # TODO: Add 'test' robot here.
             pass
 

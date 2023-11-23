@@ -120,6 +120,7 @@ if __name__ == '__main__':
     robot_config = const.ROBOT_CONFIG[robot]
 
     robot_control = RobotControl(
+        robot_type=robot,
         remote_control=remote_control,
         site_config=site_config,
         robot_config=robot_config,
