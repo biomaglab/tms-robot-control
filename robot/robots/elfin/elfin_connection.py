@@ -43,7 +43,10 @@ class ElfinConnection:
 
         return self.connected
 
-    def _send_and_receive(self, request):
+    def _send_and_receive(self, request, verbose=False):
+        if verbose:
+            print("Sending request: {}".format(request))
+
         # Send the request to the robot.
         full_request = request + self.REQUEST_ENDING_CHARS
         self.socket.sendall(full_request.encode('utf-8'))
@@ -55,6 +58,9 @@ class ElfinConnection:
             print("Robot connection error: TimeoutError")
             self.connected = False
             return False, None
+
+        if verbose:
+            print("Done.")
 
         # Process the response.
         command = response[0]
@@ -165,7 +171,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "GrpStop," + str(self.ROBOT_ID)
-        success, _ = self._send_and_receive(request)
+        success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def set_speed_ratio(self, speed_ratio):
@@ -212,7 +218,7 @@ class ElfinConnection:
         command = "MoveL" if self.use_new_api else "MoveB"
         request = command + "," + str(self.ROBOT_ID) + ',' + self.list_to_str(target)
 
-        success, _ = self._send_and_receive(request)
+        success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def move_linear_relative(self, axis, direction, distance):
@@ -231,7 +237,7 @@ class ElfinConnection:
         request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
             str(axis) + ',' + str(direction) + ',' + str(distance)
 
-        success, _ = self._send_and_receive(request)
+        success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def read_force_sensor(self):
@@ -343,7 +349,7 @@ class ElfinConnection:
             # Note: The start position is unused in the old version of the Elfin API.
             request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target) + ',' + movement_type_str
 
-        success, _ = self._send_and_receive(request)
+        success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def move_linear_with_waypoint(self, waypoint, target):
@@ -360,5 +366,5 @@ class ElfinConnection:
         """
         request = "MoveB," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target)
 
-        success, _ = self._send_and_receive(request)
+        success, _ = self._send_and_receive(request, verbose=True)
         return success
