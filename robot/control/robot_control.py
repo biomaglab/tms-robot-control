@@ -376,8 +376,8 @@ class RobotControl:
         distance_angle_target = robot_process.correction_distance_calculation_target(tunning_to_target[3:],
                                                                                      current_robot_coordinates_flip_angle[3:])
         # Check if the target is outside the working space. If so, return early.
-        robot_working_space = self.robot_config['robot_working_space']
-        if robot_process.estimate_robot_target_length(new_robot_coordinates) >= robot_working_space:
+        working_space = self.robot_config['working_space']
+        if robot_process.estimate_robot_target_length(new_robot_coordinates) >= working_space:
             print("Head is too far from the robot basis")
             return False
 
