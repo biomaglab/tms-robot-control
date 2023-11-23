@@ -67,13 +67,8 @@ class Elfin():
 
         # Move along the axis that has the largest displacement.
         axis = np.argmax(np.abs(displacement))
-        distance = displacement[axis]
-
-        # Always move to the positive direction; hence set direction to 1.
-        #
-        # TODO: Shouldn't direction be determined based on the sign of the max displacement
-        #   rather than always being positive?
-        direction = 1
+        distance = abs(displacement[axis])
+        direction = 0 if displacement[axis] < 0 else 1
 
         self.connection.move_linear_relative(
             axis=axis,
