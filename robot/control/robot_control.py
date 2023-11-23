@@ -94,7 +94,10 @@ class RobotControl:
                 print("Setting robot target")
 
     def OnResetProcessTracker(self, data):
-        self.process_tracker.__init__()
+        # TODO: This shouldn't call the constructor again but instead a separate reset method.
+        self.process_tracker.__init__(
+            robot_config=self.robot_config
+        )
 
     def OnUpdateCoordinates(self, data):
         if len(data) > 1:
@@ -516,6 +519,8 @@ class RobotControl:
         # self.ft_distance_offset = [point_of_application[0], point_of_application[1]]
         # TODO: Change this entire part to compensate force properly in a feedback loop
 
+        return ft_values
+
     def get_robot_status(self):
         robot_status = False
         current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
@@ -528,7 +533,7 @@ class RobotControl:
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
 
         if const.FORCE_TORQUE_SENSOR:
-            self.read_force_sensor()
+            force_sensor_values = self.read_force_sensor()
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
             coord_head_tracker_in_robot = robot_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
@@ -556,7 +561,7 @@ class RobotControl:
                         #             self.status = False
                         tunning_to_target = self.OnTuneTCP()
                         robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                                coord_head_tracker_filtered, tunning_to_target, ft_values)
+                                                                coord_head_tracker_filtered, tunning_to_target, force_sensor_values)
                     else:
                         print("Head is moving too much")
                         self.robot.stop_robot()
