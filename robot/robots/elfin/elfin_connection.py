@@ -229,7 +229,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
-            str(axis) + ',' + str(direction) + ',' + self.list_to_str(distance)
+            str(axis) + ',' + str(direction) + ',' + str(distance)
 
         success, _ = self._send_and_receive(request)
         return success
