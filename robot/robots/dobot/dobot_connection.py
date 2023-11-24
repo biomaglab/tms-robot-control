@@ -1,6 +1,10 @@
+from enum import Enum
 import socket
 
 import numpy as np
+
+class RobotStatus(Enum):
+    ERROR = 9
 
 
 class DobotConnection:

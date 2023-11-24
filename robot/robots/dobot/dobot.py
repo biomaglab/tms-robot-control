@@ -7,7 +7,7 @@ import numpy as np
 
 import robot.control.robot_processing as robot_process
 from robot.constants import MotionType
-from robot.robots.dobot.dobot_connection import DobotConnection
+from robot.robots.dobot.dobot_connection import DobotConnection, RobotStatus
 
 
 class Dobot:
@@ -17,7 +17,6 @@ class Dobot:
     TOOL_ID = 0
     TIMEOUT_START_MOTION = 10
     TIMEOUT_MOTION = 45
-    ERROR_STATUS = 9
 
     def __init__(self, ip, robot_config):
         self.robot_config = robot_config
@@ -110,7 +109,7 @@ class Dobot:
     def compensate_force(self):
         # If the robot is in an error state, return early.
         status = self.connection.get_robot_status()
-        if status == self.ERROR_STATUS:
+        if status == RobotStatus.ERROR:
             return
 
         offsets = [0, 0, -2, 0, 0, 0]
@@ -191,7 +190,7 @@ class Dobot:
 
         while self.running_status == 1:
             status = self.robot_status
-            if status == self.ERROR_STATUS:
+            if status == RobotStatus.ERROR:
                 self.stop_robot()
             if time.time() > timeout_start + self.TIMEOUT_MOTION:
                 self.stop_robot()
