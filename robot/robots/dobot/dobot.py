@@ -54,11 +54,11 @@ class Dobot:
             return
 
         if self.robot_mode == 4:
-            self.connection.EnableRobot()
+            self.connection.enable_robot()
             time.sleep(1)
 
         if self.robot_mode == 9:
-            self.connection.ClearError()
+            self.connection.clear_error()
             time.sleep(1)
 
     def get_coordinates(self):
@@ -108,7 +108,7 @@ class Dobot:
         return True, self.force_torque_data
 
     def compensate_force(self):
-        status = self.connection.RobotMode()
+        status = self.connection.get_robot_status()
         print("CompensateForce")
         if status != self.ERROR_STATUS:
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
@@ -118,7 +118,7 @@ class Dobot:
             offset_rx = 0
             offset_ry = 0
             offset_rz = 0
-            self.connection.RelMovLTool(
+            self.connection.move_linear_relative_to_tool(
                 offset_x,
                 offset_y,
                 offset_z,
@@ -133,7 +133,7 @@ class Dobot:
         # The sleep time is required to guarantee the stop
         self.status_move = False
         #if self.running_status == 1:
-        self.connection.ResetRobot()
+        self.connection.reset_robot()
         #time.sleep(0.05)
 
     def force_stop_robot(self):
@@ -216,7 +216,7 @@ class Dobot:
             if self.status_move and not self.target_reached and not self.running_status:
                 print('moving')
                 if self.motion_type == MotionType.NORMAL or self.motion_type == MotionType.LINEAR_OUT:
-                    self.connection.MoveLinear(self.target)
+                    self.connection.move_linear(self.target)
                     self._motion_loop()
                 elif self.motion_type == MotionType.ARC:
                     arc_bezier_curve_step = self.robot_config['arc_bezier_curve_step']
@@ -226,7 +226,7 @@ class Dobot:
                     )
                     target = self.target
                     for curve_point in curve_set:
-                        self.connection.ServoP(curve_point)
+                        self.connection.move_servo(curve_point)
                         self._motion_loop()
                         if self.motion_type != MotionType.ARC:
                             self.stop_robot()
@@ -246,7 +246,7 @@ class Dobot:
                     offset_rx = self.target[3]
                     offset_ry = self.target[4]
                     offset_rz = self.target[5]
-                    self.connection.RelMovLTool(
+                    self.connection.move_linear_relative_to_tool(
                       offset_x,
                       offset_y,
                       offset_z,

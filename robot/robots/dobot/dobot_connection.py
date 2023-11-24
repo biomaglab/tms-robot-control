@@ -88,131 +88,124 @@ class DobotConnection:
 
     # Robot commands
 
-    def EnableRobot(self):
+    def enable_robot(self):
         """
-        Enable the robot
+        Enables the robot.
         """
-        string = "EnableRobot()"
-        self.send_data(self.dashboard_socket, string)
+        request = "EnableRobot()"
+        self.send_data(self.dashboard_socket, request)
         return self.wait_reply(self.dashboard_socket)
 
-    def ClearError(self):
+    def clear_error(self):
         """
-        Clear controller alarm information
+        Clears the controller error.
         """
-        string = "ClearError()"
-        self.send_data(self.dashboard_socket, string)
+        request = "ClearError()"
+        self.send_data(self.dashboard_socket, request)
         return self.wait_reply(self.dashboard_socket)
 
-    def ResetRobot(self):
+    def reset_robot(self):
         """
-        Robot stop
+        Resets the robot.
         """
-        string = "ResetRobot()"
-        self.send_data(self.dashboard_socket, string)
+        request = "ResetRobot()"
+        self.send_data(self.dashboard_socket, request)
         return self.wait_reply(self.dashboard_socket)
 
-    def RobotMode(self):
+    def get_robot_status(self):
         """
-        View the robot status
+        Gets the robot status.
         """
-        string = "RobotMode()"
-        self.send_data(self.dashboard_socket, string)
-        return self.wait_reply(self.dashboard_socket)
-
-    # Unused for now.
-    def PowerOn(self):
-        """
-        Powering on the robot
-        Note: It takes about 10 seconds for the robot to be enabled after it is powered on.
-        """
-        string = "PowerOn()"
-        self.send_data(self.dashboard_socket, string)
+        request = "RobotMode()"
+        self.send_data(self.dashboard_socket, request)
         return self.wait_reply(self.dashboard_socket)
 
     # Unused for now.
-    def GetErrorID(self):
+    def power_on(self):
         """
-        Get robot error code
+        Powers on the robot.
+
+        Note: It takes about 10 seconds for the robot to be operational after it is powered on.
         """
-        string = "GetErrorID()"
-        self.send_data(self.dashboard_socket, string)
+        request = "PowerOn()"
+        self.send_data(self.dashboard_socket, request)
         return self.wait_reply(self.dashboard_socket)
 
     # Unused for now.
-    def GetPose(self):
+    def get_error_id(self):
         """
-        Description: get the current pose of the robot under the Cartesian coordinate system
+        Gets robot error code.
         """
-        string = "GetPose()"
-        self.send_data(self.dashboard_socket, string)
+        request = "GetErrorID()"
+        self.send_data(self.dashboard_socket, request)
         return self.wait_reply(self.dashboard_socket)
 
-    def MoveLinear(self, target):
+    # Unused for now.
+    def get_pose(self):
         """
-        Coordinate system motion interface (linear motion mode)
-        x: A number in the Cartesian coordinate system x
-        y: A number in the Cartesian coordinate system y
-        z: A number in the Cartesian coordinate system z
-        rx: Position of Rx axis in Cartesian coordinate system
-        ry: Position of Ry axis in Cartesian coordinate system
-        rz: Position of Rz axis in Cartesian coordinate system
+        Gets the current pose of the robot in the Cartesian coordinate system.
         """
-        x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
-        string = "MovL({:f},{:f},{:f},{:f},{:f},{:f})".format(
-            x, y, z, rx, ry, rz)
-        self.send_data(self.movement_socket, string)
+        request = "GetPose()"
+        self.send_data(self.dashboard_socket, request)
+        return self.wait_reply(self.dashboard_socket)
+
+    def move_linear(self, target):
+        """
+        Moves the robot to the given target using linear motion.
+
+        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
+            and rx, ry, rz are the rotation angles in degrees.
+        """
+        request = "MovL({:f},{:f},{:f},{:f},{:f},{:f})".format(
+            target[0], target[1], target[2], target[3], target[4], target[5])
+        self.send_data(self.movement_socket, request)
         return self.wait_reply(self.movement_socket)
 
     # Unused for now.
-    def MoveCircular(self, target):
+    def move_circular(self, waypoint, target):
         """
-        Circular motion instruction
-        x1, y1, z1, a1, b1, c1 :Is the point value of intermediate point coordinates
-        x2, y2, z2, a2, b2, c2 :Is the value of the end point coordinates
-        Note: This instruction should be used together with other movement instructions
+        Moves the robot to the given target via a waypoint using circular motion.
+
+        :param: waypoint: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
+            and rx, ry, rz are the rotation angles in degrees.
+        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
+            and rx, ry, rz are the rotation angles in degrees.
         """
-        x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2 = target[0], target[1], target[2], target[3], target[4], target[5], \
-                                                        target[6], target[7], target[8], target[9], target[10], target[11]
-        string = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
-            x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2)
-        self.send_data(self.movement_socket, string)
+        request = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
+            waypoint[0], waypoint[1], waypoint[2], waypoint[3], waypoint[4], waypoint[5],
+            target[0], target[1], target[2], target[3], target[4], target[5])
+        self.send_data(self.movement_socket, request)
         return self.wait_reply(self.movement_socket)
 
-    def ServoP(self, target):
+    def move_servo(self, target):
         """
-        Dynamic following command based on Cartesian space
-        x, y, z, a, b, c :Cartesian coordinate point value
+        Moves the robot to the given target using servo-based control.
+
+        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
+            and rx, ry, rz are the rotation angles in degrees.
         """
-        x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
-        string = "ServoP({:f},{:f},{:f},{:f},{:f},{:f})".format(
-            x, y, z, rx, ry, rz)
-        self.send_data(self.movement_socket, string)
+        request = "ServoP({:f},{:f},{:f},{:f},{:f},{:f})".format(
+            target[0], target[1], target[2], target[3], target[4], target[5])
+        self.send_data(self.movement_socket, request)
         return self.wait_reply(self.movement_socket)
 
-    def RelMovLTool(self, offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool, *dynParams):
+    def move_linear_relative_to_tool(self, x, y, z, rx, ry, rz, tool):
         """
-        Carry out relative motion command along the tool coordinate system, and the end motion mode is linear motion
-        offset_x: X-axis direction offset
-        offset_y: Y-axis direction offset
-        offset_z: Z-axis direction offset
-        offset_rx: Rx axis position
-        offset_ry: Ry axis position
-        offset_rz: Rz axis position
-        tool: Select the calibrated tool coordinate system, value range: 0 ~ 9
-        *dynParams: parameter Settings（speed_l, acc_l, user）
-                    speed_l: Set Cartesian speed scale, value range: 1 ~ 100
-                    acc_l: Set acceleration scale value, value range: 1 ~ 100
-                    user: Set user coordinate system index
+        Moves the robot with the given offsets in the tool coordinate system.
+
+        The end motion mode is linear motion.
+
+        x: Offset in X-direction
+        y: Offset in Y-direction
+        z: Offset in Z-direction
+        rx: Offset along Rx-axis
+        ry: Offset along Ry-axis
+        rz: Offset along Rz-axis
+        tool: The selected tool, value range: 0-9
         """
-        string = "RelMovLTool({:f},{:f},{:f},{:f},{:f},{:f}, {:d}".format(
-            offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool)
-        for params in dynParams:
-            print(type(params), params)
-            string = string + ", SpeedJ={:d}, AccJ={:d}, User={:d}".format(
-                params[0], params[1], params[2])
-        string = string + ")"
-        self.send_data(self.movement_socket, string)
+        request = "RelMovLTool({:f},{:f},{:f},{:f},{:f},{:f}, {:d})".format(
+            x, y, z, rx, ry, rz, tool)
+        self.send_data(self.movement_socket, request)
         return self.wait_reply(self.movement_socket)
 
 
