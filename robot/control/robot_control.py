@@ -60,6 +60,7 @@ class RobotControl:
         self.m_change_robot_to_head = [None] * 9
 
         self.motion_type = MotionType.NORMAL
+        self.linear_target = None
         self.target_arc = None
         self.previous_robot_status = False
 
@@ -399,10 +400,11 @@ class RobotControl:
                 middle_arc_scale_factor=middle_arc_scale_factor,
             )
             if self.motion_type == MotionType.NORMAL:
+                self.linear_target = linear_target
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(linear_target), 0, 1):
+                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.linear_target), 0, 10):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
 
