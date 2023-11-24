@@ -10,7 +10,7 @@ class Elfin():
     The class for communicating with Elfin robot.
     """
     def __init__(self, ip, use_new_api=False):
-        self.coordinates = [None]*6
+        self.coordinates = 6 * [None]
         self.target_reached = False
 
         self.connection = ElfinConnection(
@@ -62,11 +62,10 @@ class Elfin():
             return
 
         self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-        #self.connection.set_speed_ratio(0.1)  # Setting robot's movement speed
 
         # Move along the axis that has the largest displacement.
         axis = np.argmax(np.abs(displacement))
-        distance = abs(displacement[axis])
+        distance = np.abs(displacement[axis])
         direction = Directions.NEGATIVE if displacement[axis] < 0 else Directions.POSITIVE
 
         self.connection.move_linear_relative(
@@ -81,14 +80,12 @@ class Elfin():
         return self.connection.read_force_sensor()
 
     def compensate_force(self):
-        motion_state = self.connection.get_motion_state()
-
         # If the robot is not free to move, return early.
+        motion_state = self.connection.get_motion_state()
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
         self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-        #self.connection.set_speed_ratio(0.1)  # Setting robot's movement speed
 
         axis = Axes.Z
         direction = Directions.NEGATIVE
@@ -102,9 +99,10 @@ class Elfin():
         self.connection.set_tool_coordinate_motion(0)
 
     def stop_robot(self):
-        # Takes some microseconds to the robot actual stops after the command.
-        # The sleep time is required to guarantee the stop
         self.connection.stop_robot()
+
+        # After the stop command, it takes some microseconds for the robot to stop;
+        # wait here to guarantee the stopping.
         sleep(0.05)
 
     def force_stop_robot(self):
@@ -112,4 +110,4 @@ class Elfin():
 
     def close(self):
         self.stop_robot()
-        #TODO: robot function to close? self.connection.close()
+        # TODO: Should the socket connection to the robot be closed?
