@@ -41,7 +41,7 @@ class Dobot:
         self.connection = DobotConnection(ip=ip)
 
     def connect(self):
-        self.connection.connect()
+        self.connected = self.connection.connect()
 
         self.moving = False
         self._set_feedback()
@@ -59,6 +59,8 @@ class Dobot:
         if self.robot_status == RobotStatus.ERROR:
             self.connection.clear_error()
             time.sleep(1)
+
+        return self.connected
 
     def get_coordinates(self):
         return self.coordinates
