@@ -2,7 +2,13 @@ from time import sleep
 
 import numpy as np
 
-from robot.robots.elfin.elfin_connection import ElfinConnection, Axes, Directions, MotionState
+from robot.robots.elfin.elfin_connection import (
+    ElfinConnection,
+    Axis,
+    Direction,
+    MotionState,
+    ReferenceFrame
+)
 
 
 class Elfin():
@@ -61,12 +67,12 @@ class Elfin():
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+        self.connection.set_reference_frame(ReferenceFrame.TOOL)
 
         # Move along the axis that has the largest displacement.
         axis = np.argmax(np.abs(displacement))
         distance = np.abs(displacement[axis])
-        direction = Directions.NEGATIVE if displacement[axis] < 0 else Directions.POSITIVE
+        direction = Direction.NEGATIVE if displacement[axis] < 0 else Direction.POSITIVE
 
         self.connection.move_linear_relative(
             axis=axis,
@@ -74,7 +80,7 @@ class Elfin():
             distance=distance,
         )
 
-        self.connection.set_tool_coordinate_motion(0)
+        self.connection.set_reference_frame(ReferenceFrame.ROBOT)
 
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
@@ -85,10 +91,10 @@ class Elfin():
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+        self.connection.set_reference_frame(ReferenceFrame.TOOL)
 
-        axis = Axes.Z
-        direction = Directions.NEGATIVE
+        axis = Axis.Z
+        direction = Direction.NEGATIVE
         distance = 1
 
         self.connection.move_linear_relative(
@@ -96,7 +102,7 @@ class Elfin():
             direction=direction,
             distance=distance,
         )
-        self.connection.set_tool_coordinate_motion(0)
+        self.connection.set_reference_frame(ReferenceFrame.ROBOT)
 
     def stop_robot(self):
         self.connection.stop_robot()

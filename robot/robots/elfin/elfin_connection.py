@@ -9,7 +9,7 @@ class MotionState(Enum):
     ERROR = 3
     UNKNOWN = 4
 
-class Axes(Enum):
+class Axis(Enum):
     X = 0
     Y = 1
     Z = 2
@@ -17,9 +17,13 @@ class Axes(Enum):
     RY = 4
     RZ = 5
 
-class Directions(Enum):
+class Direction(Enum):
     NEGATIVE = 0
     POSITIVE = 1
+
+class ReferenceFrame(Enum):
+    ROBOT = 0
+    TOOL = 1
 
 
 class ElfinConnection:
@@ -248,9 +252,9 @@ class ElfinConnection:
 
         TODO: This note could be clarified. How does the singularity affect this function?
 
-        :param: axis: 0-5, corresponding to x-, y-, z-, rx-, ry-, rz-axes, respectively.
-        :param: direction: 0 for negative, 1 for positive direction along the axis.
-        :param: distance: The distance to move (TODO: unit?)
+        :param: axis: A value of Axis enum, e.g., Axis.Z or Axis.RX.
+        :param: direction: A value of Direction enum: Direction.NEGATIVE or Direction.POSITIVE.
+        :param: distance: The movement distance (in mm).
         :return: True if successful, otherwise False.
         """
         request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
@@ -280,18 +284,15 @@ class ElfinConnection:
 
         return success, force_sensor_values
 
-    def set_tool_coordinate_motion(self, state):
+    def set_reference_frame(self, reference_frame):
         """
-        Sets the tool coordinate motion.
+        Sets the reference frame for movement: either robot or tool.
 
-        TODO: This description could be clarified further. Also, the function naming could
-          be improved. It's not clear from the name what it does.
-
-        :param: int state: 0 = close, 1 = open.
+        :param: A ReferenceFrame enum value: ReferenceFrame.ROBOT or ReferenceFrame.TOOL.
         :return: True if successful, otherwise False.
         """
         command = "SetToolMotion" if self.use_new_api else "SetToolCoordinateMotion"
-        request = command + "," + str(self.ROBOT_ID) + ',' + str(state)
+        request = command + "," + str(self.ROBOT_ID) + ',' + str(reference_frame)
 
         success, _ = self._send_and_receive(request)
         return success
