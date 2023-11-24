@@ -38,24 +38,26 @@ class DobotConnection:
         self.connected = True
         return self.connected
 
-    def send_data(self, socket, string):
-        try:
-            socket.send(str.encode(string, 'utf-8'))
-        except ConnectionAbortedError:
-            print(f"ConnectionAbortedError. Unable to send message: {string}")
+    def _send_and_receive(self, socket, request):
+        """
+        Send a request via the given socket and wait for a reply.
 
-    def wait_reply(self, socket):
-        """
-        Read the return value
+        Return the string received, or an empty string if unsuccessful.
         """
         try:
-            data = socket.recv(1024)
-            data_str = str(data, encoding="utf-8")
-            print(data_str)
-            return data_str
+            socket.send(str.encode(request, 'utf-8'))
+        except ConnectionAbortedError:
+            print(f"ConnectionAbortedError. Unable to send message: {request}")
+            return ""
+
+        try:
+            response = socket.recv(1024)
+            response_str = str(response, encoding="utf-8")
+            print(response_str)
+            return response_str
         except ConnectionAbortedError:
             print(f"ConnectionAbortedError. Unable to read message")
-            return False
+            return ""
 
     def close(self):
         """
@@ -93,32 +95,28 @@ class DobotConnection:
         Enables the robot.
         """
         request = "EnableRobot()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     def clear_error(self):
         """
         Clears the controller error.
         """
         request = "ClearError()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     def reset_robot(self):
         """
         Resets the robot.
         """
         request = "ResetRobot()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     def get_robot_status(self):
         """
         Gets the robot status.
         """
         request = "RobotMode()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     # Unused for now.
     def power_on(self):
@@ -128,8 +126,7 @@ class DobotConnection:
         Note: It takes about 10 seconds for the robot to be operational after it is powered on.
         """
         request = "PowerOn()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     # Unused for now.
     def get_error_id(self):
@@ -137,8 +134,7 @@ class DobotConnection:
         Gets robot error code.
         """
         request = "GetErrorID()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     # Unused for now.
     def get_pose(self):
@@ -146,8 +142,7 @@ class DobotConnection:
         Gets the current pose of the robot in the Cartesian coordinate system.
         """
         request = "GetPose()"
-        self.send_data(self.dashboard_socket, request)
-        return self.wait_reply(self.dashboard_socket)
+        return self._send_and_receive(self.dashboard_socket, request)
 
     def move_linear(self, target):
         """
@@ -158,8 +153,7 @@ class DobotConnection:
         """
         request = "MovL({:f},{:f},{:f},{:f},{:f},{:f})".format(
             target[0], target[1], target[2], target[3], target[4], target[5])
-        self.send_data(self.movement_socket, request)
-        return self.wait_reply(self.movement_socket)
+        return self._send_and_receive(self.movement_socket, request)
 
     # Unused for now.
     def move_circular(self, waypoint, target):
@@ -174,8 +168,7 @@ class DobotConnection:
         request = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
             waypoint[0], waypoint[1], waypoint[2], waypoint[3], waypoint[4], waypoint[5],
             target[0], target[1], target[2], target[3], target[4], target[5])
-        self.send_data(self.movement_socket, request)
-        return self.wait_reply(self.movement_socket)
+        return self._send_and_receive(self.movement_socket, request)
 
     def move_servo(self, target):
         """
@@ -186,8 +179,7 @@ class DobotConnection:
         """
         request = "ServoP({:f},{:f},{:f},{:f},{:f},{:f})".format(
             target[0], target[1], target[2], target[3], target[4], target[5])
-        self.send_data(self.movement_socket, request)
-        return self.wait_reply(self.movement_socket)
+        return self._send_and_receive(self.movement_socket, request)
 
     def move_linear_relative_to_tool(self, x, y, z, rx, ry, rz, tool):
         """
@@ -205,8 +197,7 @@ class DobotConnection:
         """
         request = "RelMovLTool({:f},{:f},{:f},{:f},{:f},{:f}, {:d})".format(
             x, y, z, rx, ry, rz, tool)
-        self.send_data(self.movement_socket, request)
-        return self.wait_reply(self.movement_socket)
+        return self._send_and_receive(self.movement_socket, request)
 
 
 FeedbackType = np.dtype([(
