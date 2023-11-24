@@ -28,7 +28,7 @@ class Dobot:
 
         self.coordinates = 6 * [None]
         self.force_torque_data = 6 * [None]
-        self.robot_status = 0
+        self.robot_status = None
         self.running_status = 0
 
         self.status_move = False
@@ -52,11 +52,11 @@ class Dobot:
             print("Please, restart robot")
             return
 
-        if self.robot_status == 4:
+        if self.robot_status == RobotStatus.DISABLED:
             self.connection.enable_robot()
             time.sleep(1)
 
-        if self.robot_status == 9:
+        if self.robot_status == RobotStatus.ERROR:
             self.connection.clear_error()
             time.sleep(1)
 

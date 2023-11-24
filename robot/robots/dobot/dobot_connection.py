@@ -4,6 +4,9 @@ import socket
 import numpy as np
 
 class RobotStatus(Enum):
+    DISABLED = 4
+    IDLE = 5
+    RUNNING = 7
     ERROR = 9
 
 
