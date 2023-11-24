@@ -2,8 +2,7 @@ from time import sleep
 
 import numpy as np
 
-from robot.robots.elfin.elfin_connection import ElfinConnection
-from robot.robots.elfin.motion_state import MotionState
+from robot.robots.elfin.elfin_connection import ElfinConnection, Axes, Directions, MotionState
 
 
 class Elfin():
@@ -68,7 +67,7 @@ class Elfin():
         # Move along the axis that has the largest displacement.
         axis = np.argmax(np.abs(displacement))
         distance = abs(displacement[axis])
-        direction = 0 if displacement[axis] < 0 else 1
+        direction = Directions.NEGATIVE if displacement[axis] < 0 else Directions.POSITIVE
 
         self.connection.move_linear_relative(
             axis=axis,
@@ -91,9 +90,8 @@ class Elfin():
         self.connection.set_tool_coordinate_motion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
         #self.connection.set_speed_ratio(0.1)  # Setting robot's movement speed
 
-        axis = 2
-        # Move to the negative direction; hence set direction to 0.
-        direction = 0
+        axis = Axes.Z
+        direction = Directions.NEGATIVE
         distance = 1
 
         self.connection.move_linear_relative(

@@ -1,6 +1,25 @@
+from enum import Enum
 from socket import socket, AF_INET, SOCK_STREAM
 
-from robot.robots.elfin.motion_state import MotionState
+
+class MotionState(Enum):
+    FREE_TO_MOVE = 0
+    IN_MOTION = 1
+    WAITING_FOR_EXECUTION = 2
+    ERROR = 3
+    UNKNOWN = 4
+
+class Axes(Enum):
+    X = 0
+    Y = 1
+    Z = 2
+    RX = 3
+    RY = 4
+    RZ = 5
+
+class Directions(Enum):
+    NEGATIVE = 0
+    POSITIVE = 1
 
 
 class ElfinConnection:
