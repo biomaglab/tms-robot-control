@@ -27,9 +27,9 @@ class Dobot:
         self.moving = False
         self.thread_move = False
 
-        self.coordinates = [None]*6
-        self.force_torque_data = [None] * 6
-        self.robot_mode = 0
+        self.coordinates = 6 * [None]
+        self.force_torque_data = 6 * [None]
+        self.robot_status = 0
         self.running_status = 0
 
         self.status_move = False
@@ -53,11 +53,11 @@ class Dobot:
             print("Please, restart robot")
             return
 
-        if self.robot_mode == 4:
+        if self.robot_status == 4:
             self.connection.enable_robot()
             time.sleep(1)
 
-        if self.robot_mode == 9:
+        if self.robot_status == 9:
             self.connection.clear_error()
             time.sleep(1)
 
@@ -108,15 +108,16 @@ class Dobot:
         return True, self.force_torque_data
 
     def compensate_force(self):
+        # If the robot is in an error state, return early.
         status = self.connection.get_robot_status()
-        print("CompensateForce")
-        if status != self.ERROR_STATUS:
-            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            offsets = [0, 0, -2, 0, 0, 0]
-            self.connection.move_linear_relative_to_tool(
-                offsets=offsets,
-                tool=self.TOOL_ID,
-            )
+        if status == self.ERROR_STATUS:
+            return
+
+        offsets = [0, 0, -2, 0, 0, 0]
+        self.connection.move_linear_relative_to_tool(
+            offsets=offsets,
+            tool=self.TOOL_ID,
+        )
 
     def stop_robot(self):
         # Takes some microseconds to the robot actual stops after the command.
@@ -167,7 +168,7 @@ class Dobot:
             self.coordinates = feedback["tool_vector_actual"][0]
             self.force_torque_data = feedback["six_force_value"][0]
             #OR self.force_torque_data = feedback["actual_TCP_force"][0]
-            self.robot_mode = int(feedback["robot_mode"][0])
+            self.robot_status = int(feedback["robot_mode"][0])
             self.running_status = int(feedback["running_status"][0])
 
             #time.sleep(0.001)
@@ -189,7 +190,7 @@ class Dobot:
             time.sleep(0.001)
 
         while self.running_status == 1:
-            status = int(self.robot_mode)
+            status = self.robot_status
             if status == self.ERROR_STATUS:
                 self.stop_robot()
             if time.time() > timeout_start + self.TIMEOUT_MOTION:
