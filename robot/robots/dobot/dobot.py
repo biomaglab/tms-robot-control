@@ -112,20 +112,10 @@ class Dobot:
         print("CompensateForce")
         if status != self.ERROR_STATUS:
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            offset_x = 0
-            offset_y = 0
-            offset_z = -2
-            offset_rx = 0
-            offset_ry = 0
-            offset_rz = 0
+            offsets = [0, 0, -2, 0, 0, 0]
             self.connection.move_linear_relative_to_tool(
-                offset_x,
-                offset_y,
-                offset_z,
-                offset_rx,
-                offset_ry,
-                offset_rz,
-                tool=self.TOOL_ID
+                offsets=offsets,
+                tool=self.TOOL_ID,
             )
 
     def stop_robot(self):
@@ -240,19 +230,8 @@ class Dobot:
                             self.stop_robot()
                             break
                 elif self.motion_type == MotionType.TUNING:
-                    offset_x = self.target[0]
-                    offset_y = self.target[1]
-                    offset_z = self.target[2]
-                    offset_rx = self.target[3]
-                    offset_ry = self.target[4]
-                    offset_rz = self.target[5]
                     self.connection.move_linear_relative_to_tool(
-                      offset_x,
-                      offset_y,
-                      offset_z,
-                      offset_rx,
-                      offset_ry,
-                      offset_rz,
+                      offsets=self.target,
                       tool=self.TOOL_ID
                     )
                     self._motion_loop()

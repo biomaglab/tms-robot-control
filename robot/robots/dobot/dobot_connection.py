@@ -88,6 +88,16 @@ class DobotConnection:
         feedback = np.frombuffer(data, dtype=FeedbackType)
         return feedback
 
+    # Helpers
+    def list_to_str(self, list):
+        """
+        Converts a list of numbers to a string.
+
+        :param: list: A list of numbers, e.g. [1,2,3].
+        :return: A string representation of the list, e.g. "1,2,3".
+        """
+        return ",".join([str(s) for s in list])
+
     # Robot commands
 
     def enable_robot(self):
@@ -151,8 +161,7 @@ class DobotConnection:
         :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
             and rx, ry, rz are the rotation angles in degrees.
         """
-        request = "MovL({:f},{:f},{:f},{:f},{:f},{:f})".format(
-            target[0], target[1], target[2], target[3], target[4], target[5])
+        request = "MovL(" + self.list_to_str(target) + ")"
         return self._send_and_receive(self.movement_socket, request)
 
     # Unused for now.
@@ -165,9 +174,7 @@ class DobotConnection:
         :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
             and rx, ry, rz are the rotation angles in degrees.
         """
-        request = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
-            waypoint[0], waypoint[1], waypoint[2], waypoint[3], waypoint[4], waypoint[5],
-            target[0], target[1], target[2], target[3], target[4], target[5])
+        request = "Arc(" + self.list_to_str(waypoint) + "," + self.list_to_str(target) + ")"
         return self._send_and_receive(self.movement_socket, request)
 
     def move_servo(self, target):
@@ -177,26 +184,21 @@ class DobotConnection:
         :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
             and rx, ry, rz are the rotation angles in degrees.
         """
-        request = "ServoP({:f},{:f},{:f},{:f},{:f},{:f})".format(
-            target[0], target[1], target[2], target[3], target[4], target[5])
+        request = "ServoP(" + self.list_to_str(target) + ")"
         return self._send_and_receive(self.movement_socket, request)
 
-    def move_linear_relative_to_tool(self, x, y, z, rx, ry, rz, tool):
+    def move_linear_relative_to_tool(self, offsets, tool):
         """
         Moves the robot with the given offsets in the tool coordinate system.
 
         The end motion mode is linear motion.
 
-        x: Offset in X-direction
-        y: Offset in Y-direction
-        z: Offset in Z-direction
-        rx: Offset along Rx-axis
-        ry: Offset along Ry-axis
-        rz: Offset along Rz-axis
+        :param: offsets: [x, y, z, rx, ry, rz], where x, y, z are
+            the x-, y-, and z-offsets in mm and rx, ry, rz are the offsets for the
+            rotation angles in degrees.
         tool: The selected tool, value range: 0-9
         """
-        request = "RelMovLTool({:f},{:f},{:f},{:f},{:f},{:f}, {:d})".format(
-            x, y, z, rx, ry, rz, tool)
+        request = "RelMovLTool(" + self.list_to_str(offsets) + "," + str(tool) + ")"
         return self._send_and_receive(self.movement_socket, request)
 
 
