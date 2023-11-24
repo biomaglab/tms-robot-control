@@ -80,7 +80,7 @@ class DobotConnection:
         bytes_received = 0
         data = bytes()
         while bytes_received < 1440:
-            new_bytes = self.connection.feedback_socket.recv(1440 - bytes_received)
+            new_bytes = self.feedback_socket.recv(1440 - bytes_received)
             if len(new_bytes) > 0:
                 bytes_received += len(new_bytes)
                 data += new_bytes
