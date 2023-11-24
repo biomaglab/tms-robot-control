@@ -534,6 +534,8 @@ class RobotControl:
 
         if const.FORCE_TORQUE_SENSOR:
             force_sensor_values = self.read_force_sensor()
+        else:
+            force_sensor_values = False
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
             coord_head_tracker_in_robot = robot_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
