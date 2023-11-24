@@ -167,26 +167,18 @@ class Dobot:
             thread.start()
 
     def _feedback(self):
-        hasRead = 0
         while True:
             if not self.connected:
                 break
-            data = bytes()
-            while hasRead < 1440:
-                temp = self.connection.feedback_socket.recv(1440 - hasRead)
-                if len(temp) > 0:
-                    hasRead += len(temp)
-                    data += temp
-            hasRead = 0
 
-            a = np.frombuffer(data, dtype=MyType)
+            feedback = self.connection.get_feedback()
 
             # Refresh coordinate points
-            self.coordinates = a["tool_vector_actual"][0]
-            self.force_torque_data = a["six_force_value"][0]
-            #OR self.force_torque_data = a["actual_TCP_force"][0]
-            self.robot_mode = int(a["robot_mode"][0])
-            self.running_status = int(a["running_status"][0])
+            self.coordinates = feedback["tool_vector_actual"][0]
+            self.force_torque_data = feedback["six_force_value"][0]
+            #OR self.force_torque_data = feedback["actual_TCP_force"][0]
+            self.robot_mode = int(feedback["robot_mode"][0])
+            self.running_status = int(feedback["running_status"][0])
 
             #sleep(0.001)
 
@@ -266,111 +258,3 @@ class Dobot:
                     self._motion_loop()
 
             sleep(0.001)
-
-# Port Feedback
-MyType = np.dtype([(
-    'len',
-    np.int64,
-), (
-    'digital_input_bits',
-    np.uint64,
-), (
-    'digital_output_bits',
-    np.uint64,
-), (
-    'robot_mode',
-    np.uint64,
-), (
-    'time_stamp',
-    np.uint64,
-), (
-    'time_stamp_reserve_bit',
-    np.uint64,
-), (
-    'test_value',
-    np.uint64,
-), (
-    'test_value_keep_bit',
-    np.float64,
-), (
-    'speed_scaling',
-    np.float64,
-), (
-    'linear_momentum_norm',
-    np.float64,
-), (
-    'v_main',
-    np.float64,
-), (
-    'v_robot',
-    np.float64,
-), (
-    'i_robot',
-    np.float64,
-), (
-    'i_robot_keep_bit1',
-    np.float64,
-), (
-    'i_robot_keep_bit2',
-    np.float64,
-), ('tool_accelerometer_values', np.float64, (3, )),
-    ('elbow_position', np.float64, (3, )),
-    ('elbow_velocity', np.float64, (3, )),
-    ('q_target', np.float64, (6, )),
-    ('qd_target', np.float64, (6, )),
-    ('qdd_target', np.float64, (6, )),
-    ('i_target', np.float64, (6, )),
-    ('m_target', np.float64, (6, )),
-    ('q_actual', np.float64, (6, )),
-    ('qd_actual', np.float64, (6, )),
-    ('i_actual', np.float64, (6, )),
-    ('actual_TCP_force', np.float64, (6, )),
-    ('tool_vector_actual', np.float64, (6, )),
-    ('TCP_speed_actual', np.float64, (6, )),
-    ('TCP_force', np.float64, (6, )),
-    ('Tool_vector_target', np.float64, (6, )),
-    ('TCP_speed_target', np.float64, (6, )),
-    ('motor_temperatures', np.float64, (6, )),
-    ('joint_modes', np.float64, (6, )),
-    ('v_actual', np.float64, (6, )),
-    # ('dummy', np.float64, (9, 6))])
-    ('hand_type', np.byte, (4, )),
-    ('user', np.byte,),
-    ('tool', np.byte,),
-    ('run_queued_cmd', np.byte,),
-    ('pause_cmd_flag', np.byte,),
-    ('velocity_ratio', np.byte,),
-    ('acceleration_ratio', np.byte,),
-    ('jerk_ratio', np.byte,),
-    ('xyz_velocity_ratio', np.byte,),
-    ('r_velocity_ratio', np.byte,),
-    ('xyz_acceleration_ratio', np.byte,),
-    ('r_acceleration_ratio', np.byte,),
-    ('xyz_jerk_ratio', np.byte,),
-    ('r_jerk_ratio', np.byte,),
-    ('brake_status', np.byte,),
-    ('enable_status', np.byte,),
-    ('drag_status', np.byte,),
-    ('running_status', np.byte,),
-    ('error_status', np.byte,),
-    ('jog_status', np.byte,),
-    ('robot_type', np.byte,),
-    ('drag_button_signal', np.byte,),
-    ('enable_button_signal', np.byte,),
-    ('record_button_signal', np.byte,),
-    ('reappear_button_signal', np.byte,),
-    ('jaw_button_signal', np.byte,),
-    ('six_force_online', np.byte,),
-    ('reserve2', np.byte, (82, )),
-    ('m_actual', np.float64, (6, )),
-    ('load', np.float64,),
-    ('center_x', np.float64,),
-    ('center_y', np.float64,),
-    ('center_z', np.float64,),
-    ('user[6]', np.float64, (6, )),
-    ('tool[6]', np.float64, (6, )),
-    ('trace_index', np.float64,),
-    ('six_force_value', np.float64, (6, )),
-    ('target_quaternion', np.float64, (4, )),
-    ('actual_quaternion', np.float64, (4, )),
-    ('reserve3', np.byte, (24, ))])
