@@ -2,35 +2,52 @@ import socket
 
 
 class DobotConnection:
-    def __init__(self, ip, port):
+    DASHBOARD_PORT = 29999
+    MOVEMENT_PORT = 30003
+    FEEDBACK_PORT = 30004
+
+    def __init__(self, ip):
         self.ip = ip
-        self.port = port
-        self.socket_dobot = 0
+        self.connected = False
 
-        if self.port == 29999 or self.port == 30003 or self.port == 30004:
-            try:
-                self.socket_dobot = socket.socket()
-                self.socket_dobot.connect((self.ip, self.port))
-            except socket.error:
-                print(socket.error)
-                raise Exception(
-                    f"Unable to set socket connection using port {self.port} !", socket.error)
-        else:
-            raise Exception(
-                f"Connection to dobot needs to use one of ports: 29999, 30003, 30004 !")
+        self.dashboard_socket = None
+        self.feedback_socket = None
+        self.movement_socket = None
 
-    def send_data(self, string):
+    def connect(self):
         try:
-            self.socket_dobot.send(str.encode(string, 'utf-8'))
+            self.dashboard_socket = socket.socket()
+            self.dashboard_socket.connect((self.ip, self.DASHBOARD_PORT))
+        except socket.error:
+            raise Exception(f"Unable to connect using port {self.DASHBOARD_PORT}", socket.error)
+
+        try:
+            self.movement_socket = socket.socket()
+            self.movement_socket.connect((self.ip, self.MOVEMENT_PORT))
+        except socket.error:
+            raise Exception(f"Unable to connect using port {self.MOVEMENT_PORT}", socket.error)
+
+        try:
+            self.feedback_socket = socket.socket()
+            self.feedback_socket.connect((self.ip, self.FEEDBACK_PORT))
+        except socket.error:
+            raise Exception(f"Unable to connect using port {self.FEEDBACK_PORT}", socket.error)
+
+        self.connected = True
+        return self.connected
+
+    def send_data(self, socket, string):
+        try:
+            socket.send(str.encode(string, 'utf-8'))
         except ConnectionAbortedError:
             print(f"ConnectionAbortedError. Unable to send message: {string}")
 
-    def wait_reply(self):
+    def wait_reply(self, socket):
         """
         Read the return value
         """
         try:
-            data = self.socket_dobot.recv(1024)
+            data = socket.recv(1024)
             data_str = str(data, encoding="utf-8")
             print(data_str)
             return data_str
@@ -40,51 +57,53 @@ class DobotConnection:
 
     def close(self):
         """
-        Close the port
+        Close the socket connections.
         """
-        if (self.socket_dobot != 0):
-            self.socket_dobot.close()
+        if self.dashboard_socket is not None:
+            self.dashboard_socket.close()
+
+        if self.feedback_socket is not None:
+            self.feedback_socket.close()
+
+        if self.movement_socket is not None:
+            self.movement_socket.close()
 
     def __del__(self):
         self.close()
 
-
-class DobotApiDashboard(DobotConnection):
-    """
-    Define class dobot_api_dashboard to establish a connection to Dobot
-    """
+    # Robot commands
 
     def EnableRobot(self):
         """
         Enable the robot
         """
         string = "EnableRobot()"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     def ClearError(self):
         """
         Clear controller alarm information
         """
         string = "ClearError()"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     def ResetRobot(self):
         """
         Robot stop
         """
         string = "ResetRobot()"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     def RobotMode(self):
         """
         View the robot status
         """
         string = "RobotMode()"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     # Unused for now.
     def PowerOn(self):
@@ -93,8 +112,8 @@ class DobotApiDashboard(DobotConnection):
         Note: It takes about 10 seconds for the robot to be enabled after it is powered on.
         """
         string = "PowerOn()"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     # Unused for now.
     def GetErrorID(self):
@@ -102,8 +121,8 @@ class DobotApiDashboard(DobotConnection):
         Get robot error code
         """
         string = "GetErrorID()"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     # Unused for now.
     def GetPose(self):
@@ -111,14 +130,8 @@ class DobotApiDashboard(DobotConnection):
         Description: get the current pose of the robot under the Cartesian coordinate system
         """
         string = "GetPose()"
-        self.send_data(string)
-        return self.wait_reply()
-
-
-class DobotApiMove(DobotConnection):
-    """
-    Define class dobot_api_move to establish a connection to Dobot
-    """
+        self.send_data(self.dashboard_socket, string)
+        return self.wait_reply(self.dashboard_socket)
 
     def MoveLinear(self, target):
         """
@@ -133,8 +146,8 @@ class DobotApiMove(DobotConnection):
         x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
         string = "MovL({:f},{:f},{:f},{:f},{:f},{:f})".format(
             x, y, z, rx, ry, rz)
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.movement_socket, string)
+        return self.wait_reply(self.movement_socket)
 
     # Unused for now.
     def MoveCircular(self, target):
@@ -148,8 +161,8 @@ class DobotApiMove(DobotConnection):
                                                         target[6], target[7], target[8], target[9], target[10], target[11]
         string = "Arc({:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f},{:f})".format(
             x1, y1, z1, a1, b1, c1, x2, y2, z2, a2, b2, c2)
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.movement_socket, string)
+        return self.wait_reply(self.movement_socket)
 
     def ServoP(self, target):
         """
@@ -159,8 +172,8 @@ class DobotApiMove(DobotConnection):
         x, y, z, rx, ry, rz = target[0], target[1], target[2], target[3], target[4], target[5]
         string = "ServoP({:f},{:f},{:f},{:f},{:f},{:f})".format(
             x, y, z, rx, ry, rz)
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.movement_socket, string)
+        return self.wait_reply(self.movement_socket)
 
     def RelMovLTool(self, offset_x, offset_y, offset_z, offset_rx, offset_ry, offset_rz, tool, *dynParams):
         """
@@ -184,5 +197,5 @@ class DobotApiMove(DobotConnection):
             string = string + ", SpeedJ={:d}, AccJ={:d}, User={:d}".format(
                 params[0], params[1], params[2])
         string = string + ")"
-        self.send_data(string)
-        return self.wait_reply()
+        self.send_data(self.movement_socket, string)
+        return self.wait_reply(self.movement_socket)

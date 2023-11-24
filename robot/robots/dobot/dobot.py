@@ -7,28 +7,20 @@ from threading import Thread
 import robot.constants as const
 from robot.constants import MotionType
 import robot.control.robot_processing as robot_process
-from robot.robots.dobot.dobot_connection import DobotApiDashboard, DobotApiMove, DobotConnection
+from robot.robots.dobot.dobot_connection import DobotConnection
 
 
 class Dobot:
     """
     The class for communicating with Dobot robot.
     """
-    DASHBOARD_PORT = 29999
-    MOVEMENT_PORT = 30003
-    FEEDBACK_PORT = 30004
     TOOL_ID = 0
     TIMEOUT_START_MOTION = 10
     TIMEOUT_MOTION = 45
     ERROR_STATUS = 9
 
     def __init__(self, ip, robot_config):
-        self.ip = ip
         self.robot_config = robot_config
-
-        self.client_dashboard = None
-        self.client_feedback = None
-        self.client_movement = None
 
         self.stop_threads = False
 
@@ -47,42 +39,27 @@ class Dobot:
 
         self.connected = False
 
+        self.connection = DobotConnection(ip=ip)
+
     def connect(self):
-        if self.connected:
-            self.client_dashboard = None
-            self.client_feedback = None
-            self.client_movement = None
+        self.connection.connect()
 
-            print("Already connected")
-            return True
-        try:
-            self.client_dashboard = DobotApiDashboard(self.ip, self.DASHBOARD_PORT)
-            self.client_movement = DobotApiMove(self.ip, self.MOVEMENT_PORT)
-            self.client_feedback = DobotConnection(self.ip, self.FEEDBACK_PORT)
-            self.moving = False
+        self.moving = False
+        self._set_feedback()
+        self._set_move_thread()
 
-            self._set_feedback()
-            self._set_move_thread()
+        sleep(2)
+        if any(coord is None for coord in self.coordinates):
+            print("Please, restart robot")
+            return
 
-            sleep(2)
-            if any(coord is None for coord in self.coordinates):
-                print("Please, restart robot")
-                return
+        if self.robot_mode == 4:
+            self.connection.EnableRobot()
+            sleep(1)
 
-            if self.robot_mode == 4:
-                self.client_dashboard.EnableRobot()
-                sleep(1)
-
-            if self.robot_mode == 9:
-                self.client_dashboard.ClearError()
-                sleep(1)
-
-            self.connected = True
-
-        except Exception as e:
-            print("Attention!", f"Connection Error:{e}")
-
-        return self.connected
+        if self.robot_mode == 9:
+            self.connection.ClearError()
+            sleep(1)
 
     def get_coordinates(self):
         return self.coordinates
@@ -131,7 +108,7 @@ class Dobot:
         return True, self.force_torque_data
 
     def compensate_force(self):
-        status = self.client_dashboard.RobotMode()
+        status = self.connection.RobotMode()
         print("CompensateForce")
         if status != self.ERROR_STATUS:
             #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
@@ -141,7 +118,7 @@ class Dobot:
             offset_rx = 0
             offset_ry = 0
             offset_rz = 0
-            self.client_movement.RelMovLTool(
+            self.connection.RelMovLTool(
                 offset_x,
                 offset_y,
                 offset_z,
@@ -156,7 +133,7 @@ class Dobot:
         # The sleep time is required to guarantee the stop
         self.status_move = False
         #if self.running_status == 1:
-        self.client_dashboard.ResetRobot()
+        self.connection.ResetRobot()
         #sleep(0.05)
 
     def force_stop_robot(self):
@@ -196,7 +173,7 @@ class Dobot:
                 break
             data = bytes()
             while hasRead < 1440:
-                temp = self.client_feedback.socket_dobot.recv(1440 - hasRead)
+                temp = self.connection.feedback_socket.recv(1440 - hasRead)
                 if len(temp) > 0:
                     hasRead += len(temp)
                     data += temp
@@ -247,7 +224,7 @@ class Dobot:
             if self.status_move and not self.target_reached and not self.running_status:
                 print('moving')
                 if self.motion_type == MotionType.NORMAL or self.motion_type == MotionType.LINEAR_OUT:
-                    self.client_movement.MoveLinear(self.target)
+                    self.connection.MoveLinear(self.target)
                     self._motion_loop()
                 elif self.motion_type == MotionType.ARC:
                     arc_bezier_curve_step = self.robot_config['arc_bezier_curve_step']
@@ -257,7 +234,7 @@ class Dobot:
                     )
                     target = self.target
                     for curve_point in curve_set:
-                        self.client_movement.ServoP(curve_point)
+                        self.connection.ServoP(curve_point)
                         self._motion_loop()
                         if self.motion_type != MotionType.ARC:
                             self.stop_robot()
@@ -277,7 +254,7 @@ class Dobot:
                     offset_rx = self.target[3]
                     offset_ry = self.target[4]
                     offset_rz = self.target[5]
-                    self.client_movement.RelMovLTool(
+                    self.connection.RelMovLTool(
                       offset_x,
                       offset_y,
                       offset_z,
