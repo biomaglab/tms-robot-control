@@ -1,12 +1,12 @@
-#CODE based on https://github.com/Dobot-Arm/TCP-IP-CR-Python
+# Code based on: https://github.com/Dobot-Arm/TCP-IP-CR-Python
 
-from time import sleep
 import time
-import numpy as np
 from threading import Thread
-import robot.constants as const
-from robot.constants import MotionType
+
+import numpy as np
+
 import robot.control.robot_processing as robot_process
+from robot.constants import MotionType
 from robot.robots.dobot.dobot_connection import DobotConnection
 
 
@@ -48,18 +48,18 @@ class Dobot:
         self._set_feedback()
         self._set_move_thread()
 
-        sleep(2)
+        time.sleep(2)
         if any(coord is None for coord in self.coordinates):
             print("Please, restart robot")
             return
 
         if self.robot_mode == 4:
             self.connection.EnableRobot()
-            sleep(1)
+            time.sleep(1)
 
         if self.robot_mode == 9:
             self.connection.ClearError()
-            sleep(1)
+            time.sleep(1)
 
     def get_coordinates(self):
         return self.coordinates
@@ -134,7 +134,7 @@ class Dobot:
         self.status_move = False
         #if self.running_status == 1:
         self.connection.ResetRobot()
-        #sleep(0.05)
+        #time.sleep(0.05)
 
     def force_stop_robot(self):
         self.stop_robot()
@@ -180,7 +180,7 @@ class Dobot:
             self.robot_mode = int(feedback["robot_mode"][0])
             self.running_status = int(feedback["running_status"][0])
 
-            #sleep(0.001)
+            #time.sleep(0.001)
 
     def _set_move_thread(self):
         if self.connected:
@@ -196,7 +196,7 @@ class Dobot:
                 print("break")
                 self.stop_robot()
                 break
-            sleep(0.001)
+            time.sleep(0.001)
 
         while self.running_status == 1:
             status = int(self.robot_mode)
@@ -206,7 +206,7 @@ class Dobot:
                 self.stop_robot()
                 print("break")
                 break
-            sleep(0.001)
+            time.sleep(0.001)
 
     def _move_thread(self):
         while True:
@@ -257,4 +257,4 @@ class Dobot:
                     )
                     self._motion_loop()
 
-            sleep(0.001)
+            time.sleep(0.001)
