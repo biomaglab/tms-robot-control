@@ -147,14 +147,6 @@ def compute_head_move_compensation(head_pose_in_robot_space, m_target_to_head):
 
     return new_robot_position
 
-def estimate_robot_target_length(robot_target):
-    """
-    Estimates the length of the 3D vector of the robot target
-    """
-    robot_target_length = np.sqrt(robot_target[0] ** 2 + robot_target[1] ** 2 + robot_target[2] ** 2)
-
-    return robot_target_length
-
 # Unused for now.
 def compute_transformation_tcp_to_head(tracker, robot_coordinates):
     head_pose_in_tracker_space = tracker.get_head_pose()

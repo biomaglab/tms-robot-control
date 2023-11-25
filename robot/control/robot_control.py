@@ -373,7 +373,7 @@ class RobotControl:
 
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
-        if robot_process.estimate_robot_target_length(target_pose_in_robot_space) >= working_space:
+        if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
             print("Head is too far from the robot basis")
             return False
 
