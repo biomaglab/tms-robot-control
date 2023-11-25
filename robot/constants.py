@@ -77,8 +77,8 @@ ROBOT_CONFIG = {
     'head_velocity_threshold': 30,
 
     # Tuning motion
-    'target_tuning_threshold_distance': 50,
-    'target_tuning_threshold_angle': 15,
+    'distance_threshold_for_tuning': 50,
+    'angular_distance_threshold_for_tuning': 15,
 
     # Arc motion
     'distance_threshold_for_arc_motion': 100,
@@ -108,8 +108,8 @@ ROBOT_CONFIG = {
     'head_velocity_threshold': 20,
 
     # Tuning motion
-    'target_tuning_threshold_distance': 30,
-    'target_tuning_threshold_angle': 5,
+    'distance_threshold_for_tuning': 30,
+    'angular_distance_threshold_for_tuning': 5,
 
     # Arc motion
     'distance_threshold_for_arc_motion': 80,

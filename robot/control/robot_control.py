@@ -432,12 +432,12 @@ class RobotControl:
             self.robot.set_target_reached(self.target_reached)
             return True
 
-        target_tuning_threshold_angle = self.robot_config['target_tuning_threshold_angle']
-        target_tuning_threshold_distance = self.robot_config['target_tuning_threshold_distance']
+        angular_distance_threshold_for_tuning = self.robot_config['angular_distance_threshold_for_tuning']
+        distance_threshold_for_tuning = self.robot_config['distance_threshold_for_tuning']
         if (np.sqrt(
-                np.sum(np.square(self.displacement_to_target[:3]))) < target_tuning_threshold_distance or
+                np.sum(np.square(self.displacement_to_target[:3]))) < distance_threshold_for_tuning or
             np.sqrt(
-                np.sum(np.square(self.displacement_to_target[3:]))) < target_tuning_threshold_angle) \
+                np.sum(np.square(self.displacement_to_target[3:]))) < angular_distance_threshold_for_tuning) \
                 and self.motion_type != MotionType.ARC:
             # tunes the robot position based on neuronavigation
             self.motion_type = MotionType.TUNING
