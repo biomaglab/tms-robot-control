@@ -44,7 +44,7 @@ class RobotControl:
         # reference force and moment values
         self.force_ref = np.array([0.0, 0.0, 0.0])
         self.moment_ref = np.array([0.0, 0.0, 0.0])
-        self.prev_state_flag = 0  # 0 for inside circle, 1 for outer circle
+        self.tuning_ongoing = False
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
 
@@ -437,14 +437,15 @@ class RobotControl:
 
         if close_to_target and self.motion_type != MotionType.ARC:
             self.motion_type = MotionType.TUNING
-            if const.FORCE_TORQUE_SENSOR and self.prev_state_flag == 1:
+
+            if const.FORCE_TORQUE_SENSOR and not self.tuning_ongoing:
                 self.force_ref = ft_values[0:3]
                 self.moment_ref = ft_values[3:6]
                 print('Normalised!')
 
-            self.prev_state_flag = 0
+            self.tuning_ongoing = True
         else:
-            self.prev_state_flag = 1
+            self.tuning_ongoing = False
 
         # Branch to different movement functions depending on the motion type.
         if self.motion_type == MotionType.NORMAL:
