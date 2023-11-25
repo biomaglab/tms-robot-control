@@ -56,15 +56,10 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     :return: target_robot_matrix: 3x3 array representing change of basis from robot to head in robot system
     """
     # compute head target matrix
-
-    # XXX: It would be preferable to use the same coordinate system everywhere - however, below
-    #   the Euler angles are applied in the order z, y, x in a rotating frame ('r'). These rotation
-    #   angles come from the neuronavigation, so ideally they would need to be changed there. Keeping it
-    #   like it is for now.
     m_head_target = coordinates_to_transformation_matrix(
         position=head_coordinates[:3],
         orientation=head_coordinates[3:],
-        axes='rzyx',
+        axes='sxyz',
     )
 
     # compute robot target matrix
@@ -474,7 +469,7 @@ class TrackerProcessing:
     def estimate_robot_target(self,  tracker_coordinates,  m_target):
         head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
 
-        target_pose_in_robot_space = tracker_coordinates.transform_matrix_to_robot_space(m_target, axes='sxyz')
+        target_pose_in_robot_space = tracker_coordinates.transform_matrix_to_robot_space(m_target)
         head_pose_in_robot_space = tracker_coordinates.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
         print("Update target based on InVesalius:", target_pose_in_robot_space)

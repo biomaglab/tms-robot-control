@@ -42,20 +42,27 @@ class TrackerCoordinates:
 
         self.head_pose = coord[1]
 
+        # XXX: The head pose comes from neuronavigation using the 'rzyx' convention for interpreting Euler angles
+        #   (That is, the axis order is z, y, x, using rotating frame). Convert it to the 'sxyz' convention used in
+        #   this robot controller. The transformation below should not be the correct transformation, but it corresponds
+        #   to how rotating frame is implemented in euler_matrix function in transformations.py: by swapping the x- and
+        #   z-rotations.
+        self.head_pose[3], self.head_pose[5] = self.head_pose[5], self.head_pose[3]
+
     def GetCoordinates(self):
         return self.coord, self.markers_flag
 
     def get_head_pose(self):
         return self.head_pose
 
-    def transform_matrix_to_robot_space(self, M, axes='rzyx'):
+    def transform_matrix_to_robot_space(self, M):
         X, Y, affine = self.m_tracker_to_robot
 
         M_in_robot_space = Y @ M @ tr.inverse_matrix(X)
         M_affine_in_robot_space = affine @ M
 
-        _, angles_as_deg = robot_process.transformation_matrix_to_coordinates(M_in_robot_space, axes=axes)
-        translation, _ = robot_process.transformation_matrix_to_coordinates(M_affine_in_robot_space, axes=axes)
+        _, angles_as_deg = robot_process.transformation_matrix_to_coordinates(M_in_robot_space, axes='sxyz')
+        translation, _ = robot_process.transformation_matrix_to_coordinates(M_affine_in_robot_space, axes='sxyz')
 
         pose_in_robot_space = list(translation) + list(angles_as_deg)
 
@@ -64,8 +71,8 @@ class TrackerCoordinates:
     def transform_pose_to_robot_space(self, pose):
         M = robot_process.coordinates_to_transformation_matrix(
             position=pose[:3],
-            orientation=pose[3:6],
-            axes='rzyx',
+            orientation=pose[3:],
+            axes='sxyz',
         )
         pose_in_robot_space = self.transform_matrix_to_robot_space(M)
 
