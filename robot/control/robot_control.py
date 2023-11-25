@@ -173,11 +173,11 @@ class RobotControl:
 
         return robot_process.transformation_matrix_to_coordinates(distance_matrix, axes='sxyz')
 
-    def OnTuneTCP(self):
-        robot_coord = self.robot_coordinates.GetRobotCoordinates()
+    def compute_target_in_robot_space(self):
+        robot_pose = self.robot_coordinates.GetRobotCoordinates()
         m_robot = robot_process.coordinates_to_transformation_matrix(
-            position=robot_coord[:3],
-            orientation=robot_coord[3:],
+            position=robot_pose[:3],
+            orientation=robot_pose[3:],
             axes='sxyz',
         )
         result_frame_X = m_robot[0, 0] * self.displacement_to_target[0] + m_robot[0, 1] * self.displacement_to_target[1] + m_robot[0, 2] * self.displacement_to_target[2] + m_robot[0, 3]
@@ -372,11 +372,11 @@ class RobotControl:
             print("Head is too far from the robot basis")
             return False
 
-        tuning_to_target = self.OnTuneTCP()
+        target_in_robot_space = self.compute_target_in_robot_space()
 
         # Check the distance to target to determine the motion mode.
-        distance_to_target = np.linalg.norm(tuning_to_target[:3] - robot_pose[:3])
-        angular_distance_to_target = np.linalg.norm(tuning_to_target[3:] - robot_pose[3:])
+        distance_to_target = np.linalg.norm(target_in_robot_space[:3] - robot_pose[:3])
+        angular_distance_to_target = np.linalg.norm(target_in_robot_space[3:] - robot_pose[3:])
 
         distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
         angular_distance_threshold_for_arc_motion = self.robot_config['angular_distance_threshold_for_arc_motion']
@@ -416,7 +416,7 @@ class RobotControl:
                     # Avoid small arc motion; in that case, it is better to use linear movement.
                     elif np.linalg.norm(arc_motion_target[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
                         self.motion_type = MotionType.NORMAL
-                        self.arc_motion_target = tuning_to_target
+                        self.arc_motion_target = target_in_robot_space
 
                 if np.allclose(np.array(robot_pose)[:3], np.array(self.arc_motion_target)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
@@ -451,7 +451,7 @@ class RobotControl:
 
         # Branch to different movement functions depending on the motion type.
         if self.motion_type == MotionType.NORMAL:
-            self.robot.move_linear(tuning_to_target)
+            self.robot.move_linear(target_in_robot_space)
 
         elif self.motion_type == MotionType.LINEAR_OUT:
             self.robot.move_linear(self.linear_out_target)
