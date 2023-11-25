@@ -164,7 +164,7 @@ class RobotControl:
         Ry = tr.rotation_matrix(ry_offset, yaxis)
         Rz = tr.rotation_matrix(rz_offset, zaxis)
 
-        rotation_alignment_matrix = tr.concatenate_matrices(Rx, Ry, Rz)
+        rotation_alignment_matrix = tr.multiply_matrices(Rx, Ry, Rz)
 
         fix_axis = -distance[0], distance[1], distance[2], -distance[3], distance[4], distance[5]
         m_offset = robot_process.coordinates_to_transformation_matrix(

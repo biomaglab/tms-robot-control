@@ -20,7 +20,7 @@ def coordinates_to_transformation_matrix(position, orientation, axes='sxyz'):
     r_ref = tr.euler_matrix(a, b, g, axes=axes)
     t_ref = tr.translation_matrix(position)
 
-    m_img = tr.concatenate_matrices(t_ref, r_ref)
+    m_img = tr.multiply_matrices(t_ref, r_ref)
 
     return m_img
 
