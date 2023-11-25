@@ -546,41 +546,47 @@ class RobotControl:
             #   claim that the head pose in tracker space is in robot space and use it as such.
             head_pose_in_robot_space = head_pose_in_tracker_space_filtered
 
-        #CHECK IF TARGET FROM INVESALIUS
-        if self.target_set and np.all(self.m_target_to_head[:3]):
-            #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
-            #CHECK FORCE SENSOR
-            force_sensor_threshold = self.robot_config['force_sensor_threshold']
-            force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
-            if self.new_force_sensor_data <= force_sensor_threshold or \
-               self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
-
-                #CHECK IF HEAD IS VISIBLE
-                if head_pose_in_robot_space is not None and head_visible and coil_visible:
-                    #CHECK HEAD VELOCITY
-                    if self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
-                        target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
-                        # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
-                        #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
-                        #         if self.status:
-                        #             self.SensorUpdateTarget(distance, self.status)
-                        #             self.status = False
-                        tuning_to_target = self.OnTuneTCP()
-                        robot_status = self.robot_move_decision(target_pose_in_robot_space, robot_pose,
-                                                                head_pose_in_tracker_space_filtered, tuning_to_target, force_sensor_values)
-                    else:
-                        print("Head is moving too much")
-                        self.robot.stop_robot()
-                else:
-                    print("Head marker is not visible")
-                    self.robot.stop_robot()
-            else:
-                #print("Compensating Force")
-                print(self.new_force_sensor_data)
-                self.robot.compensate_force()
-                time.sleep(0.5)
-        else:
+        # If target has not been received, return early.
+        if not self.target_set or not np.all(self.m_target_to_head[:3]):
             #print("Navigation is off")
-            pass
+            return False
 
+        #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
+
+        # Check force sensor.
+        force_sensor_threshold = self.robot_config['force_sensor_threshold']
+        force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
+        if self.new_force_sensor_data > force_sensor_threshold and \
+            self.new_force_sensor_data > (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
+
+            #print("Compensating Force")
+            print(self.new_force_sensor_data)
+            self.robot.compensate_force()
+            time.sleep(0.5)
+
+            return False
+
+        # Check if head is visible.
+        if head_pose_in_robot_space is None or not head_visible or not coil_visible:
+            print("Head marker is not visible")
+            self.robot.stop_robot()
+
+            return False
+
+        # Check head velocity.
+        if not self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
+            print("Head is moving too much")
+            self.robot.stop_robot()
+
+            return False
+
+        target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
+        # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
+        #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
+        #         if self.status:
+        #             self.SensorUpdateTarget(distance, self.status)
+        #             self.status = False
+        tuning_to_target = self.OnTuneTCP()
+        robot_status = self.robot_move_decision(target_pose_in_robot_space, robot_pose,
+                                                head_pose_in_tracker_space_filtered, tuning_to_target, force_sensor_values)
         return robot_status
