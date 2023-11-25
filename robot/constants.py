@@ -84,7 +84,7 @@ ROBOT_CONFIG = {
     'distance_threshold_for_arc_motion': 100,
     'angular_distance_threshold_for_arc_motion': 45,
     'arc_bezier_curve_step': 0.4,
-    'threshold_to_update_target_arc': 40,
+    'threshold_to_update_arc_motion_target': 40,
     'versor_scale_factor': 50,
     'middle_arc_scale_factor': 4,
 
@@ -115,7 +115,7 @@ ROBOT_CONFIG = {
     'distance_threshold_for_arc_motion': 80,
     'angular_distance_threshold_for_arc_motion': 30,
     'arc_bezier_curve_step': None,
-    'threshold_to_update_target_arc': 40,
+    'threshold_to_update_arc_motion_target': 40,
     'versor_scale_factor': 50,
     'middle_arc_scale_factor': 1.5,
 

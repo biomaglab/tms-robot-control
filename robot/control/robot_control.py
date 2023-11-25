@@ -59,7 +59,7 @@ class RobotControl:
 
         self.motion_type = MotionType.NORMAL
         self.linear_target = None
-        self.target_arc = None
+        self.arc_motion_target = None
         self.previous_robot_status = False
 
         self.target_reached = False
@@ -390,7 +390,7 @@ class RobotControl:
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
-            linear_target, middle_arc_point, target_arc = robot_process.compute_arc_motion(
+            linear_target, middle_arc_point, arc_motion_target = robot_process.compute_arc_motion(
                 current_robot_coordinates=robot_pose,
                 head_center_coordinates=head_center_coordinates,
                 new_robot_coordinates=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
@@ -404,20 +404,21 @@ class RobotControl:
             if self.motion_type == MotionType.LINEAR_OUT:
                 if np.allclose(np.array(robot_pose), np.array(self.linear_target), 0, 10):
                     self.motion_type = MotionType.ARC
-                    self.target_arc = target_arc
+                    self.arc_motion_target = arc_motion_target
 
             elif self.motion_type == MotionType.ARC:
-                #UPDATE arc motion target
-                threshold_to_update_target_arc = self.robot_config['threshold_to_update_target_arc']
-                if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, threshold_to_update_target_arc):
+                # Check if the target of arc motion has changed enough; if so, update the target.
+                threshold_to_update_arc_motion_target = self.robot_config['threshold_to_update_arc_motion_target']
+                if not np.allclose(np.array(arc_motion_target), np.array(self.arc_motion_target), 0, threshold_to_update_arc_motion_target):
                     if np.linalg.norm(target_pose_in_robot_space[:3] - robot_pose[:3]) >= distance_threshold_for_arc_motion:
-                        self.target_arc = target_arc
-                        #Avoid small arc motion
-                    elif np.linalg.norm(target_arc[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
-                        self.motion_type = MotionType.NORMAL
-                        self.target_arc = tuning_to_target
+                        self.arc_motion_target = arc_motion_target
 
-                if np.allclose(np.array(robot_pose)[:3], np.array(self.target_arc)[:3], 0, 20):
+                    # Avoid small arc motion; in that case, it is better to use linear movement.
+                    elif np.linalg.norm(arc_motion_target[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
+                        self.motion_type = MotionType.NORMAL
+                        self.arc_motion_target = tuning_to_target
+
+                if np.allclose(np.array(robot_pose)[:3], np.array(self.arc_motion_target)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
                     linear_target = tuning_to_target
             else:
@@ -462,7 +463,7 @@ class RobotControl:
         elif self.motion_type == MotionType.ARC:
             start_position = robot_pose
             waypoint = middle_arc_point
-            target = self.target_arc
+            target = self.arc_motion_target
 
             self.robot.move_circular(start_position, waypoint, target)
 
