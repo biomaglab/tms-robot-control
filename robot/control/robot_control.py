@@ -180,19 +180,13 @@ class RobotControl:
             orientation=robot_pose[3:],
             axes='sxyz',
         )
-        result_frame_X = m_robot[0, 0] * self.displacement_to_target[0] + m_robot[0, 1] * self.displacement_to_target[1] + m_robot[0, 2] * self.displacement_to_target[2] + m_robot[0, 3]
-        result_frame_Y = m_robot[1, 0] * self.displacement_to_target[0] + m_robot[1, 1] * self.displacement_to_target[1] + m_robot[1, 2] * self.displacement_to_target[2] + m_robot[1, 3]
-        result_frame_Z = m_robot[2, 0] * self.displacement_to_target[0] + m_robot[2, 1] * self.displacement_to_target[1] + m_robot[2, 2] * self.displacement_to_target[2] + m_robot[2, 3]
-
         m_offset = robot_process.coordinates_to_transformation_matrix(
             position=self.displacement_to_target[:3],
             orientation=self.displacement_to_target[3:],
             axes='sxyz',
         )
         m_final = m_robot @ m_offset
-        m_robot_offset = m_final.copy()
-        m_robot_offset[:3, -1] = [result_frame_X, result_frame_Y, result_frame_Z]
-        translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_robot_offset, axes='sxyz')
+        translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
 
         return list(translation) + list(angles_as_deg)
 
