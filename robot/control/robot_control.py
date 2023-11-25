@@ -178,11 +178,10 @@ class RobotControl:
 
     def OnTuneTCP(self):
         robot_coord = self.robot_coordinates.GetRobotCoordinates()
-        robot_coord_flip = robot_coord.copy()
         m_robot = robot_process.coordinates_to_transformation_matrix(
-            position=robot_coord_flip[:3],
-            orientation=robot_coord_flip[3:],
-            axes='rzyx',
+            position=robot_coord[:3],
+            orientation=robot_coord[3:],
+            axes='sxyz',
         )
         result_frame_X = m_robot[0, 0] * self.displacement_to_target[0] + m_robot[0, 1] * self.displacement_to_target[1] + m_robot[0, 2] * self.displacement_to_target[2] + m_robot[0, 3]
         result_frame_Y = m_robot[1, 0] * self.displacement_to_target[0] + m_robot[1, 1] * self.displacement_to_target[1] + m_robot[1, 2] * self.displacement_to_target[2] + m_robot[1, 3]
@@ -318,8 +317,13 @@ class RobotControl:
             new_robot_coord_list = robot_process.coordinates_to_transformation_matrix(
                 position=coord_raw_robot[:3],
                 orientation=coord_raw_robot[3:],
-                axes='rzyx',
+                axes='sxyz',
             )
+
+            # XXX: It would be preferable to use the same coordinate system everywhere - however, below
+            #   the Euler angles are applied in the order z, y, x in a rotating frame ('r'). These rotation
+            #   angles come from the neuronavigation, so ideally they would need to be changed there. Keeping it
+            #   like it is for now.
             new_coord_coil_list = np.array(robot_process.coordinates_to_transformation_matrix(
                 position=coord_raw_tracker_obj[:3],
                 orientation=coord_raw_tracker_obj[3:],
@@ -370,12 +374,10 @@ class RobotControl:
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
         """
-        current_robot_coordinates_flip_angle = current_robot_coordinates.copy()
-        current_robot_coordinates_flip_angle[3], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[5] = current_robot_coordinates_flip_angle[5], current_robot_coordinates_flip_angle[4], current_robot_coordinates_flip_angle[3]
         distance_target = robot_process.correction_distance_calculation_target(tunning_to_target,
                                                                                current_robot_coordinates)
         distance_angle_target = robot_process.correction_distance_calculation_target(tunning_to_target[3:],
-                                                                                     current_robot_coordinates_flip_angle[3:])
+                                                                                     current_robot_coordinates[3:])
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
         if robot_process.estimate_robot_target_length(new_robot_coordinates) >= working_space:
@@ -404,7 +406,7 @@ class RobotControl:
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                if np.allclose(np.array(current_robot_coordinates_flip_angle), np.array(self.linear_target), 0, 10):
+                if np.allclose(np.array(current_robot_coordinates), np.array(self.linear_target), 0, 10):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
 
@@ -412,10 +414,10 @@ class RobotControl:
                 #UPDATE arc motion target
                 threshold_to_update_target_arc = self.robot_config['threshold_to_update_target_arc']
                 if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, threshold_to_update_target_arc):
-                    if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates_flip_angle) >= arc_threshold_distance:
+                    if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= arc_threshold_distance:
                         self.target_arc = target_arc
                         #Avoid small arc motion
-                    elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates_flip_angle) < arc_threshold_distance / 2:
+                    elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates) < arc_threshold_distance / 2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tunning_to_target
 
@@ -462,7 +464,7 @@ class RobotControl:
             self.robot.move_linear(linear_target)
 
         elif self.motion_type == MotionType.ARC:
-            start_position = current_robot_coordinates_flip_angle
+            start_position = current_robot_coordinates
             waypoint = middle_arc_point
             target = self.target_arc
 

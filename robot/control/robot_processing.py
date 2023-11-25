@@ -81,6 +81,11 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     :return: target_robot_matrix: 3x3 array representing change of basis from robot to head in robot system
     """
     # compute head target matrix
+
+    # XXX: It would be preferable to use the same coordinate system everywhere - however, below
+    #   the Euler angles are applied in the order z, y, x in a rotating frame ('r'). These rotation
+    #   angles come from the neuronavigation, so ideally they would need to be changed there. Keeping it
+    #   like it is for now.
     m_head_target = coordinates_to_transformation_matrix(
         position=head_coordinates[:3],
         orientation=head_coordinates[3:],
@@ -91,7 +96,7 @@ def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     m_robot_target = coordinates_to_transformation_matrix(
         position=robot_coordinates[:3],
         orientation=robot_coordinates[3:],
-        axes='rzyx',
+        axes='sxyz',
     )
     robot_to_head_matrix = np.linalg.inv(m_head_target) @ m_robot_target
 
@@ -130,7 +135,7 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
     init_move_out_point = current_robot_coordinates[0] + versor_factor_move_out[0], \
                           current_robot_coordinates[1] + versor_factor_move_out[1], \
                           current_robot_coordinates[2] + versor_factor_move_out[2], \
-                          current_robot_coordinates[5], current_robot_coordinates[4], current_robot_coordinates[3]
+                          current_robot_coordinates[3], current_robot_coordinates[4], current_robot_coordinates[5]
 
     middle_point = ((new_robot_coordinates[0] + current_robot_coordinates[0]) / 2,
                     (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
@@ -502,6 +507,9 @@ class TrackerProcessing:
 
         print("Update target based on InVesalius:", target_in_robot)
 
+        # TODO: Get rid of this later.
+        target_in_robot[3], target_in_robot[5] = target_in_robot[5], target_in_robot[3]
+
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
 
     def align_coil_with_head_center(self, tracker_coordinates, robot_coordinates):
@@ -518,10 +526,8 @@ class TrackerProcessing:
         angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
 
         target_in_robot = coord_raw_robot.copy()
-        target_in_robot[5] = target_in_robot[5] - (angle * crossvec[0])
+        target_in_robot[3] = target_in_robot[3] - (angle * crossvec[0])
         target_in_robot[4] = target_in_robot[4] - (angle * crossvec[1])
-        target_in_robot[3] = target_in_robot[3] - (angle * crossvec[2])
-
-        target_in_robot[3], target_in_robot[5] = target_in_robot[5], target_in_robot[3]
+        target_in_robot[5] = target_in_robot[5] - (angle * crossvec[2])
 
         return target_in_robot

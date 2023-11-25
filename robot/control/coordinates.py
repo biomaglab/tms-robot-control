@@ -11,7 +11,6 @@ class RobotCoordinates:
 
     def SetRobotCoordinates(self, coord):
         coord_robot = np.array(coord)
-        coord_robot[3], coord_robot[5] = coord_robot[5], coord_robot[3]
         self.robot_coord = coord_robot
 
     def GetRobotCoordinates(self):
