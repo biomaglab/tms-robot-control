@@ -20,7 +20,7 @@ class RobotCoordinates:
         return self.robot_coord
 
 
-class TrackerCoordinates:
+class Tracker:
     """
     Class to set/get tracker coordinates and do tracker-related transformations.
     Tracker coordinates are acquired in InVesalius.

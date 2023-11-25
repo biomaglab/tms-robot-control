@@ -29,7 +29,7 @@ class RobotControl:
         )
 
         self.robot_coordinates = coordinates.RobotCoordinates()
-        self.tracker_coordinates = coordinates.TrackerCoordinates()
+        self.tracker = coordinates.Tracker()
 
         self.robot = None
         self.robot_mode_status = False
@@ -90,7 +90,7 @@ class RobotControl:
                 print("Removing robot target")
             else:
                 target = np.array(target).reshape(4, 4)
-                self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker_coordinates, target)
+                self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
                 print("Setting robot target")
 
@@ -104,7 +104,7 @@ class RobotControl:
         if len(data) > 1:
             coord = data["coord"]
             markers_flag = data["markers_flag"]
-            self.tracker_coordinates.SetCoordinates(np.vstack([coord[0], coord[1], coord[2]]), markers_flag)
+            self.tracker.SetCoordinates(np.vstack([coord[0], coord[1], coord[2]]), markers_flag)
 
     def OnUpdateTrackerFiducialsMatrix(self, data):
         self.matrix_tracker_fiducials = np.array(data["matrix_tracker_fiducials"])
@@ -138,7 +138,7 @@ class RobotControl:
             # print(Y_est_check)
             print(ErrorStats)
             self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
-            self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
+            self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
             topic = 'Update robot transformation matrix'
             data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
@@ -151,7 +151,7 @@ class RobotControl:
     def OnLoadRobotMatrix(self, data):
         X_est, Y_est, affine_matrix_tracker_to_robot = np.split(np.array(data["data"]).reshape(12, 4), 3, axis=0)
         self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
-        self.tracker_coordinates.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
+        self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
     def OnCoilToRobotAlignment(self, distance):
         xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
@@ -309,8 +309,8 @@ class RobotControl:
         self.motion_type = MotionType.NORMAL
 
     def create_calibration_point(self):
-        coil_visible = self.tracker_coordinates.coil_visible
-        coil_pose = self.tracker_coordinates.coil_pose
+        coil_visible = self.tracker.coil_visible
+        coil_pose = self.tracker.coil_pose
 
         coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
 
@@ -386,7 +386,7 @@ class RobotControl:
         if distance_target >= arc_threshold_distance or \
            distance_angle_target >= arc_threshold_angle:
 
-            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker).tolist()
+            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker.m_tracker_to_robot, coord_head_tracker).tolist()
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
@@ -524,12 +524,12 @@ class RobotControl:
     def get_robot_status(self):
         robot_status = False
 
-        head_pose = self.tracker_coordinates.head_pose
+        head_pose = self.tracker.head_pose
         if head_pose is None:
             return False
 
-        head_visible = self.tracker_coordinates.head_visible
-        coil_visible = self.tracker_coordinates.coil_visible
+        head_visible = self.tracker.head_visible
+        coil_visible = self.tracker.coil_visible
 
         head_pose_filtered = self.process_tracker.kalman_filter(head_pose)
 
@@ -540,8 +540,8 @@ class RobotControl:
         else:
             force_sensor_values = False
 
-        if self.tracker_coordinates.m_tracker_to_robot is not None:
-            head_pose_in_robot_space = self.tracker_coordinates.transform_pose_to_robot_space(head_pose_filtered)
+        if self.tracker.m_tracker_to_robot is not None:
+            head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_filtered)
         else:
             # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
             #   claim that the head pose in tracker space is in robot space and use it as such.

@@ -168,11 +168,11 @@ def estimate_robot_target_length(robot_target):
 
     return robot_target_length
 
-def update_robot_target(tracker_coordinates,  robot_coordinates):
-    head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
+def update_robot_target(tracker, robot_coordinates):
+    head_pose_in_tracker_space = tracker.get_head_pose()
     robot_pose = robot_coordinates.GetRobotCoordinates()
 
-    head_pose_in_robot_space = tracker_coordinates.transform_pose_to_robot_space(head_pose_in_tracker_space)
+    head_pose_in_robot_space = tracker.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
     return compute_robot_to_head_matrix(head_pose_in_robot_space, robot_pose)
 
@@ -466,21 +466,21 @@ class TrackerProcessing:
 
         return head_left_right_versor
 
-    def estimate_robot_target(self,  tracker_coordinates,  m_target):
-        head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
+    def estimate_robot_target(self, tracker, m_target):
+        head_pose_in_tracker_space = tracker.get_head_pose()
 
-        target_pose_in_robot_space = tracker_coordinates.transform_matrix_to_robot_space(m_target)
-        head_pose_in_robot_space = tracker_coordinates.transform_pose_to_robot_space(head_pose_in_tracker_space)
+        target_pose_in_robot_space = tracker.transform_matrix_to_robot_space(m_target)
+        head_pose_in_robot_space = tracker.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
         print("Update target based on InVesalius:", target_pose_in_robot_space)
 
         return compute_robot_to_head_matrix(head_pose_in_robot_space, target_pose_in_robot_space)
 
-    def align_coil_with_head_center(self, tracker_coordinates, robot_coordinates):
-        head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
+    def align_coil_with_head_center(self, tracker, robot_coordinates):
+        head_pose_in_tracker_space = tracker.get_head_pose()
         robot_pose = robot_coordinates.GetRobotCoordinates()
 
-        head_center_coordinates = self.estimate_head_center_in_robot(tracker_coordinates.m_tracker_to_robot,
+        head_center_coordinates = self.estimate_head_center_in_robot(tracker.m_tracker_to_robot,
                                                                      head_pose_in_tracker_space).tolist()
 
         initaxis = [0,0,1]
