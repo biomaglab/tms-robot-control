@@ -54,8 +54,7 @@ class RobotControl:
         listener.start()
         #self.status = True
 
-        self.robot_tracker_flag = False
-        self.target_flag = False
+        self.target_set = False
         self.m_change_robot_to_head = [None] * 9
 
         self.motion_type = MotionType.NORMAL
@@ -79,18 +78,19 @@ class RobotControl:
 
     def OnUpdateRobotTargetMatrix(self, data):
         if self.robot:
-            self.robot_tracker_flag = data["robot_tracker_flag"]
+            # XXX: The variable received from neuronavigation is called 'robot_tracker_flag', which is confusing.
+            self.target_set = data["robot_tracker_flag"]
             target = data["target"]
-            if not self.robot_tracker_flag:
+            if not self.target_set:
                 self.robot.force_stop_robot()
                 self.m_change_robot_to_head = [None] * 9
                 self.target_force_sensor_data = 5
-                print("Removing robot target")
+                print("Target removed")
             else:
                 target = np.array(target).reshape(4, 4)
                 self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
-                print("Setting robot target")
+                print("Target set")
 
     def OnResetProcessTracker(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
@@ -546,7 +546,7 @@ class RobotControl:
             head_pose_in_robot_space = head_pose_filtered
 
         #CHECK IF TARGET FROM INVESALIUS
-        if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
+        if self.target_set and np.all(self.m_change_robot_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
             force_sensor_threshold = self.robot_config['force_sensor_threshold']
