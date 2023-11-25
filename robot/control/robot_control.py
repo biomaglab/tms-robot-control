@@ -345,7 +345,7 @@ class RobotControl:
                 self.remote_control.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tuning_to_target, ft_values=False):
+    def robot_move_decision(self, target_pose_in_robot_space, robot_pose, head_pose_in_tracker_space, tuning_to_target, ft_values=False):
         """
         There are two types of robot movements.
 
@@ -369,12 +369,13 @@ class RobotControl:
 
         """
         distance_target = robot_process.correction_distance_calculation_target(tuning_to_target,
-                                                                               current_robot_coordinates)
+                                                                               robot_pose)
         distance_angle_target = robot_process.correction_distance_calculation_target(tuning_to_target[3:],
-                                                                                     current_robot_coordinates[3:])
+                                                                                     robot_pose[3:])
+
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
-        if robot_process.estimate_robot_target_length(new_robot_coordinates) >= working_space:
+        if robot_process.estimate_robot_target_length(target_pose_in_robot_space) >= working_space:
             print("Head is too far from the robot basis")
             return False
 
@@ -384,14 +385,16 @@ class RobotControl:
         if distance_target >= arc_threshold_distance or \
            distance_angle_target >= arc_threshold_angle:
 
-            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(self.tracker.m_tracker_to_robot, coord_head_tracker).tolist()
+            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(
+                self.tracker.m_tracker_to_robot,
+                head_pose_in_tracker_space).tolist()
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
             linear_target, middle_arc_point, target_arc = robot_process.compute_arc_motion(
-                current_robot_coordinates=current_robot_coordinates,
+                current_robot_coordinates=robot_pose,
                 head_center_coordinates=head_center_coordinates,
-                new_robot_coordinates=new_robot_coordinates,  #needs to be new_robot_coordinates!!
+                new_robot_coordinates=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
                 versor_scale_factor=versor_scale_factor,
                 middle_arc_scale_factor=middle_arc_scale_factor,
             )
@@ -400,7 +403,7 @@ class RobotControl:
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                if np.allclose(np.array(current_robot_coordinates), np.array(self.linear_target), 0, 10):
+                if np.allclose(np.array(robot_pose), np.array(self.linear_target), 0, 10):
                     self.motion_type = MotionType.ARC
                     self.target_arc = target_arc
 
@@ -408,14 +411,14 @@ class RobotControl:
                 #UPDATE arc motion target
                 threshold_to_update_target_arc = self.robot_config['threshold_to_update_target_arc']
                 if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, threshold_to_update_target_arc):
-                    if robot_process.correction_distance_calculation_target(new_robot_coordinates, current_robot_coordinates) >= arc_threshold_distance:
+                    if robot_process.correction_distance_calculation_target(target_pose_in_robot_space, robot_pose) >= arc_threshold_distance:
                         self.target_arc = target_arc
                         #Avoid small arc motion
-                    elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates) < arc_threshold_distance / 2:
+                    elif robot_process.correction_distance_calculation_target(target_arc, robot_pose) < arc_threshold_distance / 2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tuning_to_target
 
-                if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
+                if np.allclose(np.array(robot_pose)[:3], np.array(self.target_arc)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
                     linear_target = tuning_to_target
             else:
@@ -458,7 +461,7 @@ class RobotControl:
             self.robot.move_linear(linear_target)
 
         elif self.motion_type == MotionType.ARC:
-            start_position = current_robot_coordinates
+            start_position = robot_pose
             waypoint = middle_arc_point
             target = self.target_arc
 
@@ -522,16 +525,16 @@ class RobotControl:
     def get_robot_status(self):
         robot_status = False
 
-        head_pose = self.tracker.head_pose
-        if head_pose is None:
+        head_pose_in_tracker_space = self.tracker.head_pose
+        if head_pose_in_tracker_space is None:
             return False
 
         head_visible = self.tracker.head_visible
         coil_visible = self.tracker.coil_visible
 
-        head_pose_filtered = self.process_tracker.kalman_filter(head_pose)
+        head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(head_pose_in_tracker_space)
 
-        current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
+        robot_pose = self.robot_coordinates.GetRobotCoordinates()
 
         if const.FORCE_TORQUE_SENSOR:
             force_sensor_values = self.read_force_sensor()
@@ -539,15 +542,15 @@ class RobotControl:
             force_sensor_values = False
 
         if self.tracker.m_tracker_to_robot is not None:
-            head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_filtered)
+            head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_in_tracker_space_filtered)
         else:
             # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
             #   claim that the head pose in tracker space is in robot space and use it as such.
-            head_pose_in_robot_space = head_pose_filtered
+            head_pose_in_robot_space = head_pose_in_tracker_space_filtered
 
         #CHECK IF TARGET FROM INVESALIUS
         if self.target_set and np.all(self.m_target_to_head[:3]):
-            #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
+            #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
             force_sensor_threshold = self.robot_config['force_sensor_threshold']
             force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
@@ -558,15 +561,15 @@ class RobotControl:
                 if head_pose_in_robot_space is not None and head_visible and coil_visible:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
-                        new_robot_coordinates = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
+                        target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
                         # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
                         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
                         #         if self.status:
                         #             self.SensorUpdateTarget(distance, self.status)
                         #             self.status = False
                         tuning_to_target = self.OnTuneTCP()
-                        robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                                head_pose_filtered, tuning_to_target, force_sensor_values)
+                        robot_status = self.robot_move_decision(target_pose_in_robot_space, robot_pose,
+                                                                head_pose_in_tracker_space_filtered, tuning_to_target, force_sensor_values)
                     else:
                         print("Head is moving too much")
                         self.robot.stop_robot()
