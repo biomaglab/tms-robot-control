@@ -432,28 +432,28 @@ class RobotControl:
             self.robot.set_target_reached(self.target_reached)
             return True
 
+        # Check the conditions for tuning.
         angular_distance_threshold_for_tuning = self.robot_config['angular_distance_threshold_for_tuning']
         distance_threshold_for_tuning = self.robot_config['distance_threshold_for_tuning']
-        if (np.sqrt(
-                np.sum(np.square(self.displacement_to_target[:3]))) < distance_threshold_for_tuning or
-            np.sqrt(
-                np.sum(np.square(self.displacement_to_target[3:]))) < angular_distance_threshold_for_tuning) \
-                and self.motion_type != MotionType.ARC:
-            # tunes the robot position based on neuronavigation
+
+        close_to_target = np.linalg.norm(self.displacement_to_target[:3]) < distance_threshold_for_tuning or
+                          np.linalg.norm(self.displacement_to_target[3:]) < angular_distance_threshold_for_tuning
+
+        if close_to_target and self.motion_type != MotionType.ARC:
             self.motion_type = MotionType.TUNING
             self.inside_circle = True
-            #print('Displacement to target: ', self.displacement_to_target)
+
             if const.FORCE_TORQUE_SENSOR and self.inside_circle and self.prev_state_flag == 1:
                 self.force_ref = ft_values[0:3]
                 self.moment_ref = ft_values[3:6]
                 print('Normalised!')
-                # print(self.force_ref)
+
             self.prev_state_flag = 0
         else:
             self.inside_circle = False
             self.prev_state_flag = 1
 
-        # Branch to different movement functions, depending on the motion type.
+        # Branch to different movement functions depending on the motion type.
         if self.motion_type == MotionType.NORMAL or \
            self.motion_type == MotionType.LINEAR_OUT:
 
