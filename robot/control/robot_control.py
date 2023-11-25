@@ -333,6 +333,7 @@ class RobotControl:
             print('Cannot collect the coil markers, please try again')
             return False
 
+    # Unused and bitrotten for now.
     def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
                                          marker_obj_flag):
         if marker_obj_flag:
