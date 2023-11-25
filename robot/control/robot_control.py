@@ -343,7 +343,7 @@ class RobotControl:
                 self.remote_control.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_move_decision(self, target_pose_in_robot_space, robot_pose, head_pose_in_tracker_space, tuning_to_target, ft_values=False):
+    def robot_move_decision(self, target_pose_in_robot_space, robot_pose, head_pose_in_tracker_space, force_sensor_values=None):
         """
         There are two types of robot movements.
 
@@ -371,6 +371,8 @@ class RobotControl:
         if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
             print("Head is too far from the robot basis")
             return False
+
+        tuning_to_target = self.OnTuneTCP()
 
         # Check the distance to target to determine the motion mode.
         distance_to_target = np.linalg.norm(tuning_to_target[:3] - robot_pose[:3])
@@ -439,8 +441,8 @@ class RobotControl:
             self.motion_type = MotionType.TUNING
 
             if const.FORCE_TORQUE_SENSOR and not self.tuning_ongoing:
-                self.force_ref = ft_values[0:3]
-                self.moment_ref = ft_values[3:6]
+                self.force_ref = force_sensor_values[0:3]
+                self.moment_ref = force_sensor_values[3:6]
                 print('Normalised!')
 
             self.tuning_ongoing = True
@@ -582,7 +584,10 @@ class RobotControl:
         #         if self.status:
         #             self.SensorUpdateTarget(distance, self.status)
         #             self.status = False
-        tuning_to_target = self.OnTuneTCP()
-        robot_status = self.robot_move_decision(target_pose_in_robot_space, robot_pose,
-                                                head_pose_in_tracker_space_filtered, tuning_to_target, force_sensor_values)
+        robot_status = self.robot_move_decision(
+            target_pose_in_robot_space=target_pose_in_robot_space,
+            robot_pose=robot_pose,
+            head_pose_in_tracker_space_filtered=head_pose_in_tracker_space_filtered,
+            force_sensor_values=force_sensor_values
+        )
         return robot_status
