@@ -174,13 +174,12 @@ def estimate_robot_target_length(robot_target):
     return robot_target_length
 
 def update_robot_target(tracker_coordinates,  robot_coordinates):
-    coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
-    head_coordinates_in_tracker = coord_raw[1]
-    coord_raw_robot = robot_coordinates.GetRobotCoordinates()
+    head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
+    robot_pose = robot_coordinates.GetRobotCoordinates()
 
-    head_coordinates_in_robot = tracker_coordinates.transform_pose_to_robot_space(head_coordinates_in_tracker)
+    head_pose_in_robot_space = tracker_coordinates.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
-    return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
+    return compute_robot_to_head_matrix(head_pose_in_robot_space, robot_pose)
 
 def bezier_curve(points, step):
     """
@@ -473,32 +472,30 @@ class TrackerProcessing:
         return head_left_right_versor
 
     def estimate_robot_target(self,  tracker_coordinates,  m_target):
-        coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
-        head_coordinates_in_tracker = coord_raw[1]
+        head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
 
-        target_in_robot = tracker_coordinates.transform_matrix_to_robot_space(m_target, axes='sxyz')
-        head_coordinates_in_robot = tracker_coordinates.transform_pose_to_robot_space(head_coordinates_in_tracker)
+        target_pose_in_robot_space = tracker_coordinates.transform_matrix_to_robot_space(m_target, axes='sxyz')
+        head_pose_in_robot_space = tracker_coordinates.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
-        print("Update target based on InVesalius:", target_in_robot)
+        print("Update target based on InVesalius:", target_pose_in_robot_space)
 
-        return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
+        return compute_robot_to_head_matrix(head_pose_in_robot_space, target_pose_in_robot_space)
 
     def align_coil_with_head_center(self, tracker_coordinates, robot_coordinates):
-        coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
-        coord_raw_robot = robot_coordinates.GetRobotCoordinates()
-        head_coordinates_in_tracker = coord_raw[1]
+        head_pose_in_tracker_space = tracker_coordinates.get_head_pose()
+        robot_pose = robot_coordinates.GetRobotCoordinates()
 
         head_center_coordinates = self.estimate_head_center_in_robot(tracker_coordinates.m_tracker_to_robot,
-                                                                     head_coordinates_in_tracker).tolist()
+                                                                     head_pose_in_tracker_space).tolist()
 
         initaxis = [0,0,1]
-        newaxis = compute_versors(head_center_coordinates[:3], coord_raw_robot[:3], scale=1)
+        newaxis = compute_versors(head_center_coordinates[:3], robot_pose[:3], scale=1)
         crossvec = np.cross(initaxis, newaxis)
         angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
 
-        target_in_robot = coord_raw_robot.copy()
-        target_in_robot[3] = target_in_robot[3] - (angle * crossvec[0])
-        target_in_robot[4] = target_in_robot[4] - (angle * crossvec[1])
-        target_in_robot[5] = target_in_robot[5] - (angle * crossvec[2])
+        target_pose_in_robot_space = robot_pose.copy()
+        target_pose_in_robot_space[3] = target_pose_in_robot_space[3] - (angle * crossvec[0])
+        target_pose_in_robot_space[4] = target_pose_in_robot_space[4] - (angle * crossvec[1])
+        target_pose_in_robot_space[5] = target_pose_in_robot_space[5] - (angle * crossvec[2])
 
-        return target_in_robot
+        return target_pose_in_robot_space

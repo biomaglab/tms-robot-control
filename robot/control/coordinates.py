@@ -31,6 +31,8 @@ class TrackerCoordinates:
         self.markers_flag = [False, False, False]
         self.m_tracker_to_robot = None
 
+        self.head_coordinates = None
+
     def SetTrackerToRobotMatrix(self, m_tracker_to_robot):
         self.m_tracker_to_robot = m_tracker_to_robot
 
@@ -38,8 +40,13 @@ class TrackerCoordinates:
         self.coord = coord
         self.markers_flag = markers_flag
 
+        self.head_pose = coord[1]
+
     def GetCoordinates(self):
         return self.coord, self.markers_flag
+
+    def get_head_pose(self):
+        return self.head_pose
 
     def transform_matrix_to_robot_space(self, M, axes='rzyx'):
         X, Y, affine = self.m_tracker_to_robot
