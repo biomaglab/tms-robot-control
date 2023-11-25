@@ -357,7 +357,7 @@ class RobotControl:
 
         1) normal:
             A linear move from the actual position until the target position.
-            This movement just happens when move distance is below a threshold ("robot_arc_threshold_distance" in robot config)
+            This movement just happens when move distance is below a threshold ("distance_threshold_for_arc_motion" in robot config)
 
         2) arc motion:
             It can be divided into three parts.
@@ -368,20 +368,21 @@ class RobotControl:
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
         """
-        distance_target = np.linalg.norm(tuning_to_target[:3] - robot_pose[:3])
-        distance_angle_target = np.linalg.norm(tuning_to_target[3:] - robot_pose[3:])
-
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
         if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
             print("Head is too far from the robot basis")
             return False
 
-        # Check the target distance to define the motion mode.
-        arc_threshold_distance = self.robot_config['arc_threshold_distance']
-        arc_threshold_angle = self.robot_config['arc_threshold_angle']
-        if distance_target >= arc_threshold_distance or \
-           distance_angle_target >= arc_threshold_angle:
+        # Check the distance to target to define the motion mode.
+        distance_to_target = np.linalg.norm(tuning_to_target[:3] - robot_pose[:3])
+        angular_distance_to_target = np.linalg.norm(tuning_to_target[3:] - robot_pose[3:])
+
+        distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
+        angular_distance_threshold_for_arc_motion = self.robot_config['angular_distance_threshold_for_arc_motion']
+
+        if distance_to_target >= distance_threshold_for_arc_motion or \
+           angular_distance_to_target >= angular_distance_threshold_for_arc_motion:
 
             head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(
                 self.tracker.m_tracker_to_robot,
@@ -409,10 +410,10 @@ class RobotControl:
                 #UPDATE arc motion target
                 threshold_to_update_target_arc = self.robot_config['threshold_to_update_target_arc']
                 if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, threshold_to_update_target_arc):
-                    if np.linalg.norm(target_pose_in_robot_space[:3] - robot_pose[:3]) >= arc_threshold_distance:
+                    if np.linalg.norm(target_pose_in_robot_space[:3] - robot_pose[:3]) >= distance_threshold_for_arc_motion:
                         self.target_arc = target_arc
                         #Avoid small arc motion
-                    elif np.linalg.norm(target_arc[:3] - robot_pose[:3]) < arc_threshold_distance / 2:
+                    elif np.linalg.norm(target_arc[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tuning_to_target
 

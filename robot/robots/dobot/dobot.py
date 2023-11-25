@@ -224,8 +224,8 @@ class Dobot:
                             self.stop_robot()
                             break
 
-                        arc_threshold_distance = self.robot_config['arc_threshold_distance']
-                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, arc_threshold_distance):
+                        distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
+                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, distance_threshold_for_arc_motion):
                             self.stop_robot()
                             break
                         if not self.moving:
