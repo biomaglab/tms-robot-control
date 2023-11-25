@@ -83,7 +83,7 @@ def estimate_head_velocity(coord_vel, timestamp):
 
     return velocity, distance
 
-def compute_versors(init_point, final_point, scale):
+def compute_versor(init_point, final_point, scale):
     init_point = np.array(init_point)
     final_point = np.array(final_point)
     norm = (sum((final_point - init_point) ** 2)) ** 0.5
@@ -95,7 +95,7 @@ def compute_arc_motion(robot_pose, head_center, target_pose, versor_scale_factor
     # XXX: Is this actually needed? Head center should already be a three-element list.
     head_center_ = head_center[0], head_center[1], head_center[2]
 
-    versor_factor_move_out = compute_versors(
+    versor_factor_move_out = compute_versor(
         init_point=head_center_,
         final_point=robot_pose[:3],
         scale=versor_scale_factor,
@@ -109,7 +109,7 @@ def compute_arc_motion(robot_pose, head_center, target_pose, versor_scale_factor
                     (target_pose[1] + robot_pose[1]) / 2,
                     (target_pose[2] + robot_pose[2]) / 2)
 
-    versors = compute_versors(
+    versors = compute_versor(
         init_point=head_center_,
         final_point=middle_point,
         scale=versor_scale_factor,
@@ -120,7 +120,7 @@ def compute_arc_motion(robot_pose, head_center, target_pose, versor_scale_factor
                        middle_point[2] + versor_factor_middle_arc[2], \
                        target_pose[3], target_pose[4], target_pose[5]
 
-    versor_factor_arc = compute_versors(
+    versor_factor_arc = compute_versor(
         init_point=head_center_,
         final_point=target_pose[:3],
         scale=versor_scale_factor,
@@ -426,7 +426,7 @@ class TrackerProcessing:
         X, Y, affine = m_tracker_to_robot
         m_nasion_new_in_robot = affine @ m_nasion_new
 
-        head_anterior_posterior_versor = compute_versors(center_head_in_robot, m_nasion_new_in_robot[:3, -1], scale=1)
+        head_anterior_posterior_versor = compute_versor(center_head_in_robot, m_nasion_new_in_robot[:3, -1], scale=1)
 
         return head_anterior_posterior_versor
 
@@ -444,7 +444,7 @@ class TrackerProcessing:
         m_ear_left_new_in_robot = affine @ m_ear_left_new
         m_ear_right_new_in_robot = affine @ m_ear_right_new
 
-        head_left_right_versor = compute_versors(m_ear_left_new_in_robot[:3, -1], m_ear_right_new_in_robot[:3, -1], scale=1)
+        head_left_right_versor = compute_versor(m_ear_left_new_in_robot[:3, -1], m_ear_right_new_in_robot[:3, -1], scale=1)
 
         return head_left_right_versor
 
@@ -467,7 +467,7 @@ class TrackerProcessing:
             head_pose_in_tracker_space).tolist()
 
         initaxis = [0,0,1]
-        newaxis = compute_versors(head_center_coordinates[:3], robot_pose[:3], scale=1)
+        newaxis = compute_versor(head_center_coordinates[:3], robot_pose[:3], scale=1)
         crossvec = np.cross(initaxis, newaxis)
         angle = np.rad2deg(np.arccos(np.dot(initaxis, newaxis)))
 
