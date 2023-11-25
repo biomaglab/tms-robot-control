@@ -55,7 +55,7 @@ class RobotControl:
         #self.status = True
 
         self.target_set = False
-        self.m_change_robot_to_head = [None] * 9
+        self.m_target_to_head = [None] * 9
 
         self.motion_type = MotionType.NORMAL
         self.linear_target = None
@@ -83,12 +83,12 @@ class RobotControl:
             target = data["target"]
             if not self.target_set:
                 self.robot.force_stop_robot()
-                self.m_change_robot_to_head = [None] * 9
+                self.m_target_to_head = [None] * 9
                 self.target_force_sensor_data = 5
                 print("Target removed")
             else:
                 target = np.array(target).reshape(4, 4)
-                self.m_change_robot_to_head = self.process_tracker.estimate_robot_target(self.tracker, target)
+                self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
                 print("Target set")
 
@@ -546,7 +546,7 @@ class RobotControl:
             head_pose_in_robot_space = head_pose_filtered
 
         #CHECK IF TARGET FROM INVESALIUS
-        if self.target_set and np.all(self.m_change_robot_to_head[:3]):
+        if self.target_set and np.all(self.m_target_to_head[:3]):
             #self.check_robot_tracker_registration(current_robot_coordinates, coord_obj_tracker_in_robot, marker_obj_flag)
             #CHECK FORCE SENSOR
             force_sensor_threshold = self.robot_config['force_sensor_threshold']
@@ -558,7 +558,7 @@ class RobotControl:
                 if head_pose_in_robot_space is not None and head_visible and coil_visible:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
-                        new_robot_coordinates = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_change_robot_to_head)
+                        new_robot_coordinates = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
                         # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
                         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
                         #         if self.status:

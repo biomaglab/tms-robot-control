@@ -48,29 +48,26 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     )
     return m_probe
 
-def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
+def compute_transformation_to_head_space(pose, head_pose):
     """
-    :param head: nx6 array of head coordinates from tracking device in robot space
-    :param robot: nx6 array of robot coordinates
+    :param pose: nx6 array of a pose in robot space
+    :param head: nx6 array of a head pose in robot space
 
-    :return: target_robot_matrix: 3x3 array representing change of basis from robot to head in robot system
+    :return: 4x4 array representing change of basis from the given pose to head's coordinate system.
     """
-    # compute head target matrix
-    m_head_target = coordinates_to_transformation_matrix(
-        position=head_coordinates[:3],
-        orientation=head_coordinates[3:],
+    m_head_pose = coordinates_to_transformation_matrix(
+        position=head_pose[:3],
+        orientation=head_pose[3:],
         axes='sxyz',
     )
-
-    # compute robot target matrix
-    m_robot_target = coordinates_to_transformation_matrix(
-        position=robot_coordinates[:3],
-        orientation=robot_coordinates[3:],
+    m_pose = coordinates_to_transformation_matrix(
+        position=pose[:3],
+        orientation=pose[3:],
         axes='sxyz',
     )
-    robot_to_head_matrix = np.linalg.inv(m_head_target) @ m_robot_target
+    to_head = np.linalg.inv(m_head_pose) @ m_pose
 
-    return robot_to_head_matrix
+    return to_head
 
 def AffineTransformation(tracker, robot):
     m_change = tr.affine_matrix_from_points(robot[:].T, tracker[:].T,
@@ -144,18 +141,18 @@ def correction_distance_calculation_target(coord_inv, actual_point):
 
     return correction_distance_compensation
 
-def compute_head_move_compensation(current_head, m_change_robot_to_head):
+def compute_head_move_compensation(head_pose_in_robot_space, m_target_to_head):
     """
     Estimates the new robot position to reach the target
     """
-    M_current_head = coordinates_to_transformation_matrix(
-        position=current_head[:3],
-        orientation=current_head[3:6],
+    m_head = coordinates_to_transformation_matrix(
+        position=head_pose_in_robot_space[:3],
+        orientation=head_pose_in_robot_space[3:6],
         axes='sxyz',
     )
-    m_robot_new = M_current_head @ m_change_robot_to_head
+    m_target_new = m_head @ m_target_to_head
 
-    translation, angles_as_deg = transformation_matrix_to_coordinates(m_robot_new, axes='sxyz')
+    translation, angles_as_deg = transformation_matrix_to_coordinates(m_target_new, axes='sxyz')
     new_robot_position = list(translation) + list(angles_as_deg)
 
     return new_robot_position
@@ -168,13 +165,14 @@ def estimate_robot_target_length(robot_target):
 
     return robot_target_length
 
-def update_robot_target(tracker, robot_coordinates):
+# Unused for now.
+def compute_transformation_tcp_to_head(tracker, robot_coordinates):
     head_pose_in_tracker_space = tracker.get_head_pose()
     robot_pose = robot_coordinates.GetRobotCoordinates()
 
     head_pose_in_robot_space = tracker.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
-    return compute_robot_to_head_matrix(head_pose_in_robot_space, robot_pose)
+    return compute_transformation_to_head_space(head_pose_in_robot_space, robot_pose)
 
 def bezier_curve(points, step):
     """
@@ -466,7 +464,7 @@ class TrackerProcessing:
 
         return head_left_right_versor
 
-    def estimate_robot_target(self, tracker, m_target):
+    def compute_transformation_target_to_head(self, tracker, m_target):
         head_pose_in_tracker_space = tracker.get_head_pose()
 
         target_pose_in_robot_space = tracker.transform_matrix_to_robot_space(m_target)
@@ -474,7 +472,7 @@ class TrackerProcessing:
 
         print("Update target based on InVesalius:", target_pose_in_robot_space)
 
-        return compute_robot_to_head_matrix(head_pose_in_robot_space, target_pose_in_robot_space)
+        return compute_transformation_to_head_space(head_pose_in_robot_space, target_pose_in_robot_space)
 
     def align_coil_with_head_center(self, tracker, robot_coordinates):
         head_pose_in_tracker_space = tracker.get_head_pose()
