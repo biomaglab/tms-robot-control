@@ -417,7 +417,6 @@ class RobotControl:
                     # Avoid small arc motion; in that case, it is better to use linear movement.
                     elif np.linalg.norm(arc_motion_target[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
                         self.motion_type = MotionType.NORMAL
-                        self.arc_motion_target = target_in_robot_space
 
                 if np.allclose(np.array(robot_pose)[:3], np.array(self.arc_motion_target)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
