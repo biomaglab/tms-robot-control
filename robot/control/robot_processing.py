@@ -48,14 +48,14 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     )
     return m_probe
 
-def transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord):
+def transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord, axes='rzyx'):
     X, Y, affine = m_tracker_to_robot
 
     M_tracker_in_robot = Y @ M_tracker_coord @ tr.inverse_matrix(X)
     M_affine_tracker_in_robot = affine @ M_tracker_coord
 
-    _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes='rzyx')
-    translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes='rzyx')
+    _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes=axes)
+    translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes=axes)
     tracker_in_robot = list(translation) + list(angles_as_deg)
 
     return tracker_in_robot
@@ -502,13 +502,10 @@ class TrackerProcessing:
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
         head_coordinates_in_tracker = coord_raw[1]
 
-        target_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, m_target)
+        target_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, m_target, axes='sxyz')
         head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
 
         print("Update target based on InVesalius:", target_in_robot)
-
-        # TODO: Get rid of this later.
-        target_in_robot[3], target_in_robot[5] = target_in_robot[5], target_in_robot[3]
 
         return compute_robot_to_head_matrix(head_coordinates_in_robot, target_in_robot)
 
