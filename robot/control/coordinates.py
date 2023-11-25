@@ -28,29 +28,37 @@ class TrackerCoordinates:
     """
     def __init__(self):
         self.coord = [None, None, None]
-        self.markers_flag = [False, False, False]
         self.m_tracker_to_robot = None
 
-        self.head_coordinates = None
+        self.probe_visible = False
+        self.head_visible = False
+        self.coil_visible = False
+
+        self.head_pose = None
 
     def SetTrackerToRobotMatrix(self, m_tracker_to_robot):
         self.m_tracker_to_robot = m_tracker_to_robot
 
     def SetCoordinates(self, coord, markers_flag):
         self.coord = coord
-        self.markers_flag = markers_flag
+
+        self.probe_visible = markers_flag[0]
+        self.head_visible = markers_flag[1]
+        self.coil_visible = markers_flag[2]
 
         self.head_pose = coord[1]
+        self.coil_pose = coord[2]
 
-        # XXX: The head pose comes from neuronavigation using the 'rzyx' convention for interpreting Euler angles
+        # XXX: The poses comes from neuronavigation using the 'rzyx' convention for interpreting Euler angles
         #   (That is, the axis order is z, y, x, using rotating frame). Convert it to the 'sxyz' convention used in
         #   this robot controller. The transformation below should not be the correct transformation, but it corresponds
         #   to how rotating frame is implemented in euler_matrix function in transformations.py: by swapping the x- and
         #   z-rotations.
         self.head_pose[3], self.head_pose[5] = self.head_pose[5], self.head_pose[3]
+        self.coil_pose[3], self.coil_pose[5] = self.coil_pose[5], self.coil_pose[3]
 
     def GetCoordinates(self):
-        return self.coord, self.markers_flag
+        return self.coord
 
     def get_head_pose(self):
         return self.head_pose

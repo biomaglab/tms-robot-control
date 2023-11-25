@@ -309,30 +309,26 @@ class RobotControl:
         self.motion_type = MotionType.NORMAL
 
     def create_calibration_point(self):
-        coord_raw, markers_flag = self.tracker_coordinates.GetCoordinates()
-        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
-        coord_raw_tracker_obj = coord_raw[2]
+        coil_visible = self.tracker_coordinates.coil_visible
+        coil_pose = self.tracker_coordinates.coil_pose
 
-        if markers_flag[2] and not any(coord is None for coord in coord_raw_robot):
+        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
+
+        if coil_visible and not any(coord is None for coord in coord_raw_robot):
             new_robot_coord_list = robot_process.coordinates_to_transformation_matrix(
                 position=coord_raw_robot[:3],
                 orientation=coord_raw_robot[3:],
                 axes='sxyz',
             )
-
-            # XXX: It would be preferable to use the same coordinate system everywhere - however, below
-            #   the Euler angles are applied in the order z, y, x in a rotating frame ('r'). These rotation
-            #   angles come from the neuronavigation, so ideally they would need to be changed there. Keeping it
-            #   like it is for now.
             new_coord_coil_list = np.array(robot_process.coordinates_to_transformation_matrix(
-                position=coord_raw_tracker_obj[:3],
-                orientation=coord_raw_tracker_obj[3:],
-                axes='rzyx',
+                position=coil_pose[:3],
+                orientation=coil_pose[3:],
+                axes='sxyz',
             ))
 
             self.robot_coord_matrix_list = np.vstack([self.robot_coord_matrix_list.copy(), new_robot_coord_list[np.newaxis]])
             self.coord_coil_matrix_list = np.vstack([self.coord_coil_matrix_list.copy(), new_coord_coil_list[np.newaxis]])
-            self.tracker_coord_list.append(coord_raw_tracker_obj[:3])
+            self.tracker_coord_list.append(coil_pose[:3])
             self.robot_coord_list.append(coord_raw_robot[:3])
 
             return True
@@ -527,12 +523,15 @@ class RobotControl:
 
     def get_robot_status(self):
         robot_status = False
-        current_tracker_coordinates, markers_flag = self.tracker_coordinates.GetCoordinates()
-        if current_tracker_coordinates[1] is None:
-            return robot_status
-        marker_head_flag = markers_flag[1]
-        marker_coil_flag = markers_flag[2]
-        coord_head_tracker_filtered = self.process_tracker.kalman_filter(current_tracker_coordinates[1])
+
+        head_pose = self.tracker_coordinates.head_pose
+        if head_pose is None:
+            return False
+
+        head_visible = self.tracker_coordinates.head_visible
+        coil_visible = self.tracker_coordinates.coil_visible
+
+        coord_head_tracker_filtered = self.process_tracker.kalman_filter(head_pose)
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
 
@@ -556,7 +555,7 @@ class RobotControl:
                self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
 
                 #CHECK IF HEAD IS VISIBLE
-                if coord_head_tracker_in_robot is not None and marker_head_flag and marker_coil_flag:
+                if coord_head_tracker_in_robot is not None and head_visible and coil_visible:
                     #CHECK HEAD VELOCITY
                     if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
                         new_robot_coordinates = robot_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
