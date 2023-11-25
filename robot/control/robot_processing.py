@@ -131,16 +131,6 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
 
     return init_move_out_point, middle_arc_point, final_ext_arc_point
 
-def correction_distance_calculation_target(coord_inv, actual_point):
-    """
-    Estimates the Euclidean distance between the actual position and the target
-    """
-    correction_distance_compensation = np.sqrt((coord_inv[0]-actual_point[0]) ** 2 +
-                                               (coord_inv[1]-actual_point[1]) ** 2 +
-                                               (coord_inv[2]-actual_point[2]) ** 2)
-
-    return correction_distance_compensation
-
 def compute_head_move_compensation(head_pose_in_robot_space, m_target_to_head):
     """
     Estimates the new robot position to reach the target

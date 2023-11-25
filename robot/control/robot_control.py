@@ -368,10 +368,8 @@ class RobotControl:
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
         """
-        distance_target = robot_process.correction_distance_calculation_target(tuning_to_target,
-                                                                               robot_pose)
-        distance_angle_target = robot_process.correction_distance_calculation_target(tuning_to_target[3:],
-                                                                                     robot_pose[3:])
+        distance_target = np.linalg.norm(tuning_to_target[:3] - robot_pose[:3])
+        distance_angle_target = np.linalg.norm(tuning_to_target[3:] - robot_pose[3:])
 
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
@@ -411,10 +409,10 @@ class RobotControl:
                 #UPDATE arc motion target
                 threshold_to_update_target_arc = self.robot_config['threshold_to_update_target_arc']
                 if not np.allclose(np.array(target_arc), np.array(self.target_arc), 0, threshold_to_update_target_arc):
-                    if robot_process.correction_distance_calculation_target(target_pose_in_robot_space, robot_pose) >= arc_threshold_distance:
+                    if np.linalg.norm(target_pose_in_robot_space[:3] - robot_pose[:3]) >= arc_threshold_distance:
                         self.target_arc = target_arc
                         #Avoid small arc motion
-                    elif robot_process.correction_distance_calculation_target(target_arc, robot_pose) < arc_threshold_distance / 2:
+                    elif np.linalg.norm(target_arc[:3] - robot_pose[:3]) < arc_threshold_distance / 2:
                         self.motion_type = MotionType.NORMAL
                         self.target_arc = tuning_to_target
 
