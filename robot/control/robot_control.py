@@ -347,7 +347,7 @@ class RobotControl:
                 self.remote_control.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tunning_to_target, ft_values=False):
+    def robot_move_decision(self, new_robot_coordinates, current_robot_coordinates, coord_head_tracker, tuning_to_target, ft_values=False):
         """
         There are two types of robot movements.
 
@@ -370,9 +370,9 @@ class RobotControl:
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
         """
-        distance_target = robot_process.correction_distance_calculation_target(tunning_to_target,
+        distance_target = robot_process.correction_distance_calculation_target(tuning_to_target,
                                                                                current_robot_coordinates)
-        distance_angle_target = robot_process.correction_distance_calculation_target(tunning_to_target[3:],
+        distance_angle_target = robot_process.correction_distance_calculation_target(tuning_to_target[3:],
                                                                                      current_robot_coordinates[3:])
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
@@ -415,17 +415,17 @@ class RobotControl:
                         #Avoid small arc motion
                     elif robot_process.correction_distance_calculation_target(target_arc, current_robot_coordinates) < arc_threshold_distance / 2:
                         self.motion_type = MotionType.NORMAL
-                        self.target_arc = tunning_to_target
+                        self.target_arc = tuning_to_target
 
                 if np.allclose(np.array(current_robot_coordinates)[:3], np.array(self.target_arc)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
-                    linear_target = tunning_to_target
+                    linear_target = tuning_to_target
             else:
                 self.motion_type = MotionType.NORMAL
-                linear_target = tunning_to_target
+                linear_target = tuning_to_target
         else:
             self.motion_type = MotionType.NORMAL
-            linear_target = tunning_to_target
+            linear_target = tuning_to_target
 
         # Check if the robot is already in the target position. If so, return early.
         if self.target_reached:
@@ -566,9 +566,9 @@ class RobotControl:
                         #         if self.status:
                         #             self.SensorUpdateTarget(distance, self.status)
                         #             self.status = False
-                        tunning_to_target = self.OnTuneTCP()
+                        tuning_to_target = self.OnTuneTCP()
                         robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                                head_pose_filtered, tunning_to_target, force_sensor_values)
+                                                                head_pose_filtered, tuning_to_target, force_sensor_values)
                     else:
                         print("Head is moving too much")
                         self.robot.stop_robot()
