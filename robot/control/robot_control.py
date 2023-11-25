@@ -389,7 +389,7 @@ class RobotControl:
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
-            linear_out_target, middle_arc_point, arc_motion_target = robot_process.compute_arc_motion(
+            linear_out_target, waypoint, arc_motion_target = robot_process.compute_arc_motion(
                 robot_pose=robot_pose,
                 head_center=head_center,
                 target_pose=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
@@ -458,11 +458,11 @@ class RobotControl:
             self.robot.move_linear(self.linear_out_target)
 
         elif self.motion_type == MotionType.ARC:
-            start_position = robot_pose
-            waypoint = middle_arc_point
-            target = self.arc_motion_target
-
-            self.robot.move_circular(start_position, waypoint, target)
+            self.robot.move_circular(
+                start_position=robot_pose,
+                waypoint=waypoint,
+                target=self.arc_motion_target
+            )
 
         elif self.motion_type == MotionType.TUNING:
             self.robot.tune_robot(self.displacement_to_target)
