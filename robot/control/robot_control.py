@@ -28,14 +28,14 @@ class RobotControl:
             robot_config=robot_config,
         )
 
-        self.robot_coordinates = coordinates.RobotCoordinates()
+        self.robot_pose_storage = coordinates.RobotPoseStorage()
         self.tracker = coordinates.Tracker()
 
         self.robot = None
         self.robot_mode_status = False
 
-        self.tracker_coord_list = []
-        self.robot_coord_list = []
+        self.tracker_coordinates = []
+        self.robot_coordinates = []
         self.matrix_tracker_to_robot = []
 
         self.new_force_sensor_data = 0
@@ -116,20 +116,23 @@ class RobotControl:
     def OnResetRobotMatrix(self, data):
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
-        self.tracker_coord_list = []
-        self.robot_coord_list = []
+        self.tracker_coordinates = []
+        self.robot_coordinates = []
         self.matrix_tracker_to_robot = []
 
     def OnRobotMatrixEstimation(self, data=None):
         try:
-            affine_matrix_robot_to_tracker = robot_process.AffineTransformation(np.array(self.tracker_coord_list), np.array(self.robot_coord_list))
+            affine_matrix_robot_to_tracker = robot_process.AffineTransformation(
+                self.tracker_coordinates,
+                self.robot_coordinates
+            )
             affine_matrix_tracker_to_robot = tr.inverse_matrix(affine_matrix_robot_to_tracker)
 
-            robot_coord_list = np.stack(self.robot_coord_matrix_list[1:], axis=2)
+            robot_coordinates = np.stack(self.robot_coord_matrix_list[1:], axis=2)
             coord_coil_list = np.stack(self.coord_coil_matrix_list[1:], axis=2)
-            X_est, Y_est, Y_est_check, ErrorStats = robot_process.Transformation_matrix.matrices_estimation(robot_coord_list, coord_coil_list)
-            print(robot_coord_list[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
-            print(robot_coord_list[:4, :4, -1][:3, 3].T - (affine_matrix_tracker_to_robot @ coord_coil_list[:4, :4, -1])[:3, 3].T)
+            X_est, Y_est, Y_est_check, ErrorStats = robot_process.Transformation_matrix.matrices_estimation(robot_coordinates, coord_coil_list)
+            print(robot_coordinates[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
+            print(robot_coordinates[:4, :4, -1][:3, 3].T - (affine_matrix_tracker_to_robot @ coord_coil_list[:4, :4, -1])[:3, 3].T)
             # print(X_est)
             # print(Y_est)
             # print(Y_est_check)
@@ -174,7 +177,7 @@ class RobotControl:
         return robot_process.transformation_matrix_to_coordinates(displacement_matrix, axes='sxyz')
 
     def compute_target_in_robot_space(self):
-        robot_pose = self.robot_coordinates.GetRobotCoordinates()
+        robot_pose = self.robot_pose_storage.GetRobotPose()
         m_robot = robot_process.coordinates_to_transformation_matrix(
             position=robot_pose[:3],
             orientation=robot_pose[3:],
@@ -291,9 +294,9 @@ class RobotControl:
             print('Normalising . . . .')
             self.REF_FLAG = True
 
-    def update_robot_coordinates(self):
-        coord_robot_raw = self.robot.get_coordinates()
-        self.robot_coordinates.SetRobotCoordinates(coord_robot_raw)
+    def update_robot_pose(self):
+        robot_pose = self.robot.get_coordinates()
+        self.robot_pose_storage.SetRobotPose(robot_pose)
 
     def robot_motion_reset(self):
         self.robot.stop_robot()
@@ -303,12 +306,12 @@ class RobotControl:
         coil_visible = self.tracker.coil_visible
         coil_pose = self.tracker.coil_pose
 
-        coord_raw_robot = self.robot_coordinates.GetRobotCoordinates()
+        robot_pose = self.robot_pose_storage.GetRobotPose()
 
-        if coil_visible and not any(coord is None for coord in coord_raw_robot):
-            new_robot_coord_list = robot_process.coordinates_to_transformation_matrix(
-                position=coord_raw_robot[:3],
-                orientation=coord_raw_robot[3:],
+        if coil_visible and not any(coord is None for coord in robot_pose):
+            new_robot_coordinates = robot_process.coordinates_to_transformation_matrix(
+                position=robot_pose[:3],
+                orientation=robot_pose[3:],
                 axes='sxyz',
             )
             new_coord_coil_list = np.array(robot_process.coordinates_to_transformation_matrix(
@@ -317,10 +320,11 @@ class RobotControl:
                 axes='sxyz',
             ))
 
-            self.robot_coord_matrix_list = np.vstack([self.robot_coord_matrix_list.copy(), new_robot_coord_list[np.newaxis]])
+            self.robot_coord_matrix_list = np.vstack([self.robot_coord_matrix_list.copy(), new_robot_coordinates[np.newaxis]])
             self.coord_coil_matrix_list = np.vstack([self.coord_coil_matrix_list.copy(), new_coord_coil_list[np.newaxis]])
-            self.tracker_coord_list.append(coil_pose[:3])
-            self.robot_coord_list.append(coord_raw_robot[:3])
+
+            self.tracker_coordinates.append(coil_pose[:3])
+            self.robot_coordinates.append(robot_pose[:3])
 
             return True
         else:
@@ -525,7 +529,7 @@ class RobotControl:
 
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(head_pose_in_tracker_space)
 
-        robot_pose = self.robot_coordinates.GetRobotCoordinates()
+        robot_pose = self.robot_pose_storage.GetRobotPose()
 
         if const.FORCE_TORQUE_SENSOR:
             force_sensor_values = self.read_force_sensor()

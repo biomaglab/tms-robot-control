@@ -155,7 +155,7 @@ if __name__ == '__main__':
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot_control.robot:
-            robot_control.update_robot_coordinates()
+            robot_control.update_robot_pose()
             robot_status = robot_control.get_robot_status()
 
             # If changed, send robot status to neuronavigation via remote control.

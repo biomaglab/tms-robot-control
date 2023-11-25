@@ -4,20 +4,20 @@ import robot.transformations as tr
 import robot.control.robot_processing as robot_process
 
 
-class RobotCoordinates:
+class RobotPoseStorage:
     """
-    Class to set/send robot coordinates.
+    Class to set/send robot pose.
     The class is required to avoid acquisition conflict with different threads (coordinates and navigation)
     """
     def __init__(self):
-        self.robot_coord = [None]*6
+        self.robot_pose = [None]*6
 
-    def SetRobotCoordinates(self, coord):
-        coord_robot = np.array(coord)
-        self.robot_coord = coord_robot
+    def SetRobotPose(self, coord):
+        robot_pose = np.array(robot_pose)
+        self.robot_pose = robot_pose
 
-    def GetRobotCoordinates(self):
-        return self.robot_coord
+    def GetRobotPose(self):
+        return self.robot_pose
 
 
 class Tracker:

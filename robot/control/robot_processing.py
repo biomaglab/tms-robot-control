@@ -149,9 +149,9 @@ def compute_head_move_compensation(head_pose_in_robot_space, m_target_to_head):
     return new_robot_position
 
 # Unused for now.
-def compute_transformation_tcp_to_head(tracker, robot_coordinates):
+def compute_transformation_tcp_to_head(tracker, robot_pose_storage):
     head_pose_in_tracker_space = tracker.get_head_pose()
-    robot_pose = robot_coordinates.GetRobotCoordinates()
+    robot_pose = robot_pose_storage.GetRobotPose()
 
     head_pose_in_robot_space = tracker.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
@@ -458,9 +458,10 @@ class TrackerProcessing:
 
         return compute_transformation_to_head_space(head_pose_in_robot_space, target_pose_in_robot_space)
 
-    def align_coil_with_head_center(self, tracker, robot_coordinates):
+    # Unused for now.
+    def align_coil_with_head_center(self, tracker, robot_pose_storage):
         head_pose_in_tracker_space = tracker.get_head_pose()
-        robot_pose = robot_coordinates.GetRobotCoordinates()
+        robot_pose = robot_pose_storage.GetRobotPose()
 
         head_center_coordinates = self.estimate_head_center_in_robot_space(
             tracker.m_tracker_to_robot,
