@@ -58,7 +58,7 @@ class RobotControl:
         self.m_target_to_head = [None] * 9
 
         self.motion_type = MotionType.NORMAL
-        self.linear_target = None
+        self.linear_out_target = None
         self.arc_motion_target = None
         self.previous_robot_status = False
 
@@ -373,7 +373,7 @@ class RobotControl:
             print("Head is too far from the robot basis")
             return False
 
-        # Check the distance to target to define the motion mode.
+        # Check the distance to target to determine the motion mode.
         distance_to_target = np.linalg.norm(tuning_to_target[:3] - robot_pose[:3])
         angular_distance_to_target = np.linalg.norm(tuning_to_target[3:] - robot_pose[3:])
 
@@ -389,7 +389,7 @@ class RobotControl:
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
-            linear_target, middle_arc_point, arc_motion_target = robot_process.compute_arc_motion(
+            linear_out_target, middle_arc_point, arc_motion_target = robot_process.compute_arc_motion(
                 current_robot_coordinates=robot_pose,
                 head_center_coordinates=head_center_coordinates,
                 new_robot_coordinates=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
@@ -397,11 +397,11 @@ class RobotControl:
                 middle_arc_scale_factor=middle_arc_scale_factor,
             )
             if self.motion_type == MotionType.NORMAL:
-                self.linear_target = linear_target
+                self.linear_out_target = linear_out_target
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                if np.allclose(np.array(robot_pose), np.array(self.linear_target), 0, 10):
+                if np.allclose(np.array(robot_pose), np.array(self.linear_out_target), 0, 10):
                     self.motion_type = MotionType.ARC
                     self.arc_motion_target = arc_motion_target
 
@@ -419,13 +419,10 @@ class RobotControl:
 
                 if np.allclose(np.array(robot_pose)[:3], np.array(self.arc_motion_target)[:3], 0, 20):
                     self.motion_type = MotionType.NORMAL
-                    linear_target = tuning_to_target
             else:
                 self.motion_type = MotionType.NORMAL
-                linear_target = tuning_to_target
         else:
             self.motion_type = MotionType.NORMAL
-            linear_target = tuning_to_target
 
         # Check if the robot is already in the target position. If so, return early.
         if self.target_reached:
@@ -454,10 +451,11 @@ class RobotControl:
             self.prev_state_flag = 1
 
         # Branch to different movement functions depending on the motion type.
-        if self.motion_type == MotionType.NORMAL or \
-           self.motion_type == MotionType.LINEAR_OUT:
+        if self.motion_type == MotionType.NORMAL:
+            self.robot.move_linear(tuning_to_target)
 
-            self.robot.move_linear(linear_target)
+        elif self.motion_type == MotionType.LINEAR_OUT:
+            self.robot.move_linear(self.linear_out_target)
 
         elif self.motion_type == MotionType.ARC:
             start_position = robot_pose
