@@ -91,25 +91,26 @@ def compute_versors(init_point, final_point, scale):
 
     return versor_factor
 
-def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_robot_coordinates, versor_scale_factor, middle_arc_scale_factor):
-    head_center = head_center_coordinates[0], head_center_coordinates[1], head_center_coordinates[2]
+def compute_arc_motion(robot_pose, head_center, target_pose, versor_scale_factor, middle_arc_scale_factor):
+    # XXX: Is this actually needed? Head center should already be a three-element list.
+    head_center_ = head_center[0], head_center[1], head_center[2]
 
     versor_factor_move_out = compute_versors(
-        init_point=head_center,
-        final_point=current_robot_coordinates[:3],
+        init_point=head_center_,
+        final_point=robot_pose[:3],
         scale=versor_scale_factor,
     )
-    init_move_out_point = current_robot_coordinates[0] + versor_factor_move_out[0], \
-                          current_robot_coordinates[1] + versor_factor_move_out[1], \
-                          current_robot_coordinates[2] + versor_factor_move_out[2], \
-                          current_robot_coordinates[3], current_robot_coordinates[4], current_robot_coordinates[5]
+    init_move_out_point = robot_pose[0] + versor_factor_move_out[0], \
+                          robot_pose[1] + versor_factor_move_out[1], \
+                          robot_pose[2] + versor_factor_move_out[2], \
+                          robot_pose[3], robot_pose[4], robot_pose[5]
 
-    middle_point = ((new_robot_coordinates[0] + current_robot_coordinates[0]) / 2,
-                    (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
-                    (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
+    middle_point = ((target_pose[0] + robot_pose[0]) / 2,
+                    (target_pose[1] + robot_pose[1]) / 2,
+                    (target_pose[2] + robot_pose[2]) / 2)
 
     versors = compute_versors(
-        init_point=head_center,
+        init_point=head_center_,
         final_point=middle_point,
         scale=versor_scale_factor,
     )
@@ -117,17 +118,17 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
     middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
                        middle_point[1] + versor_factor_middle_arc[1], \
                        middle_point[2] + versor_factor_middle_arc[2], \
-                       new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
+                       target_pose[3], target_pose[4], target_pose[5]
 
     versor_factor_arc = compute_versors(
-        init_point=head_center,
-        final_point=new_robot_coordinates[:3],
+        init_point=head_center_,
+        final_point=target_pose[:3],
         scale=versor_scale_factor,
     )
-    final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
-                          new_robot_coordinates[1] + versor_factor_arc[1], \
-                          new_robot_coordinates[2] + versor_factor_arc[2], \
-                          new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
+    final_ext_arc_point = target_pose[0] + versor_factor_arc[0], \
+                          target_pose[1] + versor_factor_arc[1], \
+                          target_pose[2] + versor_factor_arc[2], \
+                          target_pose[3], target_pose[4], target_pose[5]
 
     return init_move_out_point, middle_arc_point, final_ext_arc_point
 

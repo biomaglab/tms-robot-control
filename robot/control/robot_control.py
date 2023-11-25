@@ -383,16 +383,16 @@ class RobotControl:
         if distance_to_target >= distance_threshold_for_arc_motion or \
            angular_distance_to_target >= angular_distance_threshold_for_arc_motion:
 
-            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot_space(
+            head_center = self.process_tracker.estimate_head_center_in_robot_space(
                 self.tracker.m_tracker_to_robot,
                 head_pose_in_tracker_space).tolist()
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
             linear_out_target, middle_arc_point, arc_motion_target = robot_process.compute_arc_motion(
-                current_robot_coordinates=robot_pose,
-                head_center_coordinates=head_center_coordinates,
-                new_robot_coordinates=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
+                robot_pose=robot_pose,
+                head_center=head_center,
+                target_pose=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
                 versor_scale_factor=versor_scale_factor,
                 middle_arc_scale_factor=middle_arc_scale_factor,
             )
