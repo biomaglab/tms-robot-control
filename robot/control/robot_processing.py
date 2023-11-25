@@ -44,7 +44,7 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     m_probe = coordinates_to_transformation_matrix(
         position=coord_raw[obj_ref_mode, :3],
         orientation=coord_raw[obj_ref_mode, 3:],
-        axes='rzyx',
+        axes='sxyz',
     )
     return m_probe
 
@@ -151,7 +151,7 @@ def compute_head_move_compensation(current_head, m_change_robot_to_head):
     M_current_head = coordinates_to_transformation_matrix(
         position=current_head[:3],
         orientation=current_head[3:6],
-        axes='rzyx',
+        axes='sxyz',
     )
     m_robot_new = M_current_head @ m_change_robot_to_head
 

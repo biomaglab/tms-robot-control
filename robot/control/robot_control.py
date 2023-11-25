@@ -531,7 +531,7 @@ class RobotControl:
         head_visible = self.tracker_coordinates.head_visible
         coil_visible = self.tracker_coordinates.coil_visible
 
-        coord_head_tracker_filtered = self.process_tracker.kalman_filter(head_pose)
+        head_pose_filtered = self.process_tracker.kalman_filter(head_pose)
 
         current_robot_coordinates = self.robot_coordinates.GetRobotCoordinates()
 
@@ -541,9 +541,11 @@ class RobotControl:
             force_sensor_values = False
 
         if self.tracker_coordinates.m_tracker_to_robot is not None:
-            coord_head_tracker_in_robot = robot_process.transform_tracker_to_robot(self.tracker_coordinates.m_tracker_to_robot, coord_head_tracker_filtered)
+            head_pose_in_robot_space = self.tracker_coordinates.transform_pose_to_robot_space(head_pose_filtered)
         else:
-            coord_head_tracker_in_robot = coord_head_tracker_filtered
+            # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
+            #   claim that the head pose in tracker space is in robot space and use it as such.
+            head_pose_in_robot_space = head_pose_filtered
 
         #CHECK IF TARGET FROM INVESALIUS
         if self.robot_tracker_flag and np.all(self.m_change_robot_to_head[:3]):
@@ -555,10 +557,10 @@ class RobotControl:
                self.new_force_sensor_data <= (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
 
                 #CHECK IF HEAD IS VISIBLE
-                if coord_head_tracker_in_robot is not None and head_visible and coil_visible:
+                if head_pose_in_robot_space is not None and head_visible and coil_visible:
                     #CHECK HEAD VELOCITY
-                    if self.process_tracker.compute_head_move_threshold(coord_head_tracker_in_robot):
-                        new_robot_coordinates = robot_process.compute_head_move_compensation(coord_head_tracker_in_robot, self.m_change_robot_to_head)
+                    if self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
+                        new_robot_coordinates = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_change_robot_to_head)
                         # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
                         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
                         #         if self.status:
@@ -566,7 +568,7 @@ class RobotControl:
                         #             self.status = False
                         tunning_to_target = self.OnTuneTCP()
                         robot_status = self.robot_move_decision(new_robot_coordinates, current_robot_coordinates,
-                                                                coord_head_tracker_filtered, tunning_to_target, force_sensor_values)
+                                                                head_pose_filtered, tunning_to_target, force_sensor_values)
                     else:
                         print("Head is moving too much")
                         self.robot.stop_robot()
