@@ -48,31 +48,6 @@ def compute_marker_transformation(coord_raw, obj_ref_mode):
     )
     return m_probe
 
-def transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord, axes='rzyx'):
-    X, Y, affine = m_tracker_to_robot
-
-    M_tracker_in_robot = Y @ M_tracker_coord @ tr.inverse_matrix(X)
-    M_affine_tracker_in_robot = affine @ M_tracker_coord
-
-    _, angles_as_deg = transformation_matrix_to_coordinates(M_tracker_in_robot, axes=axes)
-    translation, _ = transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes=axes)
-    tracker_in_robot = list(translation) + list(angles_as_deg)
-
-    return tracker_in_robot
-
-def transform_tracker_to_robot(m_tracker_to_robot, coord_tracker):
-    M_tracker_coord = coordinates_to_transformation_matrix(
-        position=coord_tracker[:3],
-        orientation=coord_tracker[3:6],
-        axes='rzyx',
-    )
-    tracker_in_robot = transformation_tracker_to_robot(m_tracker_to_robot, M_tracker_coord)
-
-    if tracker_in_robot is None:
-        tracker_in_robot = coord_tracker
-
-    return tracker_in_robot
-
 def compute_robot_to_head_matrix(head_coordinates, robot_coordinates):
     """
     :param head: nx6 array of head coordinates from tracking device in robot space
@@ -203,8 +178,7 @@ def update_robot_target(tracker_coordinates,  robot_coordinates):
     head_coordinates_in_tracker = coord_raw[1]
     coord_raw_robot = robot_coordinates.GetRobotCoordinates()
 
-    head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot,
-                                                           head_coordinates_in_tracker)
+    head_coordinates_in_robot = tracker_coordinates.transform_pose_to_robot_space(head_coordinates_in_tracker)
 
     return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
 
@@ -502,8 +476,8 @@ class TrackerProcessing:
         coord_raw, markers_flag = tracker_coordinates.GetCoordinates()
         head_coordinates_in_tracker = coord_raw[1]
 
-        target_in_robot = transformation_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, m_target, axes='sxyz')
-        head_coordinates_in_robot = transform_tracker_to_robot(tracker_coordinates.m_tracker_to_robot, head_coordinates_in_tracker)
+        target_in_robot = tracker_coordinates.transform_matrix_to_robot_space(m_target, axes='sxyz')
+        head_coordinates_in_robot = tracker_coordinates.transform_pose_to_robot_space(head_coordinates_in_tracker)
 
         print("Update target based on InVesalius:", target_in_robot)
 
