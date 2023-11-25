@@ -55,7 +55,6 @@ class RobotControl:
         #self.status = True
 
         self.robot_tracker_flag = False
-        self.target_index = None
         self.target_flag = False
         self.m_change_robot_to_head = [None] * 9
 
@@ -81,7 +80,6 @@ class RobotControl:
     def OnUpdateRobotTargetMatrix(self, data):
         if self.robot:
             self.robot_tracker_flag = data["robot_tracker_flag"]
-            self.target_index = data["target_index"]
             target = data["target"]
             if not self.robot_tracker_flag:
                 self.robot.force_stop_robot()
