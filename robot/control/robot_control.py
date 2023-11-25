@@ -62,8 +62,8 @@ class RobotControl:
         self.previous_robot_status = False
 
         self.target_reached = False
-        self.displacement_to_target = [0]*6
-        self.ft_distance_offset = [0, 0]
+        self.displacement_to_target = 6 * [0]
+        self.ft_displacement_offset = [0, 0]
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -150,7 +150,7 @@ class RobotControl:
         self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
         self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-    def OnCoilToRobotAlignment(self, distance):
+    def OnCoilToRobotAlignment(self, displacement):
         xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
 
         rx_offset = self.site_config['rx_offset']
@@ -163,15 +163,15 @@ class RobotControl:
 
         rotation_alignment_matrix = tr.multiply_matrices(Rx, Ry, Rz)
 
-        fix_axis = -distance[0], distance[1], distance[2], -distance[3], distance[4], distance[5]
+        fix_axis = -displacement[0], displacement[1], displacement[2], -displacement[3], displacement[4], displacement[5]
         m_offset = robot_process.coordinates_to_transformation_matrix(
             position=fix_axis[:3],
             orientation=fix_axis[3:],
             axes='sxyz',
         )
-        distance_matrix = np.linalg.inv(rotation_alignment_matrix) @ m_offset @ rotation_alignment_matrix
+        displacement_matrix = np.linalg.inv(rotation_alignment_matrix) @ m_offset @ rotation_alignment_matrix
 
-        return robot_process.transformation_matrix_to_coordinates(distance_matrix, axes='sxyz')
+        return robot_process.transformation_matrix_to_coordinates(displacement_matrix, axes='sxyz')
 
     def compute_target_in_robot_space(self):
         robot_pose = self.robot_coordinates.GetRobotCoordinates()
@@ -197,10 +197,11 @@ class RobotControl:
         return list(translation) + list(angles_as_deg)
 
     def OnDistanceToTarget(self, data):
-        distance = data["distance"]
-        translation, angles_as_deg = self.OnCoilToRobotAlignment(distance)
-        translation[0] += self.ft_distance_offset[0]
-        translation[1] += self.ft_distance_offset[1]
+        # XXX: The variable received from neuronavigation is called 'distance', but displacement is a more accurate name.
+        displacement = data["distance"]
+        translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
+        translation[0] += self.ft_displacement_offset[0]
+        translation[1] += self.ft_displacement_offset[1]
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
     def OnCoilAtTarget(self, data):
@@ -513,7 +514,7 @@ class RobotControl:
         self.new_force_sensor_data = -F_normalised[2]
         # Calculate vector of point of application vs centre
         distance = [point_of_application[0], point_of_application[1]]
-        # self.ft_distance_offset = [point_of_application[0], point_of_application[1]]
+        # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
         # TODO: Change this entire part to compensate force properly in a feedback loop
 
         return ft_values
