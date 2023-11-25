@@ -384,7 +384,7 @@ class RobotControl:
         if distance_to_target >= distance_threshold_for_arc_motion or \
            angular_distance_to_target >= angular_distance_threshold_for_arc_motion:
 
-            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot(
+            head_center_coordinates = self.process_tracker.estimate_head_center_in_robot_space(
                 self.tracker.m_tracker_to_robot,
                 head_pose_in_tracker_space).tolist()
 

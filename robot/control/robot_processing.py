@@ -394,23 +394,24 @@ class TrackerProcessing:
 
         return True
 
-    def estimate_head_center_in_robot(self, m_tracker_to_robot, current_head):
+    def estimate_head_center_in_robot_space(self, m_tracker_to_robot, head_pose_in_tracker_space):
         """
-        Estimates the actual head center position using fiducials
+        Estimates the actual head center position in robot space as the average of the positions of
+        the left ear and right ear, using the fiducials registered in neuronavigation.
         """
         m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.matrix_tracker_fiducials
-        m_current_head = compute_marker_transformation(np.array([current_head]), 0)
+        m_head = compute_marker_transformation(np.array([head_pose_in_tracker_space]), 0)
 
-        m_ear_left_new = m_current_head @ m_probe_head_left
-        m_ear_right_new = m_current_head @ m_probe_head_right
+        m_ear_left_new = m_head @ m_probe_head_left
+        m_ear_right_new = m_head @ m_probe_head_right
 
         X, Y, affine = m_tracker_to_robot
-        m_ear_left_new_in_robot = affine @ m_ear_left_new
-        m_ear_right_new_in_robot = affine @ m_ear_right_new
+        m_ear_left_new_in_robot_space = affine @ m_ear_left_new
+        m_ear_right_new_in_robot_space = affine @ m_ear_right_new
 
-        center_head_in_robot = (m_ear_left_new_in_robot[:3, -1] + m_ear_right_new_in_robot[:3, -1])/2
+        center_head_in_robot_space = (m_ear_left_new_in_robot_space[:3, -1] + m_ear_right_new_in_robot_space[:3, -1])/2
 
-        return center_head_in_robot
+        return center_head_in_robot_space
 
     def estimate_head_anterior_posterior_versor(self, m_tracker_to_robot, current_head, center_head_in_robot):
         """
@@ -460,8 +461,9 @@ class TrackerProcessing:
         head_pose_in_tracker_space = tracker.get_head_pose()
         robot_pose = robot_coordinates.GetRobotCoordinates()
 
-        head_center_coordinates = self.estimate_head_center_in_robot(tracker.m_tracker_to_robot,
-                                                                     head_pose_in_tracker_space).tolist()
+        head_center_coordinates = self.estimate_head_center_in_robot_space(
+            tracker.m_tracker_to_robot,
+            head_pose_in_tracker_space).tolist()
 
         initaxis = [0,0,1]
         newaxis = compute_versors(head_center_coordinates[:3], robot_pose[:3], scale=1)
