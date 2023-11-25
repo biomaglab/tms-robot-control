@@ -41,27 +41,28 @@ class TrackerCoordinates:
     def GetCoordinates(self):
         return self.coord, self.markers_flag
 
-    def transform_matrix_to_robot_space(self, M_tracker_coord, axes='rzyx'):
+    def transform_matrix_to_robot_space(self, M, axes='rzyx'):
         X, Y, affine = self.m_tracker_to_robot
 
-        M_tracker_in_robot = Y @ M_tracker_coord @ tr.inverse_matrix(X)
-        M_affine_tracker_in_robot = affine @ M_tracker_coord
+        M_in_robot_space = Y @ M @ tr.inverse_matrix(X)
+        M_affine_in_robot_space = affine @ M
 
-        _, angles_as_deg = robot_process.transformation_matrix_to_coordinates(M_tracker_in_robot, axes=axes)
-        translation, _ = robot_process.transformation_matrix_to_coordinates(M_affine_tracker_in_robot, axes=axes)
-        tracker_in_robot = list(translation) + list(angles_as_deg)
+        _, angles_as_deg = robot_process.transformation_matrix_to_coordinates(M_in_robot_space, axes=axes)
+        translation, _ = robot_process.transformation_matrix_to_coordinates(M_affine_in_robot_space, axes=axes)
 
-        return tracker_in_robot
+        pose_in_robot_space = list(translation) + list(angles_as_deg)
 
-    def transform_pose_to_robot_space(self, coord_tracker):
-        M_tracker_coord = robot_process.coordinates_to_transformation_matrix(
-            position=coord_tracker[:3],
-            orientation=coord_tracker[3:6],
+        return pose_in_robot_space
+
+    def transform_pose_to_robot_space(self, pose):
+        M = robot_process.coordinates_to_transformation_matrix(
+            position=pose[:3],
+            orientation=pose[3:6],
             axes='rzyx',
         )
-        tracker_in_robot = self.transform_matrix_to_robot_space(M_tracker_coord)
+        pose_in_robot_space = self.transform_matrix_to_robot_space(M)
 
-        if tracker_in_robot is None:
-            tracker_in_robot = coord_tracker
+        if pose_in_robot_space is None:
+            pose_in_robot_space = pose
 
-        return tracker_in_robot
+        return pose_in_robot_space
