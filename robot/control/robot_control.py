@@ -303,7 +303,6 @@ class RobotControl:
 
     def robot_motion_reset(self):
         self.robot.stop_robot()
-        self.arc_motion_flag = False
         self.motion_type = MotionType.NORMAL
 
     def create_calibration_point(self):
