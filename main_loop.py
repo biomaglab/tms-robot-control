@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     # Initialize robot controller
     site_config = const.SITE_CONFIG[site]
-    robot_config = const.ROBOT_CONFIG[robot]
+    robot_config = const.ROBOT_CONFIG[robot if robot != "elfin_new_api" else "elfin"]
 
     robot_control = RobotControl(
         robot_type=robot,

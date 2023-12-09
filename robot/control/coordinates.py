@@ -12,7 +12,7 @@ class RobotPoseStorage:
     def __init__(self):
         self.robot_pose = [None]*6
 
-    def SetRobotPose(self, coord):
+    def SetRobotPose(self, robot_pose):
         robot_pose = np.array(robot_pose)
         self.robot_pose = robot_pose
 

@@ -343,7 +343,7 @@ class RobotControl:
                 self.remote_control.send_message(topic, data)
                 print('Request new robot transformation matrix')
 
-    def robot_move_decision(self, target_pose_in_robot_space, robot_pose, head_pose_in_tracker_space, force_sensor_values=None):
+    def robot_move_decision(self, target_pose_in_robot_space, robot_pose, head_pose_in_tracker_space_filtered, force_sensor_values=None):
         """
         There are two types of robot movements.
 
@@ -386,7 +386,7 @@ class RobotControl:
 
             head_center = self.process_tracker.estimate_head_center_in_robot_space(
                 self.tracker.m_tracker_to_robot,
-                head_pose_in_tracker_space).tolist()
+                head_pose_in_tracker_space_filtered).tolist()
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
@@ -433,7 +433,7 @@ class RobotControl:
         angular_distance_threshold_for_tuning = self.robot_config['angular_distance_threshold_for_tuning']
         distance_threshold_for_tuning = self.robot_config['distance_threshold_for_tuning']
 
-        close_to_target = np.linalg.norm(self.displacement_to_target[:3]) < distance_threshold_for_tuning or
+        close_to_target = np.linalg.norm(self.displacement_to_target[:3]) < distance_threshold_for_tuning or \
                           np.linalg.norm(self.displacement_to_target[3:]) < angular_distance_threshold_for_tuning
 
         if close_to_target and self.motion_type != MotionType.ARC:
