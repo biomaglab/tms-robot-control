@@ -312,8 +312,8 @@ class ElfinConnection:
             return MotionState.ERROR
 
         if self.use_new_api:
-            moving_state = bool(params[0])
-            error_state = bool(params[2])
+            moving_state = bool(int(params[0]))
+            error_state = bool(int(params[2]))
 
             if error_state:
                 return MotionState.ERROR
