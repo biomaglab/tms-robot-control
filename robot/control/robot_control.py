@@ -123,8 +123,8 @@ class RobotControl:
     def OnRobotMatrixEstimation(self, data=None):
         try:
             affine_matrix_robot_to_tracker = robot_process.AffineTransformation(
-                self.tracker_coordinates,
-                self.robot_coordinates
+                np.array(self.tracker_coordinates),
+                np.array(self.robot_coordinates)
             )
             affine_matrix_tracker_to_robot = tr.inverse_matrix(affine_matrix_robot_to_tracker)
 
