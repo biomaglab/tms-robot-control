@@ -187,6 +187,16 @@ class ElfinConnection:
         success, _ = self._send_and_receive(request)
         return success
 
+    def clear_errors(self):
+        """
+        Clears any errors.
+
+        :return: True if successful, otherwise False.
+        """
+        request = "GrpReset," + str(self.ROBOT_ID)
+        success, _ = self._send_and_receive(request, verbose=True)
+        return success
+
     def stop_robot(self):
         """
         Stops the robot's movement.
