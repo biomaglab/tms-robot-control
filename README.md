@@ -1,4 +1,5 @@
-# Robot_TMS
+# tms-robot-control
+
 Robotized transcranial magnetic stimulation controlled by InVesalius Navigator (https://github.com/invesalius/invesalius3)
 
 
