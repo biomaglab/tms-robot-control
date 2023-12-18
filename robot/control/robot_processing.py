@@ -132,20 +132,19 @@ def compute_arc_motion(current_robot_coordinates, head_center_coordinates, new_r
                     (new_robot_coordinates[1] + current_robot_coordinates[1]) / 2,
                     (new_robot_coordinates[2] + current_robot_coordinates[2]) / 2)
 
-    versor_factor_middle_arc = (np.array(compute_versors(head_center, middle_point))) * 1.5
+    versor_factor_middle_arc = (np.array(compute_versors(head_center, middle_point))) * const.ROBOT_MIDDLE_ARC_SCALE_FACTOR
     middle_arc_point = middle_point[0] + versor_factor_middle_arc[0], \
                        middle_point[1] + versor_factor_middle_arc[1], \
-                       middle_point[2] + versor_factor_middle_arc[2]
+                       middle_point[2] + versor_factor_middle_arc[2], \
+                       new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
 
     versor_factor_arc = compute_versors(head_center, new_robot_coordinates[:3])
     final_ext_arc_point = new_robot_coordinates[0] + versor_factor_arc[0], \
                           new_robot_coordinates[1] + versor_factor_arc[1], \
                           new_robot_coordinates[2] + versor_factor_arc[2], \
-                          new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5], 0
+                          new_robot_coordinates[3], new_robot_coordinates[4], new_robot_coordinates[5]
 
-    target_arc = middle_arc_point + final_ext_arc_point
-
-    return init_move_out_point, target_arc
+    return init_move_out_point, middle_arc_point, final_ext_arc_point
 
 def correction_distance_calculation_target(coord_inv, actual_point):
     """
@@ -191,6 +190,36 @@ def update_robot_target(tracker_coordinates,  robot_coordinates):
 
     return compute_robot_to_head_matrix(head_coordinates_in_robot, coord_raw_robot)
 
+def bezier_curve(points):
+    """
+    Code based on https://github.com/torresjrjr/Bezier.py
+    Returns a point interpolated by the Bezier process for arc motion
+    INPUTS:
+        t_values     list of floats/ints
+        points       list of numpy arrays
+    OUTPUTS:
+        curve        list of numpy arrays
+    """
+    t_values = np.arange(0, 1, const.ROBOT_ARC_BEZIER_CURVE_STEP) #define the number of points along the path
+    t_values = np.append(t_values, 1)
+    curve = []
+    init_angles = points[0, 3:]
+    target_angles = points[2, 3:]
+
+    for t in t_values:
+        newpoints = np.array(points)
+        while len(newpoints) > 1:
+            newpoints_aux = (1 - t) * newpoints[:-1] + t * newpoints[1:]
+            newpoints = newpoints_aux
+        if t <= 0.7:
+            newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], init_angles[1], init_angles[2]
+        # elif t <= 0.5:
+        #     newpoints[0][3], newpoints[0][4], newpoints[0][5] = init_angles[0], target_angles[1], target_angles[2]
+        else:
+            newpoints[0][3], newpoints[0][4], newpoints[0][5] = target_angles[0], target_angles[1], target_angles[2]
+        curve.append(newpoints[0])
+
+    return np.array(curve)
 
 #the class Transformation_matrix is based on elif.ayvali code @ https://github.com/eayvali/Pose-Estimation-for-Sensor-Calibration
 class Transformation_matrix:
@@ -385,8 +414,12 @@ class TrackerProcessing:
                 del self.velocity_vector[0]
 
             if self.velocity_std > const.ROBOT_HEAD_VELOCITY_THRESHOLD:
+                self.coord_vel = []
+                self.timestamp = []
                 return False
             else:
+                self.coord_vel = []
+                self.timestamp = []
                 return True
 
         return True

@@ -3,7 +3,7 @@ from time import sleep
 from socket import socket, AF_INET, SOCK_STREAM
 import robot.constants as const
 
-class Elfin_Server():
+class Server():
     """
     This class is similar to tracker devices wrappers.
     It follows the same functions as the others (Initialize, Run and Close)
@@ -13,6 +13,7 @@ class Elfin_Server():
         self.port_number = port_number
         self.remote_control = remote_control
         self.coordinate = [None]*6
+        self.coil_at_target_flag = False
 
     def Initialize(self):
         message_size = 1024
@@ -27,7 +28,10 @@ class Elfin_Server():
             self.coordinate = coord
         return self.coordinate
 
-    def SendCoordinatesControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
+    def coil_at_target_state(self, coil_at_target_state):
+        self.coil_at_target_flag = coil_at_target_state
+
+    def SendTargetToControl(self, target, motion_type=const.ROBOT_MOTIONS["normal"]):
         """
         It's not possible to send a move command to elfin if the robot is during a move.
          Status 1009 means robot in motion.
@@ -36,20 +40,30 @@ class Elfin_Server():
         if motion_type == const.ROBOT_MOTIONS["normal"] or motion_type == const.ROBOT_MOTIONS["linear out"]:
             self.cobot.MoveB(target)
         elif motion_type == const.ROBOT_MOTIONS["arc"]:
-            if status == const.ROBOT_MOVE_STATE["free to move"]:
-                self.cobot.MoveC(target)
-            elif status == const.ROBOT_MOVE_STATE["error"]:
+            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+                target_arc = target[1][:3] + target[2]
+                self.cobot.MoveC(target_arc)
+            elif status == const.ROBOT_ELFIN_MOVE_STATE["error"]:
                 self.StopRobot()
+        elif motion_type == const.ROBOT_MOTIONS["tunning"]:
+            if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
+                self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
+                #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
+                abs_distance_to_target = [abs(x) for x in target]
+                direction = abs_distance_to_target.index(max(abs_distance_to_target))
+                CompenDistance = [direction, 1, target[direction]]
+                self.cobot.MoveRelL(CompenDistance)
+                self.cobot.SetToolCoordinateMotion(0)
 
     def GetForceSensorData(self):
         if const.FORCE_TORQUE_SENSOR:
-            return self.cobot.ReadForceSensorData()[2]
+            return self.cobot.ReadForceSensorData()
         else:
             return False
 
     def CompensateForce(self, flag):
         status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_MOVE_STATE["free to move"]:
+        if status == const.ROBOT_ELFIN_MOVE_STATE["free to move"]:
             if not flag:
                 self.StopRobot()
             self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
@@ -58,22 +72,14 @@ class Elfin_Server():
             self.cobot.MoveRelL(CompenDistance)  # Robot moves in specified spatial coordinate directional
             self.cobot.SetToolCoordinateMotion(0)
 
-    def TuneTarget(self, distance_to_target):
-        status = self.cobot.ReadMoveState()
-        if status == const.ROBOT_MOVE_STATE["free to move"]:
-            self.cobot.SetToolCoordinateMotion(1)  # Set tool coordinate motion (0 = Robot base, 1 = TCP)
-            #self.cobot.SetOverride(0.1)  # Setting robot's movement speed
-            abs_distance_to_target = [abs(x) for x in distance_to_target]
-            direction = abs_distance_to_target.index(max(abs_distance_to_target))
-            CompenDistance = [direction, 1, distance_to_target[direction]]
-            self.cobot.MoveRelL(CompenDistance)
-            self.cobot.SetToolCoordinateMotion(0)
-
     def StopRobot(self):
         # Takes some microseconds to the robot actual stops after the command.
         # The sleep time is required to guarantee the stop
         self.cobot.GrpStop()
         sleep(0.05)
+
+    def ForceStopRobot(self):
+        self.StopRobot()
 
     def Close(self):
         self.StopRobot()
@@ -333,7 +339,7 @@ class Elfin:
         """
         target = [str(s) for s in target]
         target = (",".join(target))
-        message = "MoveC," + self.robot_id + ',' + target + self.end_msg
+        message = "MoveC," + self.robot_id + ',' + target + ',0' + self.end_msg
         return self.send(message)
 
     def MoveB(self, target):
