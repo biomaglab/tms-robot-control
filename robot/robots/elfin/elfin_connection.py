@@ -268,7 +268,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
-            str(axis) + ',' + str(direction) + ',' + str(distance)
+            str(axis.value) + ',' + str(direction.value) + ',' + str(distance)
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
@@ -302,7 +302,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         command = "SetToolMotion" if self.use_new_api else "SetToolCoordinateMotion"
-        request = command + "," + str(self.ROBOT_ID) + ',' + str(reference_frame)
+        request = command + "," + str(self.ROBOT_ID) + ',' + str(reference_frame.value)
 
         success, _ = self._send_and_receive(request)
         return success

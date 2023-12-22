@@ -70,7 +70,8 @@ class Elfin():
         self.connection.set_reference_frame(ReferenceFrame.TOOL)
 
         # Move along the axis that has the largest displacement.
-        axis = np.argmax(np.abs(displacement))
+        axis_index = np.argmax(np.abs(displacement))
+        axis = Axis(axis_index)
         distance = np.abs(displacement[axis])
         direction = Direction.NEGATIVE if displacement[axis] < 0 else Direction.POSITIVE
 
