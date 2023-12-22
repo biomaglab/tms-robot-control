@@ -165,9 +165,9 @@ class RobotControl:
         ry_offset = self.site_config['ry_offset']
         rz_offset = self.site_config['rz_offset']
 
-        Rx = tr.rotation_matrix(rx_offset, xaxis)
-        Ry = tr.rotation_matrix(ry_offset, yaxis)
-        Rz = tr.rotation_matrix(rz_offset, zaxis)
+        Rx = tr.rotation_matrix(np.radians(rx_offset), xaxis)
+        Ry = tr.rotation_matrix(np.radians(ry_offset), yaxis)
+        Rz = tr.rotation_matrix(np.radians(rz_offset), zaxis)
 
         rotation_alignment_matrix = tr.multiply_matrices(Rx, Ry, Rz)
 
