@@ -195,11 +195,21 @@ class RobotControl:
             orientation=robot_pose[3:],
             axes='sxyz',
         )
-        m_offset = robot_process.coordinates_to_transformation_matrix(
-            position=self.displacement_to_target[:3],
-            orientation=self.displacement_to_target[3:],
-            axes='sxyz',
-        )
+
+        # XXX: The code below essentially copies the code from coordinates_to_transformation_matrix function, except that the order
+        #   of rotation and translation is reversed (in the code below it is: rotation first, then translation). However,
+        #   we should stick with one convention, hence the coordinates_to_transformation_matrix is not modified to allow
+        #   using two different conventions. The correct solution would be to change neuronavigation so that the displacement
+        #   received from the there follows the same convention as used elsewhere in this code and most likely in neuronavigation
+        #   as well.
+        a, b, g = np.radians(self.displacement_to_target[3:])
+
+        r_ref = tr.euler_matrix(a, b, g, axes='sxyz')
+        t_ref = tr.translation_matrix(self.displacement_to_target[:3])
+
+        # XXX: First rotate, then translate. This is done because displacement received from neuronavigation uses that order.
+        m_offset = tr.multiply_matrices(r_ref, t_ref)
+
         m_final = m_robot @ m_offset
         translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
 
