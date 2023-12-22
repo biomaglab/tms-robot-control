@@ -369,13 +369,17 @@ class ElfinConnection:
 
         :return: True if successful, otherwise False.
         """
-        # Always use movement type 0.
-        movement_type_str = '0'
 
         if self.use_new_api:
+            # XXX: The velocity is set to 300 and the acceleration to 2500. It turns out that the units specified in the API manual
+            #   (mm/s and mm/s^2, respectively) are most likely incorrect. It is uncertain what is the actual unit, but these values
+            #   seem to work well enough.
             request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(start_position) + ',' + self.list_to_str(waypoint) + \
-                    ',' + self.list_to_str(target) + ',' + movement_type_str + ',0,1,10,10,1,TCP,Base,0'
+                    ',' + self.list_to_str(target) + ',0,1,0,300,2500,1,TCP,Base,0'
         else:
+            # Always use movement type 0.
+            movement_type_str = '0'
+
             # Note: The start position is unused in the old version of the Elfin API.
             request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target) + ',' + movement_type_str
 
