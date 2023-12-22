@@ -15,6 +15,8 @@ class Elfin():
     """
     The class for communicating with Elfin robot.
     """
+    SPEED_RATIO = 0.20
+
     def __init__(self, ip, use_new_api=False):
         self.coordinates = 6 * [None]
         self.target_reached = False
@@ -23,6 +25,11 @@ class Elfin():
             ip=ip,
             use_new_api=use_new_api,
         )
+
+    def initialize(self):
+        # With the new Elfin firmware (5.51.9.beta.20230703), the speed ratio resets to 1% at start-up.
+        # Hence, set it programmatically to a higher value.
+        self.connection.set_speed_ratio(self.SPEED_RATIO)
 
     def connect(self):
         return self.connection.connect()

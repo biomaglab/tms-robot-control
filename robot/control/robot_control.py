@@ -237,7 +237,9 @@ class RobotControl:
             assert False, "Unknown robot model"
 
         if success:
-            print('Connected to robot tracking device.')
+            print('Connected to robot.')
+            self.robot.initialize()
+            print('Robot initialized.')
         else:
             # Send message to neuronavigation to close the robot dialog.
             topic = 'Dialog robot destroy'

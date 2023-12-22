@@ -62,6 +62,11 @@ class Dobot:
 
         return self.connected
 
+    def initialize(self):
+        # Not implemented for Dobot at the moment; there is no need to do any initialization steps
+        # after connecting.
+        pass
+
     def get_coordinates(self):
         return self.coordinates
 
