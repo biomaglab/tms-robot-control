@@ -246,11 +246,11 @@ class ElfinConnection:
 
     def get_coordinates(self):
         """
-        Gets the space coordinates of the robot.
+        Gets the pose of the robot TCP.
 
-        :return: A pair of a success indicator and the current coordinates.
+        :return: A pair of a success indicator and the current pose.
 
-            The coordinates are a list [x, y, z, rx, ry, rz], where
+            The pose is a list [x, y, z, rx, ry, rz], where
 
             x, y, z are the coordinates in mm, and
             rx, ry, rz are the rotation angles in degrees.
