@@ -68,7 +68,7 @@ class Elfin():
             self.stop_robot()
             return
 
-        self.connection.move_circular(start_position, waypoint[:3], target)
+        self.connection.move_circular(start_position, waypoint, target)
 
     def tune_robot(self, displacement):
         motion_state = self.connection.get_motion_state()

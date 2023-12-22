@@ -386,8 +386,8 @@ class ElfinConnection:
         """
         Moves the robot to the specified space coordinates using circular motion.
 
-        :param: start_position: [x, y, z], where x, y, z are the coordinates in mm.
-        :param: waypoint: [x, y, z], where x, y, z are the coordinates in mm.
+        :param: start_position: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm and rx, ry, rz are the rotation angles in degrees.
+        :param: waypoint: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm and rx, ry, rz are the rotation angles in degrees.
         :param: target: [x, y, z, rx, ry, rz], where
 
             x, y, z are the coordinates in mm, and
@@ -407,7 +407,7 @@ class ElfinConnection:
             movement_type_str = '0'
 
             # Note: The start position is unused in the old version of the Elfin API.
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target) + ',' + movement_type_str
+            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint[:3]) + ',' + self.list_to_str(target) + ',' + movement_type_str
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
