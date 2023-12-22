@@ -218,6 +218,32 @@ class ElfinConnection:
         success, _ = self._send_and_receive(request)
         return success
 
+    def get_tcp_offset(self):
+        """
+        Gets the offset of the tool center point, relative to the end effector.
+
+        TODO: Only works for the new Elfin API; for the old, returns None. We should switch
+        to a single API version so that fetching the TCP offset can be unified. It should
+        come from the robot instead of being hard-coded.
+
+        :return: A pair of a success indicator and the TCP offset.
+
+            The TCP offset is a list [x, y, z, rx, ry, rz], where
+
+            x, y, z are the coordinates in mm, and
+            rx, ry, rz are the rotation angles in degrees.
+        """
+        command = "ReadActPos" if self.use_new_api else "ReadPcsActualPos"
+        request = command + "," + str(self.ROBOT_ID)
+
+        success, params = self._send_and_receive(request)
+        if not success or params is None:
+            coordinates = None
+        else:
+            coordinates = [float(s) for s in params[12:18]] if self.use_new_api else None
+
+        return success, coordinates
+
     def get_coordinates(self):
         """
         Gets the space coordinates of the robot.
