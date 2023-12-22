@@ -30,7 +30,7 @@ SITE_CONFIG = {
   'tubingen': {
     'rx_offset': 0,
     'ry_offset': 0,
-    'rz_offset': 157.5,
+    'rz_offset': 0,
   },
   'default': {
     'rx_offset': 0,
