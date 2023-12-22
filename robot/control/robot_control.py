@@ -171,10 +171,9 @@ class RobotControl:
 
         rotation_alignment_matrix = tr.multiply_matrices(Rx, Ry, Rz)
 
-        fix_axis = -displacement[0], displacement[1], displacement[2], -displacement[3], displacement[4], displacement[5]
         m_offset = robot_process.coordinates_to_transformation_matrix(
-            position=fix_axis[:3],
-            orientation=fix_axis[3:],
+            position=displacement[:3],
+            orientation=displacement[3:],
             axes='sxyz',
         )
         displacement_matrix = np.linalg.inv(rotation_alignment_matrix) @ m_offset @ rotation_alignment_matrix
@@ -201,6 +200,20 @@ class RobotControl:
     def OnDistanceToTarget(self, data):
         # XXX: The variable received from neuronavigation is called 'distance', but displacement is a more accurate name.
         displacement = data["distance"]
+
+        # XXX: The sign reversal for x- and rx-axes below is done to make the following relationship between the robot movement
+        #   and the displacement received from neuronavigation true:
+        #
+        # Starting from the target (i.e., displacement = [0, 0, 0, 0, 0, 0]), move the robot in the positive x-direction by 10 mm.
+        # The displacement is a vector from the current robot position to the target position, so the displacement should
+        # become [-10, 0, 0, 0, 0, 0]. However, the displacement received from neuronavigation is [10, 0, 0, 0, 0, 0].
+        # The same applies for rx-axis (but not for the other axes) - hence the sign reversal.
+        #
+        # The correct way to proceed from here would be to understand why the sign is incorrect for those axes in particular, and
+        # most likely reverse the sign in the neuronavigation code that sends the displacement.
+        displacement[0] = -displacement[0]
+        displacement[3] = -displacement[3]
+
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
