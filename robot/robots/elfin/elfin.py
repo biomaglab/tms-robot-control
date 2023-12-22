@@ -31,6 +31,11 @@ class Elfin():
         # Hence, set it programmatically to a higher value.
         self.connection.set_speed_ratio(self.SPEED_RATIO)
 
+        # With the new firmware (5.51.9.beta.20230703), changing between reference frames is not possible
+        # during movement. Hence, set the reference frame to tool here, as it is the only reference frame used;
+        # it only applies to relative movement, which is always done with respect to the tool.
+        self.connection.set_reference_frame(ReferenceFrame.TOOL)
+
     def connect(self):
         return self.connection.connect()
 
@@ -74,8 +79,6 @@ class Elfin():
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        self.connection.set_reference_frame(ReferenceFrame.TOOL)
-
         # Move along the axis that has the largest displacement.
         axis_index = np.argmax(np.abs(displacement))
         axis = Axis(axis_index)
@@ -88,8 +91,6 @@ class Elfin():
             distance=distance,
         )
 
-        self.connection.set_reference_frame(ReferenceFrame.ROBOT)
-
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
 
@@ -98,8 +99,6 @@ class Elfin():
         motion_state = self.connection.get_motion_state()
         if motion_state != MotionState.FREE_TO_MOVE:
             return
-
-        self.connection.set_reference_frame(ReferenceFrame.TOOL)
 
         axis = Axis.Z
         direction = Direction.NEGATIVE
@@ -110,7 +109,6 @@ class Elfin():
             direction=direction,
             distance=distance,
         )
-        self.connection.set_reference_frame(ReferenceFrame.ROBOT)
 
     def stop_robot(self):
         self.connection.stop_robot()
