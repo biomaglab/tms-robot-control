@@ -17,12 +17,13 @@ import robot.control.robot_processing as robot_process
 
 
 class RobotControl:
-    def __init__(self, robot_type, remote_control, site_config, robot_config):
+    def __init__(self, robot_type, remote_control, site_config, robot_config, use_force_sensor):
         self.robot_type = robot_type
         self.remote_control = remote_control
 
         self.site_config = site_config
         self.robot_config = robot_config
+        self.use_force_sensor = use_force_sensor
 
         self.process_tracker = robot_process.TrackerProcessing(
             robot_config=robot_config,
@@ -477,7 +478,7 @@ class RobotControl:
         if close_to_target and self.motion_type != MotionType.ARC:
             self.motion_type = MotionType.TUNING
 
-            if const.FORCE_TORQUE_SENSOR and not self.tuning_ongoing:
+            if self.use_force_sensor and not self.tuning_ongoing:
                 self.force_ref = force_sensor_values[0:3]
                 self.moment_ref = force_sensor_values[3:6]
                 print('Normalised!')
@@ -519,7 +520,7 @@ class RobotControl:
             print("Error: Could not read the force sensor.")
             return
 
-        # TODO: condition for const.FORCE_TORQUE_SENSOR
+        # TODO: condition for self.use_force_sensor
         ft_values = np.array(force_sensor_values)
 
         # true f-t value
@@ -569,7 +570,7 @@ class RobotControl:
 
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
-        if const.FORCE_TORQUE_SENSOR:
+        if self.use_force_sensor:
             force_sensor_values = self.read_force_sensor()
         else:
             force_sensor_values = False
@@ -616,7 +617,7 @@ class RobotControl:
             return False
 
         target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
-        # if const.FORCE_TORQUE_SENSOR and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
+        # if self.use_force_sensor and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
         #         if self.status:
         #             self.SensorUpdateTarget(distance, self.status)

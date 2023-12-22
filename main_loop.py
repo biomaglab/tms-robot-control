@@ -92,21 +92,32 @@ def get_environment_variables():
     site = os.getenv('SITE')
     if site is None:
       print("SITE environment variable not provided, exiting")
-      return None, None
+      return None, None, None
 
     robot = os.getenv('ROBOT')
     if robot is None:
       print("ROBOT environment variable not provided, using robot: 'test'")
       robot = 'test'
 
-    return site, robot
+    use_force_sensor_param = os.getenv('USE_FORCE_SENSOR')
+    if use_force_sensor_param is None:
+      print("USE_FORCE_SENSOR environment variable not provided, exiting")
+      return None, None, None
+
+    use_force_sensor = use_force_sensor_param.lower() == 'true'
+    
+    print("Using site: {}".format(site))
+    print("Using robot: {}".format(robot))
+    print("Using force sensor: {}".format(use_force_sensor))
+
+    return site, robot, use_force_sensor
 
 
 if __name__ == '__main__':
     host, port = get_command_line_arguments()
 
-    site, robot = get_environment_variables()
-    if site is None or robot is None:
+    site, robot, use_force_sensor = get_environment_variables()
+    if site is None or robot is None or use_force_sensor is None:
         exit(1)
 
     # Connect to neuronavigation
@@ -124,6 +135,7 @@ if __name__ == '__main__':
         remote_control=remote_control,
         site_config=site_config,
         robot_config=robot_config,
+        use_force_sensor=use_force_sensor,
     )
 
     previous_robot_status = False

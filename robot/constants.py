@@ -1,7 +1,5 @@
 from enum import Enum
 
-# Decide if you want to use force sensing
-FORCE_TORQUE_SENSOR = True
 DISPLAY_POA = True
 
 TEMP_FILE = 'tmp'
