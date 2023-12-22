@@ -159,6 +159,14 @@ class RobotControl:
         self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
     def OnCoilToRobotAlignment(self, displacement):
+        # XXX: Why does the transformation done by this function exist in the first place? The displacement is received
+        #   from neuronavigation in terms of the TCP coordinate system, and it is used to estimate the target position in robot
+        #   space using the current robot pose and the displacement.
+        #
+        #   This function essentially transforms the displacement to the end effector coordinate system. However, it is only needed
+        #   if robot pose was received from the robot in terms of the end effector coordinate system, but at least in case of Elfin
+        #   the robot pose is in terms of TCP coordinate system, making the transformation done here seemingly incorrect (if the
+        #   rx, ry, and rz offsets differ from zero - if they are zero, this transformation does not do anything.)
         xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
 
         rx_offset = self.site_config['rx_offset']
