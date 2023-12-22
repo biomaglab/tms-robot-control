@@ -130,6 +130,11 @@ class RobotControl:
 
             robot_coordinates = np.stack(self.robot_coord_matrix_list[1:], axis=2)
             coord_coil_list = np.stack(self.coord_coil_matrix_list[1:], axis=2)
+
+            # Estimating the transformation matrix between the tracker and the robot includes randomness; ensure that the
+            # results are reproducible.
+            np.random.seed(1)
+
             X_est, Y_est, Y_est_check, ErrorStats = robot_process.Transformation_matrix.matrices_estimation(robot_coordinates, coord_coil_list)
             print(robot_coordinates[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
             print(robot_coordinates[:4, :4, -1][:3, 3].T - (affine_matrix_tracker_to_robot @ coord_coil_list[:4, :4, -1])[:3, 3].T)
