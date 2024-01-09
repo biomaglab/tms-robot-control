@@ -103,7 +103,7 @@ ROBOT_CONFIG = {
     # reduced by 5%. For debugging, feel free to use 1000 mm.
     'working_space': 1000,
     'sleep': 0.0,
-    'waiting_time': 0.5,
+    'waiting_time': 0.8,
 
     # Head motion
     'head_velocity_threshold': 20,
