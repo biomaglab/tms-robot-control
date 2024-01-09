@@ -652,6 +652,16 @@ class RobotControl:
 
             return False
 
+        # Check if the displacement to target is available.
+        if self.displacement_to_target is None:
+            return False
+
+        # Ensure that the displacement to target has been updated recently.
+        if time.time() > self.last_displacement_update_time + 0.2:
+            print("No displacement update received for 0.2 seconds")
+            self.displacement_to_target = None
+            return False
+
         target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
         # if self.use_force_sensor and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
