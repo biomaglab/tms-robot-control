@@ -70,6 +70,8 @@ class Dobot:
     def get_coordinates(self):
         return self.coordinates
 
+    # TODO: This function is needlessly complicating the API between robot control and this class; there
+    #   should not be a need for this low-level robot control class to know if the target has been reached.
     def set_target_reached(self, target_reached):
         self.target_reached = target_reached
 
@@ -90,6 +92,9 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
+        # TODO: Properly handle errors and return the success of the movement here.
+        return True
+
     def move_circular(self, start_position, waypoint, target):
         # TODO: Start position, waypoint, and target should be stored in three separate
         #   variables, not in one variable (self.target).
@@ -100,6 +105,9 @@ class Dobot:
             self.moving = True
             self._set_move_thread()
 
+        # TODO: Properly handle errors and return the success of the movement here.
+        return True
+
     def tune_robot(self, displacement):
         self.target = displacement
         self.motion_type = MotionType.TUNING
@@ -107,6 +115,9 @@ class Dobot:
         if not self.moving:
             self.moving = True
             self._set_move_thread()
+
+        # TODO: Properly handle errors and return the success of the movement here.
+        return True
 
     def read_force_sensor(self):
         # TODO: Should return False if the force sensor cannot be read. Currently the error does
@@ -124,6 +135,9 @@ class Dobot:
             offsets=offsets,
             tool=self.TOOL_ID,
         )
+
+        # TODO: Properly handle errors and return the success of the movement here.
+        return True
 
     def stop_robot(self):
         # Takes some microseconds to the robot actual stops after the command.

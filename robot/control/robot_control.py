@@ -15,6 +15,8 @@ import robot.control.coordinates as coordinates
 import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
 
+from robot.control.robot_state_controller import RobotStateController, RobotState
+
 
 class RobotControl:
     def __init__(self, robot_type, remote_control, site_config, robot_config, use_force_sensor):
@@ -68,6 +70,9 @@ class RobotControl:
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
+
+        self.last_displacement_update_time = None
+        self.last_robot_status_logging_time = time.time()
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
@@ -238,6 +243,14 @@ class RobotControl:
         translation[1] += self.ft_displacement_offset[1]
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
+        if self.last_displacement_update_time is not None:
+            print("Displacement received: {} (time since last: {:.2f} s)".format(
+                ", ".join(["{:.2f}".format(x) for x in self.displacement_to_target]),
+                time.time() - self.last_displacement_update_time,
+            ))
+
+        self.last_displacement_update_time = time.time()
+
     def OnCoilAtTarget(self, data):
         self.target_reached = data["state"]
 
@@ -246,16 +259,16 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
         if robot_type == "elfin":
-            self.robot = elfin.Elfin(robot_IP)
-            success = self.robot.connect()
+            robot = elfin.Elfin(robot_IP)
+            success = robot.connect()
 
         elif robot_type == "elfin_new_api":
-            self.robot = elfin.Elfin(robot_IP, use_new_api=True)
-            success = self.robot.connect()
+            robot = elfin.Elfin(robot_IP, use_new_api=True)
+            success = robot.connect()
 
         elif robot_type == "dobot":
-            self.robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
-            success = self.robot.connect()
+            robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
+            success = robot.connect()
 
         elif robot_type == "ur":
             # TODO: Add Universal Robots robot here.
@@ -270,8 +283,19 @@ class RobotControl:
 
         if success:
             print('Connected to robot.')
-            self.robot.initialize()
+
+            # Initialize the robot.
+            robot.initialize()
             print('Robot initialized.')
+
+            # Initialize the robot state controller.
+            waiting_time = self.robot_config['waiting_time']
+            self.robot_state_controller = RobotStateController(
+                robot=robot,
+                waiting_time=waiting_time,
+            )
+
+            self.robot = robot
         else:
             # Send message to neuronavigation to close the robot dialog.
             topic = 'Dialog robot destroy'
@@ -405,6 +429,8 @@ class RobotControl:
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
         """
+        success = False
+
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
         if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
@@ -463,11 +489,6 @@ class RobotControl:
         else:
             self.motion_type = MotionType.NORMAL
 
-        # Check if the robot is already in the target position. If so, return early.
-        if self.target_reached:
-            self.robot.set_target_reached(self.target_reached)
-            return True
-
         # Check the conditions for tuning.
         angular_distance_threshold_for_tuning = self.robot_config['angular_distance_threshold_for_tuning']
         distance_threshold_for_tuning = self.robot_config['distance_threshold_for_tuning']
@@ -475,7 +496,7 @@ class RobotControl:
         close_to_target = np.linalg.norm(self.displacement_to_target[:3]) < distance_threshold_for_tuning or \
                           np.linalg.norm(self.displacement_to_target[3:]) < angular_distance_threshold_for_tuning
 
-        if close_to_target and self.motion_type != MotionType.ARC:
+        if True or (close_to_target and self.motion_type != MotionType.ARC):
             self.motion_type = MotionType.TUNING
 
             if self.use_force_sensor and not self.tuning_ongoing:
@@ -489,28 +510,26 @@ class RobotControl:
 
         # Branch to different movement functions depending on the motion type.
         if self.motion_type == MotionType.NORMAL:
-            self.robot.move_linear(target_in_robot_space)
+            success = self.robot.move_linear(target_in_robot_space)
 
         elif self.motion_type == MotionType.LINEAR_OUT:
-            self.robot.move_linear(self.linear_out_target)
+            success = self.robot.move_linear(self.linear_out_target)
 
         elif self.motion_type == MotionType.ARC:
-            self.robot.move_circular(
+            success = self.robot.move_circular(
                 start_position=robot_pose,
                 waypoint=waypoint,
                 target=self.arc_motion_target
             )
 
         elif self.motion_type == MotionType.TUNING:
-            self.robot.tune_robot(self.displacement_to_target)
+            success = self.robot.tune_robot(self.displacement_to_target)
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?
             pass
 
-        self.robot.set_target_reached(self.target_reached)
-
-        return True
+        return success
 
     def read_force_sensor(self):
         success, force_sensor_values = self.robot.read_force_sensor()
@@ -557,7 +576,13 @@ class RobotControl:
         return ft_values
 
     def get_robot_status(self):
-        robot_status = False
+        # Update the robot state.
+        self.robot_state_controller.update()
+
+        # Print the robot state once every 0.1 seconds.
+        if self.last_robot_status_logging_time is not None and time.time() - self.last_robot_status_logging_time > 0.1:
+            self.robot_state_controller.print_state()
+            self.last_robot_status_logging_time = time.time()
 
         head_pose_in_tracker_space = self.tracker.head_pose
         if head_pose_in_tracker_space is None:
@@ -616,16 +641,32 @@ class RobotControl:
 
             return False
 
+        # Check if the robot is ready to move.
+        if self.robot_state_controller.get_state() != RobotState.READY:
+            return False
+
+        # Check if the robot is already in the target position.
+        if self.target_reached:
+            # TODO: The robot shouldn't need this information, see a corresponding comment in Dobot class.
+            self.robot.set_target_reached(True)
+
+            return False
+
         target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
         # if self.use_force_sensor and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
         #         if self.status:
         #             self.SensorUpdateTarget(distance, self.status)
         #             self.status = False
-        robot_status = self.robot_move_decision(
+        success = self.robot_move_decision(
             target_pose_in_robot_space=target_pose_in_robot_space,
             robot_pose=robot_pose,
             head_pose_in_tracker_space_filtered=head_pose_in_tracker_space_filtered,
             force_sensor_values=force_sensor_values
         )
-        return robot_status
+
+        # Set the robot state to moving if the movement was successful.
+        if success:
+            self.robot_state_controller.set_state_to_moving()
+
+        return success

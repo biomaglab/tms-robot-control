@@ -26,6 +26,10 @@ class Elfin():
             use_new_api=use_new_api,
         )
 
+    def is_moving(self):
+        motion_state = self.connection.get_motion_state()
+        return motion_state == MotionState.IN_MOTION
+
     def initialize(self):
         # With the new Elfin firmware (5.51.9.beta.20230703), the speed ratio resets to 1% at start-up.
         # Hence, set it programmatically to a higher value.
@@ -49,8 +53,9 @@ class Elfin():
         # Return the latest coordinates regardless of the success of the reading.
         return self.coordinates
 
-    def set_target_reached(self, target_reached):
-        self.target_reached = target_reached
+    # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
+    def set_target_reached(self, _):
+        pass
 
     # Note: It is not possible to send a move command to elfin during movement.
 
@@ -58,7 +63,8 @@ class Elfin():
         motion_state = self.connection.get_motion_state()
         # TODO: Should motion state be used here to check that robot is free to move?
 
-        self.connection.move_linear(linear_target)
+        success = self.connection.move_linear(linear_target)
+        return success
 
     def move_circular(self, start_position, waypoint, target):
         motion_state = self.connection.get_motion_state()
@@ -68,7 +74,8 @@ class Elfin():
             self.stop_robot()
             return
 
-        self.connection.move_circular(start_position, waypoint, target)
+        success = self.connection.move_circular(start_position, waypoint, target)
+        return success
 
     def tune_robot(self, displacement):
         motion_state = self.connection.get_motion_state()
@@ -85,11 +92,12 @@ class Elfin():
         direction = Direction.NEGATIVE if displacement[axis_index] < 0 else Direction.POSITIVE
 
         axis = Axis(axis_index)
-        self.connection.move_linear_relative(
+        success = self.connection.move_linear_relative(
             axis=axis,
             direction=direction,
             distance=distance,
         )
+        return success
 
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
@@ -104,11 +112,12 @@ class Elfin():
         direction = Direction.NEGATIVE
         distance = 1
 
-        self.connection.move_linear_relative(
+        success = self.connection.move_linear_relative(
             axis=axis,
             direction=direction,
             distance=distance,
         )
+        return success
 
     def stop_robot(self):
         self.connection.stop_robot()

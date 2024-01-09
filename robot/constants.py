@@ -42,6 +42,7 @@ SITE_CONFIG = {
 # General:
 #   Working space: TODO (in mm)
 #   Sleep: The time between two cycles of the main loop (in seconds).
+#   Waiting time: The time to wait after a movement (in seconds).
 #
 # Head motion:
 #   Head velocity threshold: TODO (in mm/s)
@@ -70,6 +71,7 @@ ROBOT_CONFIG = {
     # General
     'working_space': 1500,
     'sleep': 0.005,
+    'waiting_time': 0.0,
 
     # Head motion
     'head_velocity_threshold': 30,
@@ -101,6 +103,7 @@ ROBOT_CONFIG = {
     # reduced by 5%. For debugging, feel free to use 1000 mm.
     'working_space': 1000,
     'sleep': 0.0,
+    'waiting_time': 0.5,
 
     # Head motion
     'head_velocity_threshold': 20,
