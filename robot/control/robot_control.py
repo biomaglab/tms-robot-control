@@ -228,16 +228,16 @@ class RobotControl:
         # XXX: The variable received from neuronavigation is called 'distance', but displacement is a more accurate name.
         displacement = data["distance"]
 
-        # XXX: The sign reversal for x- and rx-axes below is done to make the following relationship between the robot movement
-        #   and the displacement received from neuronavigation true:
+        # XXX: The handedness of the coordinate system used by neuronavigation is different from the one used by the robot,
+        #   hence the sign reversal below.
+        #
+        # The exact axes (x- and rx-axes) that are reversed are determined using the observations below:
         #
         # Starting from the target (i.e., displacement = [0, 0, 0, 0, 0, 0]), move the robot in the positive x-direction by 10 mm.
         # The displacement is a vector from the current robot position to the target position, so the displacement should
         # become [-10, 0, 0, 0, 0, 0]. However, the displacement received from neuronavigation is [10, 0, 0, 0, 0, 0].
-        # The same applies for rx-axis (but not for the other axes) - hence the sign reversal.
+        # The same applies for rx-axis (but not for the other axes) - hence the sign reversal for x- and rx-axes.
         #
-        # The correct way to proceed from here would be to understand why the sign is incorrect for those axes in particular, and
-        # most likely reverse the sign in the neuronavigation code that sends the displacement.
         displacement[0] = -displacement[0]
         displacement[3] = -displacement[3]
 
