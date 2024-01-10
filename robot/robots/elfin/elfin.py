@@ -86,12 +86,24 @@ class Elfin():
         if motion_state != MotionState.FREE_TO_MOVE:
             return
 
-        # Move along the axis that has the largest displacement.
-        axis_index = np.argmax(np.abs(displacement))
-        distance = np.abs(displacement[axis_index])
-        direction = Direction.NEGATIVE if displacement[axis_index] < 0 else Direction.POSITIVE
+        # Move along the first axis that has a displacement larger than the threshold.
+        axes_ordered = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
+        distance_angle_threshold = 1.0
 
-        axis = Axis(axis_index)
+        axis_to_move = None
+        for axis in axes_ordered:
+            axis_index = axis.value
+            distance = np.abs(displacement[axis_index])
+            direction = Direction.NEGATIVE if displacement[axis_index] < 0 else Direction.POSITIVE
+
+            if distance > distance_angle_threshold:
+                axis_to_move = axis
+                break
+
+        # If no axis has a displacement larger than the threshold, return early.
+        if axis_to_move is None:
+            return
+
         success = self.connection.move_linear_relative(
             axis=axis,
             direction=direction,
