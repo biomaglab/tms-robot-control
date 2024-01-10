@@ -657,24 +657,32 @@ class RobotControl:
 
         # Check if the robot is ready to move.
         if self.robot_state_controller.get_state() != RobotState.READY:
-            return False
+
+            # Return True even if the robot is not ready to move; the return value is used to indicate
+            # that the robot is generally in a good state.
+            return True
 
         # Check if the robot is already in the target position.
         if self.target_reached:
             # TODO: The robot shouldn't need this information, see a corresponding comment in Dobot class.
             self.robot.set_target_reached(True)
 
-            return False
+            # Return True if the robot is already in the target position; the return value is used to indicate
+            # that the robot is in a good state.
+            return True
 
-        # Check if the displacement to target is available.
+        # Check if the displacement to the target is available.
         if self.displacement_to_target is None:
-            return False
+
+            # Even though a recent displacement should be always available, it turns out that the 0.2 second time limit
+            # is quite strict. Hence, interpret the lack of displacement as a "good state".
+            return True
 
         # Ensure that the displacement to target has been updated recently.
         if time.time() > self.last_displacement_update_time + 0.2:
             print("No displacement update received for 0.2 seconds")
             self.displacement_to_target = None
-            return False
+            return True
 
         target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
         # if self.use_force_sensor and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
