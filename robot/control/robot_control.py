@@ -210,7 +210,10 @@ class RobotControl:
         #   as well.
         a, b, g = np.radians(self.displacement_to_target[3:])
 
-        r_ref = tr.euler_matrix(a, b, g, axes='sxyz')
+        # XXX: The order of axis rotations in the displacement received from neuronavigation is: rx, ry, rz in a rotating frame ('rxyz').
+        #   Hence, use that when generating the rotation matrix, even though 'sxyz' (equivalent to 'rzyx') is the convention used in the
+        #   rest of the code.
+        r_ref = tr.euler_matrix(a, b, g, axes='rxyz')
         t_ref = tr.translation_matrix(self.displacement_to_target[:3])
 
         # XXX: First rotate, then translate. This is done because displacement received from neuronavigation uses that order.
