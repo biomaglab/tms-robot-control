@@ -17,6 +17,14 @@ class Elfin():
     """
     SPEED_RATIO = 0.20
 
+    # Ordered axes for the tuning motion: first rotation, then translation. This is the order
+    # in which the displacement is received from neuronavigation.
+    ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
+
+    # The threshold for both distance (in mm) and angle (in degrees) to move to the next axis
+    # when performing tuning motion.
+    DISTANCE_ANGLE_THRESHOLD = 1.0
+
     def __init__(self, ip, use_new_api=False):
         self.coordinates = 6 * [None]
         self.target_reached = False
@@ -87,16 +95,13 @@ class Elfin():
             return
 
         # Move along the first axis that has a displacement larger than the threshold.
-        axes_ordered = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
-        distance_angle_threshold = 1.0
-
         axis_to_move = None
-        for axis in axes_ordered:
+        for axis in self.ORDERED_AXES:
             axis_index = axis.value
             distance = np.abs(displacement[axis_index])
             direction = Direction.NEGATIVE if displacement[axis_index] < 0 else Direction.POSITIVE
 
-            if distance > distance_angle_threshold:
+            if distance > self.DISTANCE_ANGLE_THRESHOLD:
                 axis_to_move = axis
                 break
 
