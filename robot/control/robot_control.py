@@ -225,6 +225,17 @@ class RobotControl:
         return list(translation) + list(angles_as_deg)
 
     def OnDistanceToTarget(self, data):
+        # For the displacement received from the neuronavigation, the following is true:
+        #
+        # - It is a vector from the current robot pose to the target pose.
+        # - It is represented as the vector (Dx, Dy, Dz, Da, Db, Dc) in the coordinate system of the tool center point (TCP), where
+        #   Dx, Dy, and Dz are the differences along x-, y-, and z-axes, and Da, Db, Dc are the differences in Euler angles between the
+        #   current pose and the target pose.
+        # - The Euler angles are applied in the order of rx, ry, rz, i.e., the rotation around x-axis is performed first, followed by
+        #   rotation around y-axis, and finally rotation around z-axis.
+        # - The rotations are applied in this order in a rotating frame ('rxyz'), not a static frame.
+        # - Contrary to the common convention and the convention used elsewhere in the code, the rotation is applied _before_ translation.
+
         # XXX: The variable received from neuronavigation is called 'distance', but displacement is a more accurate name.
         displacement = data["distance"]
 
