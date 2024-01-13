@@ -3,6 +3,8 @@ from enum import Enum
 import numpy as np
 
 import robot.control.robot_processing as robot_process
+from robot.robots.axis import Axis
+from robot.robots.direction import Direction
 
 
 class MotionType(Enum):
@@ -14,6 +16,14 @@ class MotionType(Enum):
 
 
 class RadiallyOutwardsAlgorithm:
+    # Ordered axes for the tuning motion: first rotation, then translation. This is the order
+    # in which the displacement is received from neuronavigation.
+    ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
+
+    # The threshold for both distance (in mm) and angle (in degrees) to move to the next axis
+    # when performing tuning motion.
+    DISTANCE_ANGLE_THRESHOLD = 1.0
+
     def __init__(self, robot, robot_config):
         self.robot = robot
         self.robot_config = robot_config
@@ -141,7 +151,29 @@ class RadiallyOutwardsAlgorithm:
             )
 
         elif self.motion_type == MotionType.TUNING:
-            success = self.robot.tune_robot(displacement_to_target)
+            # First try relative movement on all axes at once; if not supported by the robot, move along each axis separately.
+            try:
+                self.robot.move_linear_relative_to_tool(displacement_to_target)
+
+            except NotImplementedError:
+                # Move along the first axis that has a displacement larger than the threshold.
+                axis_to_move = None
+                for axis in self.ORDERED_AXES:
+                    axis_index = axis.value
+                    distance = np.abs(displacement_to_target[axis_index])
+                    direction = Direction.NEGATIVE if displacement_to_target[axis_index] < 0 else Direction.POSITIVE
+
+                    if distance > self.DISTANCE_ANGLE_THRESHOLD:
+                        axis_to_move = axis
+                        break
+
+                # If any axis has a displacement larger than the threshold, move along that axis.
+                if axis_to_move is not None:
+                    success = self.robot.move_linear_relative_to_tool_on_single_axis(
+                        axis=axis_to_move,
+                        direction=direction,
+                        distance=distance,
+                    )
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?

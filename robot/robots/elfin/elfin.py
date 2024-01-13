@@ -4,11 +4,12 @@ import numpy as np
 
 from robot.robots.elfin.elfin_connection import (
     ElfinConnection,
-    Axis,
-    Direction,
     MotionState,
     ReferenceFrame
 )
+
+from robot.robots.axis import Axis
+from robot.robots.direction import Direction
 
 
 class Elfin():
@@ -16,14 +17,6 @@ class Elfin():
     The class for communicating with Elfin robot.
     """
     SPEED_RATIO = 0.20
-
-    # Ordered axes for the tuning motion: first rotation, then translation. This is the order
-    # in which the displacement is received from neuronavigation.
-    ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
-
-    # The threshold for both distance (in mm) and angle (in degrees) to move to the next axis
-    # when performing tuning motion.
-    DISTANCE_ANGLE_THRESHOLD = 1.0
 
     def __init__(self, ip, use_new_api=False):
         self.coordinates = 6 * [None]
@@ -85,28 +78,17 @@ class Elfin():
         success = self.connection.move_circular(start_position, waypoint, target)
         return success
 
-    def tune_robot(self, displacement):
+    # Not supported by Elfin.
+    def move_linear_relative_to_tool(self, displacement):
+        raise NotImplementedError
+
+    def move_linear_relative_to_tool_on_single_axis(self, axis, direction, distance):
         motion_state = self.connection.get_motion_state()
 
         # If the robot is not free to move, return early.
         #
         # TODO: Should this follow a logic similar to MoveCircular function?
         if motion_state != MotionState.FREE_TO_MOVE:
-            return
-
-        # Move along the first axis that has a displacement larger than the threshold.
-        axis_to_move = None
-        for axis in self.ORDERED_AXES:
-            axis_index = axis.value
-            distance = np.abs(displacement[axis_index])
-            direction = Direction.NEGATIVE if displacement[axis_index] < 0 else Direction.POSITIVE
-
-            if distance > self.DISTANCE_ANGLE_THRESHOLD:
-                axis_to_move = axis
-                break
-
-        # If no axis has a displacement larger than the threshold, return early.
-        if axis_to_move is None:
             return
 
         success = self.connection.move_linear_relative(
