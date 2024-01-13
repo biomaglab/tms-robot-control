@@ -445,12 +445,6 @@ class RobotControl:
         """
         success = False
 
-        # Check if the target is outside the working space. If so, return early.
-        working_space = self.robot_config['working_space']
-        if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
-            print("Head is too far from the robot basis")
-            return False
-
         target_in_robot_space = self.compute_target_in_robot_space()
 
         # Check the distance to target to determine the motion mode.
@@ -685,6 +679,13 @@ class RobotControl:
             return True
 
         target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
+
+        # Check if the target is outside the working space. If so, return early.
+        working_space = self.robot_config['working_space']
+        if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
+            print("Head is too far from the robot basis")
+            return False
+
         # if self.use_force_sensor and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
         #         if self.status:
