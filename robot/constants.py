@@ -1,5 +1,3 @@
-from enum import Enum
-
 DISPLAY_POA = True
 
 TEMP_FILE = 'tmp'
@@ -128,15 +126,6 @@ ROBOT_CONFIG = {
     'force_sensor_scale_threshold': 30,
   }
 }
-
-# Please, do not change the following enum.
-
-class MotionType(Enum):
-    NORMAL = 0
-    LINEAR_OUT = 1
-    ARC = 2
-    FORCE_LINEAR_OUT = 3
-    TUNING = 4
 
 # Publisher messages from invesalius
 PUB_MESSAGES = ['Connect to robot',

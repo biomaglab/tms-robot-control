@@ -1,7 +1,16 @@
+from enum import Enum
+
 import numpy as np
 
 import robot.control.robot_processing as robot_process
-from robot.constants import MotionType
+
+
+class MotionType(Enum):
+    NORMAL = 0
+    LINEAR_OUT = 1
+    ARC = 2
+    FORCE_LINEAR_OUT = 3
+    TUNING = 4
 
 
 class RadiallyOutwardsAlgorithm:

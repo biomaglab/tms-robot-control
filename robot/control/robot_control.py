@@ -16,15 +16,17 @@ import robot.control.robot_processing as robot_process
 
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outwards import RadiallyOutwardsAlgorithm
+from robot.control.algorithms.directly_upwards import DirectlyUpwardsAlgorithm
 
 
 class RobotControl:
-    def __init__(self, robot_type, remote_control, site_config, robot_config, use_force_sensor):
+    def __init__(self, robot_type, remote_control, site_config, robot_config, movement_algorithm_name, use_force_sensor):
         self.robot_type = robot_type
         self.remote_control = remote_control
 
         self.site_config = site_config
         self.robot_config = robot_config
+        self.movement_algorithm_name = movement_algorithm_name
         self.use_force_sensor = use_force_sensor
 
         self.process_tracker = robot_process.TrackerProcessing(
@@ -310,10 +312,20 @@ class RobotControl:
 
             self.robot = robot
 
-            self.movement_algorithm = RadiallyOutwardsAlgorithm(
-                robot=robot,
-                robot_config=self.robot_config,
-            )
+            if self.movement_algorithm_name == 'radially_outwards':
+                self.movement_algorithm = RadiallyOutwardsAlgorithm(
+                    robot=robot,
+                    robot_config=self.robot_config,
+                )
+
+            elif self.movement_algorithm_name == 'directly_upwards':
+                self.movement_algorithm = DirectlyUpwardsAlgorithm(
+                    robot=robot,
+                    robot_config=self.robot_config,
+                )
+
+            else:
+                assert False, "Unknown movement algorithm"
 
         else:
             # Send message to neuronavigation to close the robot dialog.

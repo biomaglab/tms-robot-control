@@ -1,13 +1,26 @@
 # Code based on: https://github.com/Dobot-Arm/TCP-IP-CR-Python
 
+from enum import Enum
+
 import time
 from threading import Thread
 
 import numpy as np
 
 import robot.control.robot_processing as robot_process
-from robot.constants import MotionType
 from robot.robots.dobot.dobot_connection import DobotConnection, RobotStatus
+
+
+# TODO: The motion type, indicating the state that the robot movement algorithm is in, spills into Dobot class,
+#   which should be the low-level robot control class. Hence the MotionType enum is copied below from the
+#   RadiallyOutwardsAlgorithm class so that it can be accessed by Dobot class. This should be fixed by removing
+#   references to MotionType enum from Dobot class; it should not know about the different motion types.
+class MotionType(Enum):
+    NORMAL = 0
+    LINEAR_OUT = 1
+    ARC = 2
+    FORCE_LINEAR_OUT = 3
+    TUNING = 4
 
 
 class Dobot:

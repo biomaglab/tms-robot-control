@@ -95,32 +95,47 @@ def get_environment_variables():
     site = os.getenv('SITE')
     if site is None or site == '':
         print("SITE environment variable not provided, exiting")
-        return None, None, None
+        return None
 
     robot = os.getenv('ROBOT')
     if robot is None or robot == '':
         print("ROBOT environment variable not provided, exiting")
-        return None, None, None
+        return None
+
+    movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
+    if movement_algorithm is None or movement_algorithm == '':
+        print("MOVEMENT_ALGORITHM environment variable not provided, exiting")
+        return None
 
     use_force_sensor_param = os.getenv('USE_FORCE_SENSOR')
     if use_force_sensor_param is None or use_force_sensor_param == '':
         print("USE_FORCE_SENSOR environment variable not provided, exiting")
-        return None, None, None
+        return None
 
     use_force_sensor = use_force_sensor_param.lower() == 'true'
 
-    print("Using site: {}".format(site))
-    print("Using robot: {}".format(robot))
-    print("Using force sensor: {}".format(use_force_sensor))
+    print("Configuration")
+    print("")
+    print("Site: {}".format(site))
+    print("Robot: {}".format(robot))
+    print("Movement algorithm: {}".format(movement_algorithm))
+    print("Force sensor: {}".format(use_force_sensor))
+    print("")
 
-    return site, robot, use_force_sensor
+    config = {
+        'site': site,
+        'robot': robot,
+        'movement_algorithm': movement_algorithm,
+        'use_force_sensor': use_force_sensor,
+    }
+    return config
 
 
 if __name__ == '__main__':
     host, port = get_command_line_arguments()
 
-    site, robot, use_force_sensor = get_environment_variables()
-    if site is None or robot is None or use_force_sensor is None:
+    config = get_environment_variables()
+    if config is None:
         exit(1)
 
     # Connect to neuronavigation
@@ -130,6 +145,11 @@ if __name__ == '__main__':
     remote_control.connect()
 
     # Initialize robot controller
+    site = config['site']
+    robot = config['robot']
+    movement_algorithm = config['movement_algorithm']
+    use_force_sensor = config['use_force_sensor']
+
     site_config = const.SITE_CONFIG[site]
     robot_config = const.ROBOT_CONFIG[robot if robot != "elfin_new_api" else "elfin"]
 
@@ -139,6 +159,7 @@ if __name__ == '__main__':
         site_config=site_config,
         robot_config=robot_config,
         use_force_sensor=use_force_sensor,
+        movement_algorithm_name=movement_algorithm,
     )
 
     previous_robot_status = False
