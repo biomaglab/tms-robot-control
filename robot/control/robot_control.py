@@ -6,7 +6,6 @@ from pynput import keyboard
 import time
 
 import robot.constants as const
-from robot.constants import MotionType
 import robot.transformations as tr
 
 import robot.robots.elfin.elfin as elfin
@@ -16,6 +15,7 @@ import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
 
 from robot.control.robot_state_controller import RobotStateController, RobotState
+from robot.control.algorithms.radially_outwards import RadiallyOutwardsAlgorithm
 
 
 class RobotControl:
@@ -59,7 +59,6 @@ class RobotControl:
         self.target_set = False
         self.m_target_to_head = [None] * 9
 
-        self.motion_type = MotionType.NORMAL
         self.linear_out_target = None
         self.arc_motion_target = None
         self.previous_robot_status = False
@@ -310,6 +309,14 @@ class RobotControl:
             )
 
             self.robot = robot
+
+            self.movement_algorithm = RadiallyOutwardsAlgorithm(
+                robot=robot,
+                tracker=self.tracker,
+                process_tracker=self.process_tracker,
+                robot_config=self.robot_config,
+            )
+
         else:
             # Send message to neuronavigation to close the robot dialog.
             topic = 'Dialog robot destroy'
@@ -377,7 +384,7 @@ class RobotControl:
 
     def robot_motion_reset(self):
         self.robot.stop_robot()
-        self.motion_type = MotionType.NORMAL
+        self.movement_algorithm.reset()
 
     def create_calibration_point(self):
         coil_visible = self.tracker.coil_visible
@@ -419,125 +426,6 @@ class RobotControl:
                 data = {}
                 self.remote_control.send_message(topic, data)
                 print('Request new robot transformation matrix')
-
-    def robot_move_decision(self, target_pose_in_robot_space, robot_pose, head_pose_in_tracker_space_filtered, force_sensor_values=None):
-        """
-        There are two types of robot movements.
-
-        We can imagine in two concentric spheres of different sizes. The inside sphere is to compensate for small head movements.
-         It was named "normal" moves.
-
-        The outside sphere is for the arc motion. The arc motion is a safety feature for long robot movements.
-         Even for a new target or a sudden huge head movement.
-
-        1) normal:
-            A linear move from the actual position until the target position.
-            This movement just happens when move distance is below a threshold ("distance_threshold_for_arc_motion" in robot config)
-
-        2) arc motion:
-            It can be divided into three parts.
-                The first one represents the movement from the inner sphere to the outer sphere.
-                 The robot moves back using a radial move (it use the center of the head as a reference).
-                The second step is the actual arc motion (along the outer sphere).
-                 A middle point, between the actual position and the target, is required.
-                The last step is to make a linear move until the target (goes to the inner sphere)
-
-        """
-        success = False
-
-        target_in_robot_space = self.compute_target_in_robot_space()
-
-        # Check the distance to target to determine the motion mode.
-        distance_to_target = np.linalg.norm(target_in_robot_space[:3] - robot_pose[:3])
-        angular_distance_to_target = np.linalg.norm(target_in_robot_space[3:] - robot_pose[3:])
-
-        distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
-        angular_distance_threshold_for_arc_motion = self.robot_config['angular_distance_threshold_for_arc_motion']
-
-        if distance_to_target >= distance_threshold_for_arc_motion or \
-           angular_distance_to_target >= angular_distance_threshold_for_arc_motion:
-
-            head_center = self.process_tracker.estimate_head_center_in_robot_space(
-                self.tracker.m_tracker_to_robot,
-                head_pose_in_tracker_space_filtered).tolist()
-
-            versor_scale_factor = self.robot_config['versor_scale_factor']
-            middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
-            linear_out_target, waypoint, arc_motion_target = robot_process.compute_arc_motion(
-                robot_pose=robot_pose,
-                head_center=head_center,
-                target_pose=target_pose_in_robot_space,  #needs to be target_pose_in_robot_space!!
-                versor_scale_factor=versor_scale_factor,
-                middle_arc_scale_factor=middle_arc_scale_factor,
-            )
-            if self.motion_type == MotionType.NORMAL:
-                self.linear_out_target = linear_out_target
-                self.motion_type = MotionType.LINEAR_OUT
-
-            if self.motion_type == MotionType.LINEAR_OUT:
-                if np.allclose(np.array(robot_pose), np.array(self.linear_out_target), 0, 10):
-                    self.motion_type = MotionType.ARC
-                    self.arc_motion_target = arc_motion_target
-
-            elif self.motion_type == MotionType.ARC:
-                # Check if the target of arc motion has changed enough; if so, update the target.
-                threshold_to_update_arc_motion_target = self.robot_config['threshold_to_update_arc_motion_target']
-                if not np.allclose(np.array(arc_motion_target), np.array(self.arc_motion_target), 0, threshold_to_update_arc_motion_target):
-                    if np.linalg.norm(target_pose_in_robot_space[:3] - robot_pose[:3]) >= distance_threshold_for_arc_motion:
-                        self.arc_motion_target = arc_motion_target
-
-                    # Avoid small arc motion; in that case, it is better to use linear movement.
-                    elif np.linalg.norm(arc_motion_target[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
-                        self.motion_type = MotionType.NORMAL
-
-                if np.allclose(np.array(robot_pose)[:3], np.array(self.arc_motion_target)[:3], 0, 20):
-                    self.motion_type = MotionType.NORMAL
-            else:
-                self.motion_type = MotionType.NORMAL
-        else:
-            self.motion_type = MotionType.NORMAL
-
-        # Check the conditions for tuning.
-        angular_distance_threshold_for_tuning = self.robot_config['angular_distance_threshold_for_tuning']
-        distance_threshold_for_tuning = self.robot_config['distance_threshold_for_tuning']
-
-        close_to_target = np.linalg.norm(self.displacement_to_target[:3]) < distance_threshold_for_tuning or \
-                          np.linalg.norm(self.displacement_to_target[3:]) < angular_distance_threshold_for_tuning
-
-        if True or (close_to_target and self.motion_type != MotionType.ARC):
-            self.motion_type = MotionType.TUNING
-
-            if self.use_force_sensor and not self.tuning_ongoing:
-                self.force_ref = force_sensor_values[0:3]
-                self.moment_ref = force_sensor_values[3:6]
-                print('Normalised!')
-
-            self.tuning_ongoing = True
-        else:
-            self.tuning_ongoing = False
-
-        # Branch to different movement functions depending on the motion type.
-        if self.motion_type == MotionType.NORMAL:
-            success = self.robot.move_linear(target_in_robot_space)
-
-        elif self.motion_type == MotionType.LINEAR_OUT:
-            success = self.robot.move_linear(self.linear_out_target)
-
-        elif self.motion_type == MotionType.ARC:
-            success = self.robot.move_circular(
-                start_position=robot_pose,
-                waypoint=waypoint,
-                target=self.arc_motion_target
-            )
-
-        elif self.motion_type == MotionType.TUNING:
-            success = self.robot.tune_robot(self.displacement_to_target)
-
-        elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
-            # TODO: Should this be implemented?
-            pass
-
-        return success
 
     def read_force_sensor(self):
         success, force_sensor_values = self.robot.read_force_sensor()
@@ -678,11 +566,11 @@ class RobotControl:
             self.displacement_to_target = None
             return True
 
-        target_pose_in_robot_space = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
+        target_pose_in_robot_space_estimated_from_head_pose = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
 
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
-        if np.linalg.norm(target_pose_in_robot_space[:3]) >= working_space:
+        if np.linalg.norm(target_pose_in_robot_space_estimated_from_head_pose[:3]) >= working_space:
             print("Head is too far from the robot basis")
             return False
 
@@ -691,12 +579,21 @@ class RobotControl:
         #         if self.status:
         #             self.SensorUpdateTarget(distance, self.status)
         #             self.status = False
-        success = self.robot_move_decision(
-            target_pose_in_robot_space=target_pose_in_robot_space,
+
+        target_pose_in_robot_space_estimated_from_displacement = self.compute_target_in_robot_space()
+
+        success, normalize_force_sensor = self.movement_algorithm.robot_move_decision(
+            displacement_to_target=self.displacement_to_target,
+            target_pose_in_robot_space_estimated_from_head_pose=target_pose_in_robot_space_estimated_from_head_pose,
+            target_pose_in_robot_space_estimated_from_displacement=target_pose_in_robot_space_estimated_from_displacement,
             robot_pose=robot_pose,
             head_pose_in_tracker_space_filtered=head_pose_in_tracker_space_filtered,
-            force_sensor_values=force_sensor_values
         )
+
+        if self.use_force_sensor and normalize_force_sensor:
+            self.force_ref = force_sensor_values[0:3]
+            self.moment_ref = force_sensor_values[3:6]
+            print('Normalised!')
 
         # Set the robot state to moving if the movement was successful.
         if success:
