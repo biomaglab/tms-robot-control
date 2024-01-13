@@ -5,10 +5,8 @@ from robot.constants import MotionType
 
 
 class RadiallyOutwardsAlgorithm:
-    def __init__(self, robot, tracker, process_tracker, robot_config):
+    def __init__(self, robot, robot_config):
         self.robot = robot
-        self.tracker = tracker
-        self.process_tracker = process_tracker
         self.robot_config = robot_config
 
         self.motion_type = MotionType.NORMAL
@@ -24,12 +22,12 @@ class RadiallyOutwardsAlgorithm:
         self.linear_out_target = None
         self.arc_motion_target = None
 
-    def robot_move_decision(self,
-                            displacement_to_target,
-                            target_pose_in_robot_space_estimated_from_head_pose,
-                            target_pose_in_robot_space_estimated_from_displacement,
-                            robot_pose,
-                            head_pose_in_tracker_space_filtered):
+    def move_decision(self,
+                      displacement_to_target,
+                      target_pose_in_robot_space_estimated_from_head_pose,
+                      target_pose_in_robot_space_estimated_from_displacement,
+                      robot_pose,
+                      head_center):
         """
         There are two types of robot movements.
 
@@ -65,10 +63,6 @@ class RadiallyOutwardsAlgorithm:
 
         if distance_to_target >= distance_threshold_for_arc_motion or \
            angular_distance_to_target >= angular_distance_threshold_for_arc_motion:
-
-            head_center = self.process_tracker.estimate_head_center_in_robot_space(
-                self.tracker.m_tracker_to_robot,
-                head_pose_in_tracker_space_filtered).tolist()
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']

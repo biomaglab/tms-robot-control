@@ -312,8 +312,6 @@ class RobotControl:
 
             self.movement_algorithm = RadiallyOutwardsAlgorithm(
                 robot=robot,
-                tracker=self.tracker,
-                process_tracker=self.process_tracker,
                 robot_config=self.robot_config,
             )
 
@@ -580,16 +578,24 @@ class RobotControl:
         #             self.SensorUpdateTarget(distance, self.status)
         #             self.status = False
 
+        # Compute the target pose in robot space.
         target_pose_in_robot_space_estimated_from_displacement = self.compute_target_in_robot_space()
 
-        success, normalize_force_sensor = self.movement_algorithm.robot_move_decision(
+        # Compute the head center in robot space.
+        head_center = self.process_tracker.estimate_head_center_in_robot_space(
+            self.tracker.m_tracker_to_robot,
+            head_pose_in_tracker_space_filtered).tolist()
+
+        # Move the robot.
+        success, normalize_force_sensor = self.movement_algorithm.move_decision(
             displacement_to_target=self.displacement_to_target,
             target_pose_in_robot_space_estimated_from_head_pose=target_pose_in_robot_space_estimated_from_head_pose,
             target_pose_in_robot_space_estimated_from_displacement=target_pose_in_robot_space_estimated_from_displacement,
             robot_pose=robot_pose,
-            head_pose_in_tracker_space_filtered=head_pose_in_tracker_space_filtered,
+            head_center=head_center,
         )
 
+        # Normalize force sensor values if needed.
         if self.use_force_sensor and normalize_force_sensor:
             self.force_ref = force_sensor_values[0:3]
             self.moment_ref = force_sensor_values[3:6]
