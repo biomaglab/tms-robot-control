@@ -2,6 +2,14 @@
 Robotized transcranial magnetic stimulation controlled by InVesalius Navigator (https://github.com/invesalius/invesalius3)
 
 
+# Configuration
+
+- Copy `.env.example` to `.env`
+
+- Edit `.env` and set the robot type, site, and other configuration parameters.
+
+# Running
+
 The first step is to run the relay_server.py script with an argument to set the server port
 
 `python relay_server.py 5000`

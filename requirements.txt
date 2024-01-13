@@ -9,3 +9,4 @@ opencv-python
 pynput
 matplotlib
 scipy
+python-dotenv

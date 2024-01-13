@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import os
 import sys
-
 import time
-import socketio
-
 from threading import Lock
+
+import socketio
+from dotenv import load_dotenv
 
 import robot.constants as const
 from robot.control.robot_control import RobotControl
@@ -89,23 +89,26 @@ def get_command_line_arguments():
     return host, port
 
 def get_environment_variables():
+    # Load environment variables from .env file
+    load_dotenv()
+
     site = os.getenv('SITE')
-    if site is None:
-      print("SITE environment variable not provided, exiting")
-      return None, None, None
+    if site is None or site == '':
+        print("SITE environment variable not provided, exiting")
+        return None, None, None
 
     robot = os.getenv('ROBOT')
-    if robot is None:
-      print("ROBOT environment variable not provided, using robot: 'test'")
-      robot = 'test'
+    if robot is None or robot == '':
+        print("ROBOT environment variable not provided, exiting")
+        return None, None, None
 
     use_force_sensor_param = os.getenv('USE_FORCE_SENSOR')
-    if use_force_sensor_param is None:
-      print("USE_FORCE_SENSOR environment variable not provided, exiting")
-      return None, None, None
+    if use_force_sensor_param is None or use_force_sensor_param == '':
+        print("USE_FORCE_SENSOR environment variable not provided, exiting")
+        return None, None, None
 
     use_force_sensor = use_force_sensor_param.lower() == 'true'
-    
+
     print("Using site: {}".format(site))
     print("Using robot: {}".format(robot))
     print("Using force sensor: {}".format(use_force_sensor))
