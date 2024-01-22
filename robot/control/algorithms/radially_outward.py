@@ -15,7 +15,7 @@ class MotionType(Enum):
     TUNING = 4
 
 
-class RadiallyOutwardsAlgorithm:
+class RadiallyOutwardAlgorithm:
     # Ordered axes for the tuning motion: first rotation, then translation. This is the order
     # in which the displacement is received from neuronavigation.
     ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
