@@ -65,7 +65,7 @@ class DirectlyUpwardAlgorithm:
             max_rotation = np.max(np.abs(displacement_to_target[3:]))
             print("Max translation: {:.2f} mm, max rotation: {:.2f} degrees".format(max_translation, max_rotation))
 
-            # If the maximum translation or rotation is larger than the threshold, initiate the motion sequence.
+            # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence.
             if max_translation > self.TRANSLATION_THRESHOLD or max_rotation > self.ROTATION_THRESHOLD:
                 print("Initiating motion sequence")
 
