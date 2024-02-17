@@ -37,7 +37,6 @@ class RobotControl:
         self.tracker = coordinates.Tracker()
 
         self.robot = None
-        self.robot_mode_status = False
 
         self.tracker_coordinates = []
         self.robot_coordinates = []
@@ -78,9 +77,6 @@ class RobotControl:
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
-
-    def OnUpdateRobotNavigationMode(self, data):
-        self.robot_mode_status = data["robot_mode"]
 
     def OnUpdateRobotTargetMatrix(self, data):
         if self.robot:

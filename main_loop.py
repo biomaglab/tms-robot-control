@@ -175,7 +175,6 @@ if __name__ == '__main__':
                 if topic[i] in const.PUB_MESSAGES:
                     get_function = {
                         const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
-                        const.FUNCTION_ROBOT_NAVIGATION_MODE: robot_control.OnUpdateRobotNavigationMode,
                         const.FUNCTION_UPDATE_ROBOT_TARGET: robot_control.OnUpdateRobotTargetMatrix,
                         const.FUNCTION_RESET_ROBOT_PROCESS: robot_control.OnResetProcessTracker,
                         const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot_control.OnUpdateCoordinates,
