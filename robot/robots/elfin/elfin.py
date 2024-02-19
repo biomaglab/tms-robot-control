@@ -16,7 +16,7 @@ class Elfin():
     """
     The class for communicating with Elfin robot.
     """
-    SPEED_RATIO = 0.05
+    SPEED_RATIO = 0.02
 
     def __init__(self, ip, use_new_api=False):
         self.coordinates = 6 * [None]
