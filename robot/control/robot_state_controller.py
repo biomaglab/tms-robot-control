@@ -20,9 +20,9 @@ class RobotStateController:
     - MOVING: The robot is moving.
     - WAITING: The robot has stopped moving and is waiting for a while before going back to READY.
     """
-    def __init__(self, robot, waiting_time):
+    def __init__(self, robot, dwell_time):
         self.robot = robot
-        self.waiting_time = waiting_time
+        self.dwell_time = dwell_time
 
         self.state = RobotState.READY
 
@@ -35,10 +35,10 @@ class RobotStateController:
         # If we are in WAITING, check if we have waited long enough.
         if self.state == RobotState.WAITING:
             waited_for = time.time() - self.waiting_start_time
-            self.remaining_waiting_time = self.waiting_time - waited_for
+            self.remaining_dwell_time = self.dwell_time - waited_for
 
             # If we have waited long enough, go back to READY.
-            if self.remaining_waiting_time <= 0:
+            if self.remaining_dwell_time <= 0:
                 self.state = RobotState.READY
 
     def print_state(self):
@@ -47,7 +47,7 @@ class RobotStateController:
         elif self.state == RobotState.MOVING:
             print("Robot state: MOVING")
         elif self.state == RobotState.WAITING:
-            print("Robot state: WAITING, remaining waiting time: {:.2f} s".format(self.remaining_waiting_time))
+            print("Robot state: WAITING, remaining dwell time: {:.2f} s".format(self.remaining_dwell_time))
 
     def get_state(self):
         return self.state

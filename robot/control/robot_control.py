@@ -1,5 +1,3 @@
-
-import dataclasses
 import numpy as np
 from collections import deque
 from pynput import keyboard
@@ -20,14 +18,12 @@ from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
 
 
 class RobotControl:
-    def __init__(self, robot_type, remote_control, site_config, robot_config, movement_algorithm_name, use_force_sensor):
-        self.robot_type = robot_type
+    def __init__(self, remote_control, config, site_config, robot_config):
         self.remote_control = remote_control
 
+        self.config = config
         self.site_config = site_config
         self.robot_config = robot_config
-        self.movement_algorithm_name = movement_algorithm_name
-        self.use_force_sensor = use_force_sensor
 
         self.process_tracker = robot_process.TrackerProcessing(
             robot_config=robot_config,
@@ -92,6 +88,7 @@ class RobotControl:
                 target = np.array(target).reshape(4, 4)
                 self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
+                self.movement_algorithm.performed_once = False
                 print("Target set")
 
     def OnResetProcessTracker(self, data):
@@ -266,7 +263,7 @@ class RobotControl:
         self.target_reached = data["state"]
 
     def ConnectToRobot(self, robot_IP):
-        robot_type = self.robot_type
+        robot_type = self.config['robot_type']
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
         if robot_type == "elfin":
@@ -300,21 +297,22 @@ class RobotControl:
             print('Robot initialized.')
 
             # Initialize the robot state controller.
-            waiting_time = self.robot_config['waiting_time']
+            dwell_time = self.config['dwell_time']
             self.robot_state_controller = RobotStateController(
                 robot=robot,
-                waiting_time=waiting_time,
+                dwell_time=dwell_time,
             )
 
             self.robot = robot
 
-            if self.movement_algorithm_name == 'radially_outward':
+            movement_algorithm_name = self.config['movement_algorithm']
+            if movement_algorithm_name == 'radially_outward':
                 self.movement_algorithm = RadiallyOutwardAlgorithm(
                     robot=robot,
                     robot_config=self.robot_config,
                 )
 
-            elif self.movement_algorithm_name == 'directly_upward':
+            elif movement_algorithm_name == 'directly_upward':
                 self.movement_algorithm = DirectlyUpwardAlgorithm(
                     robot=robot,
                     robot_config=self.robot_config,
@@ -441,7 +439,7 @@ class RobotControl:
             print("Error: Could not read the force sensor.")
             return
 
-        # TODO: condition for self.use_force_sensor
+        # TODO: condition for self.config['use_force_sensor']
         ft_values = np.array(force_sensor_values)
 
         # true f-t value
@@ -497,7 +495,7 @@ class RobotControl:
 
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
-        if self.use_force_sensor:
+        if self.config['use_force_sensor']:
             force_sensor_values = self.read_force_sensor()
         else:
             force_sensor_values = False
@@ -529,12 +527,13 @@ class RobotControl:
 
             return False
 
-        # Check if head is visible.
-        if head_pose_in_robot_space is None or not head_visible or not coil_visible:
-            print("Head marker is not visible")
-            self.robot.stop_robot()
+        # Check if head is visible. Disabled for now.
+        if False:
+            if head_pose_in_robot_space is None or not head_visible or not coil_visible:
+                print("Head marker is not visible")
+                self.robot.stop_robot()
 
-            return False
+                return False
 
         # Check head velocity.
         if not self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
@@ -580,7 +579,7 @@ class RobotControl:
             print("Head is too far from the robot basis")
             return False
 
-        # if self.use_force_sensor and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
+        # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
         #         if self.status:
         #             self.SensorUpdateTarget(distance, self.status)
@@ -604,7 +603,8 @@ class RobotControl:
         )
 
         # Normalize force sensor values if needed.
-        if self.use_force_sensor and normalize_force_sensor:
+        use_force_sensor = self.config['use_force_sensor']
+        if use_force_sensor and normalize_force_sensor:
             self.force_ref = force_sensor_values[0:3]
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')

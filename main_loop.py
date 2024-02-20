@@ -88,53 +88,54 @@ def get_command_line_arguments():
 
     return host, port
 
-def get_environment_variables():
-    # Load environment variables from .env file
+def get_config():
+    # Load environment variables from .env file.
     load_dotenv()
 
+    # Validate environment variables.
+    env_vars = [
+        'SITE',
+        'ROBOT',
+        'MOVEMENT_ALGORITHM',
+        'USE_FORCE_SENSOR',
+        'DWELL_TIME',
+    ]
+    for var in env_vars:
+        if os.getenv(var) is None:
+            print(f"Environment variable {var} not provided, exiting")
+            return None
+
+    # Create configuration dictionary.
     site = os.getenv('SITE')
-    if site is None or site == '':
-        print("SITE environment variable not provided, exiting")
-        return None
-
     robot = os.getenv('ROBOT')
-    if robot is None or robot == '':
-        print("ROBOT environment variable not provided, exiting")
-        return None
-
     movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
-    if movement_algorithm is None or movement_algorithm == '':
-        print("MOVEMENT_ALGORITHM environment variable not provided, exiting")
-        return None
-
-    use_force_sensor_param = os.getenv('USE_FORCE_SENSOR')
-    if use_force_sensor_param is None or use_force_sensor_param == '':
-        print("USE_FORCE_SENSOR environment variable not provided, exiting")
-        return None
-
-    use_force_sensor = use_force_sensor_param.lower() == 'true'
-
-    print("Configuration")
-    print("")
-    print("Site: {}".format(site))
-    print("Robot: {}".format(robot))
-    print("Movement algorithm: {}".format(movement_algorithm))
-    print("Force sensor: {}".format(use_force_sensor))
-    print("")
+    dwell_time = float(os.getenv('DWELL_TIME'))
+    use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
 
     config = {
         'site': site,
         'robot': robot,
         'movement_algorithm': movement_algorithm,
+        'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
     }
+
+    # Print configuration.
+    print("Configuration")
+    print("")
+    for key, value in config.items():
+        key_formatted = key.replace('_', ' ').capitalize()
+        print("{}: {}".format(key_formatted, value))
+
+    print("")
+
     return config
 
 
 if __name__ == '__main__':
     host, port = get_command_line_arguments()
 
-    config = get_environment_variables()
+    config = get_config()
     if config is None:
         exit(1)
 
@@ -145,21 +146,20 @@ if __name__ == '__main__':
     remote_control.connect()
 
     # Initialize robot controller
+
     site = config['site']
     robot = config['robot']
-    movement_algorithm = config['movement_algorithm']
-    use_force_sensor = config['use_force_sensor']
 
     site_config = const.SITE_CONFIG[site]
+
+    # If robot is set to elfin_new_api, use elfin config instead.
     robot_config = const.ROBOT_CONFIG[robot if robot != "elfin_new_api" else "elfin"]
 
     robot_control = RobotControl(
-        robot_type=robot,
         remote_control=remote_control,
+        config=config,
         site_config=site_config,
         robot_config=robot_config,
-        use_force_sensor=use_force_sensor,
-        movement_algorithm_name=movement_algorithm,
     )
 
     previous_robot_status = False
