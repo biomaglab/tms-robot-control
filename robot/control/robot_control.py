@@ -83,12 +83,12 @@ class RobotControl:
                 self.robot.force_stop_robot()
                 self.m_target_to_head = [None] * 9
                 self.target_force_sensor_data = 5
+                self.movement_algorithm.reset()
                 print("Target removed")
             else:
                 target = np.array(target).reshape(4, 4)
                 self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
-                self.movement_algorithm.performed_once = False
                 print("Target set")
 
     def OnResetProcessTracker(self, data):
@@ -387,10 +387,6 @@ class RobotControl:
     def update_robot_pose(self):
         robot_pose = self.robot.get_coordinates()
         self.robot_pose_storage.SetRobotPose(robot_pose)
-
-    def robot_motion_reset(self):
-        self.robot.stop_robot()
-        self.movement_algorithm.reset()
 
     def create_calibration_point(self):
         coil_visible = self.tracker.coil_visible
