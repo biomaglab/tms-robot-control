@@ -64,10 +64,10 @@ class DirectlyUpwardAlgorithm:
             # Compute the maximum translation and rotation to the target.
             max_translation = np.max(np.abs(displacement_to_target[:3]))
             max_rotation = np.max(np.abs(displacement_to_target[3:]))
-            print("Max translation: {:.2f} mm, max rotation: {:.2f} degrees".format(max_translation, max_rotation))
 
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence.
             if max_translation > self.TRANSLATION_THRESHOLD or max_rotation > self.ROTATION_THRESHOLD:
+                print("Max translation: {:.2f} mm, max rotation: {:.2f} degrees, exceeding the threshold".format(max_translation, max_rotation))
                 print("Initiating motion sequence")
 
                 # Start the motion sequence by moving upward.
@@ -89,8 +89,6 @@ class DirectlyUpwardAlgorithm:
         return success, normalize_force_sensor
 
     def _tune(self, displacement_to_target):
-        print("Tuning")
-
         # Find the first axis with displacement larger than the threshold.
         axis_to_move = None
         for axis in self.ORDERED_AXES:
@@ -105,6 +103,8 @@ class DirectlyUpwardAlgorithm:
         # If none of the axes has a displacement larger than the threshold, return early.
         if axis_to_move is None:
             return False
+
+        print("Initiating tuning motion")
 
         # Move along that axis.
         success = self.robot.move_linear_relative_to_tool_on_single_axis(
