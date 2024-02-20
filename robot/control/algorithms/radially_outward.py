@@ -24,9 +24,12 @@ class RadiallyOutwardAlgorithm:
     # when performing tuning motion.
     DISTANCE_ANGLE_THRESHOLD = 1.0
 
-    def __init__(self, robot, robot_config):
+    def __init__(self, robot, config, robot_config):
         self.robot = robot
         self.robot_config = robot_config
+
+        # Unused for now.
+        self.config = config
 
         self.motion_type = MotionType.NORMAL
         self.tuning_ongoing = False

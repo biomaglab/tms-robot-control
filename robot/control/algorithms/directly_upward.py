@@ -31,8 +31,6 @@ class DirectlyUpwardAlgorithm:
     TRANSLATION_THRESHOLD = 10.0  # mm
     ROTATION_THRESHOLD = 5.0  # degrees
 
-    UPWARD_MOVEMENT_TARGET_Z = 480.0  # mm from the robot basis
-
     # Ordered axes for the tuning motion: first rotation, then translation. This is the order
     # in which the displacement is received from neuronavigation.
     ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
@@ -41,8 +39,11 @@ class DirectlyUpwardAlgorithm:
     # when performing tuning motion.
     DISTANCE_ANGLE_THRESHOLD = 1.0
 
-    def __init__(self, robot, robot_config):
+    def __init__(self, robot, config, robot_config):
         self.robot = robot
+        self.config = config
+
+        # Unused for now.
         self.robot_config = robot_config
 
         self.reset()
@@ -119,15 +120,19 @@ class DirectlyUpwardAlgorithm:
         if self.motion_sequence_state == MotionSequenceState.MOVE_UPWARD:
             print("Moving upward")
 
+            target_z = self.config['safe_height']
+
             pose = self.robot.get_coordinates()
-            pose[2] = self.UPWARD_MOVEMENT_TARGET_Z
+            pose[2] = target_z
             success = self.robot.move_linear(pose)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_AND_ROTATE_IN_XY_PLANE:
             print("Moving and rotating in XY plane")
 
+            target_z = self.config['safe_height']
+
             pose = target_pose_in_robot_space
-            pose[2] = self.UPWARD_MOVEMENT_TARGET_Z
+            pose[2] = target_z
             success = self.robot.move_linear(pose)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_DOWNWARD:

@@ -99,6 +99,7 @@ def get_config():
         'MOVEMENT_ALGORITHM',
         'USE_FORCE_SENSOR',
         'DWELL_TIME',
+        'SAFE_HEIGHT',
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -111,6 +112,7 @@ def get_config():
     movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
+    safe_height = float(os.getenv('SAFE_HEIGHT'))
 
     config = {
         'site': site,
@@ -118,6 +120,7 @@ def get_config():
         'movement_algorithm': movement_algorithm,
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
+        'safe_height': safe_height,
     }
 
     # Print configuration.

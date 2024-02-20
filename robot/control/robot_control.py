@@ -260,10 +260,10 @@ class RobotControl:
         self.last_displacement_update_time = time.time()
 
     def OnCoilAtTarget(self, data):
-        self.target_reached = data["state"]
+        self.taret_reached = data["state"]
 
     def ConnectToRobot(self, robot_IP):
-        robot_type = self.config['robot_type']
+        robot_type = self.config['robot']
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
         if robot_type == "elfin":
@@ -309,12 +309,14 @@ class RobotControl:
             if movement_algorithm_name == 'radially_outward':
                 self.movement_algorithm = RadiallyOutwardAlgorithm(
                     robot=robot,
+                    config=self.config,
                     robot_config=self.robot_config,
                 )
 
             elif movement_algorithm_name == 'directly_upward':
                 self.movement_algorithm = DirectlyUpwardAlgorithm(
                     robot=robot,
+                    config=self.config,
                     robot_config=self.robot_config,
                 )
 
