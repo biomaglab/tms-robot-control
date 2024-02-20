@@ -31,8 +31,11 @@ class Dobot:
     TIMEOUT_START_MOTION = 10
     TIMEOUT_MOTION = 45
 
-    def __init__(self, ip, robot_config):
+    def __init__(self, ip, config, robot_config):
         self.robot_config = robot_config
+
+        # TODO: Unused for now.
+        self.robot_speed = config['robot_speed']
 
         self.stop_threads = False
 

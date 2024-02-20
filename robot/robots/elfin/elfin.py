@@ -16,9 +16,9 @@ class Elfin():
     """
     The class for communicating with Elfin robot.
     """
-    SPEED_RATIO = 0.02
+    def __init__(self, ip, config, use_new_api=False):
+        self.robot_speed = config['robot_speed']
 
-    def __init__(self, ip, use_new_api=False):
         self.coordinates = 6 * [None]
         self.target_reached = False
 
@@ -34,7 +34,7 @@ class Elfin():
     def initialize(self):
         # With the new Elfin firmware (5.51.9.beta.20230703), the speed ratio resets to 1% at start-up.
         # Hence, set it programmatically to a higher value.
-        self.connection.set_speed_ratio(self.SPEED_RATIO)
+        self.connection.set_speed_ratio(self.robot_speed)
 
         # With the new firmware (5.51.9.beta.20230703), changing between reference frames is not possible
         # during movement. Hence, set the reference frame to tool here, as it is the only reference frame used;

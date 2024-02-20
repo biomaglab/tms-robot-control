@@ -267,15 +267,15 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
         if robot_type == "elfin":
-            robot = elfin.Elfin(robot_IP)
+            robot = elfin.Elfin(robot_IP, config=self.config)
             success = robot.connect()
 
         elif robot_type == "elfin_new_api":
-            robot = elfin.Elfin(robot_IP, use_new_api=True)
+            robot = elfin.Elfin(robot_IP, config=self.config, use_new_api=True)
             success = robot.connect()
 
         elif robot_type == "dobot":
-            robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
+            robot = dobot.Dobot(robot_IP, config=self.config, robot_config=self.robot_config)
             success = robot.connect()
 
         elif robot_type == "ur":

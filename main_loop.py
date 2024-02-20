@@ -100,6 +100,7 @@ def get_config():
         'USE_FORCE_SENSOR',
         'DWELL_TIME',
         'SAFE_HEIGHT',
+        'ROBOT_SPEED',
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -113,6 +114,7 @@ def get_config():
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
     safe_height = float(os.getenv('SAFE_HEIGHT'))
+    robot_speed = float(os.getenv('ROBOT_SPEED'))
 
     config = {
         'site': site,
@@ -121,6 +123,7 @@ def get_config():
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
         'safe_height': safe_height,
+        'robot_speed': robot_speed,
     }
 
     # Print configuration.
