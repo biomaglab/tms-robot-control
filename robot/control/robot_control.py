@@ -529,13 +529,15 @@ class RobotControl:
 
             return False
 
-        # Check if head is visible. Disabled for now.
-        if False:
-            if head_pose_in_robot_space is None or not head_visible or not coil_visible:
-                print("Head marker is not visible")
-                self.robot.stop_robot()
+        # Check if head is visible.
+        if head_pose_in_robot_space is None or not head_visible or not coil_visible:
+            if self.config['stop_robot_if_head_not_visible']:
+                print("Warning: Head marker is not visible, stopping the robot")
 
+                self.robot.stop_robot()
                 return False
+
+            print("Warning: Head marker is not visible")
 
         # Check head velocity.
         if not self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):

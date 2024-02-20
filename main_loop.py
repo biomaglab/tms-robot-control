@@ -101,6 +101,7 @@ def get_config():
         'DWELL_TIME',
         'SAFE_HEIGHT',
         'ROBOT_SPEED',
+        'STOP_ROBOT_IF_HEAD_NOT_VISIBLE'
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -115,6 +116,7 @@ def get_config():
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
     safe_height = float(os.getenv('SAFE_HEIGHT'))
     robot_speed = float(os.getenv('ROBOT_SPEED'))
+    stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
 
     config = {
         'site': site,
@@ -124,6 +126,7 @@ def get_config():
         'use_force_sensor': use_force_sensor,
         'safe_height': safe_height,
         'robot_speed': robot_speed,
+        'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
     }
 
     # Print configuration.
