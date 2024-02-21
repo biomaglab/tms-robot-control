@@ -609,7 +609,11 @@ class RobotControl:
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')
 
-        # Set the robot state to moving if the movement was successful.
+        # TODO: Dobot has internal methods to check and control if the robot is moving and the controller was making
+        #  dobot have weird behavior. The best approach would be to use the controller instead of the internal methods.
+        #  By now, for dobot, its requires that the self.config['dwell_time'] is equal to zero.
+
+        # Set the robot state to moving if the movement was successful and the dwell_time is different from zero.
         if success and self.config['dwell_time']:
             self.robot_state_controller.set_state_to_moving()
 
