@@ -91,29 +91,33 @@ class DirectlyUpwardAlgorithm:
         return success, normalize_force_sensor
 
     def _tune(self, displacement_to_target):
-        # Find the first axis with displacement larger than the threshold.
-        axis_to_move = None
-        for axis in self.ORDERED_AXES:
-            axis_index = axis.value
-            distance = np.abs(displacement_to_target[axis_index])
-            direction = Direction.NEGATIVE if displacement_to_target[axis_index] < 0 else Direction.POSITIVE
+        try:
+            success = self.robot.move_linear_relative_to_tool(displacement_to_target)
 
-            if distance > self.DISTANCE_ANGLE_THRESHOLD:
-                axis_to_move = axis
-                break
+        except NotImplementedError:
+            # Find the first axis with displacement larger than the threshold.
+            axis_to_move = None
+            for axis in self.ORDERED_AXES:
+                axis_index = axis.value
+                distance = np.abs(displacement_to_target[axis_index])
+                direction = Direction.NEGATIVE if displacement_to_target[axis_index] < 0 else Direction.POSITIVE
 
-        # If none of the axes has a displacement larger than the threshold, return early.
-        if axis_to_move is None:
-            return False
+                if distance > self.DISTANCE_ANGLE_THRESHOLD:
+                    axis_to_move = axis
+                    break
 
-        print("Initiating tuning motion")
+            # If none of the axes has a displacement larger than the threshold, return early.
+            if axis_to_move is None:
+                return False
 
-        # Move along that axis.
-        success = self.robot.move_linear_relative_to_tool_on_single_axis(
-            axis=axis_to_move,
-            direction=direction,
-            distance=distance,
-        )
+            print("Initiating tuning motion")
+
+            # Move along that axis.
+            success = self.robot.move_linear_relative_to_tool_on_single_axis(
+                axis=axis_to_move,
+                direction=direction,
+                distance=distance,
+            )
         return success
 
     def _perform_motion(self, target_pose_in_robot_space):

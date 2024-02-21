@@ -260,7 +260,8 @@ class RobotControl:
         self.last_displacement_update_time = time.time()
 
     def OnCoilAtTarget(self, data):
-        self.taret_reached = data["state"]
+        self.target_reached = data["state"]
+        self.robot.set_target_reached(self.target_reached)
 
     def ConnectToRobot(self, robot_IP):
         robot_type = self.config['robot']
@@ -438,11 +439,10 @@ class RobotControl:
             return
 
         # TODO: condition for self.config['use_force_sensor']
-        ft_values = np.array(force_sensor_values)
 
         # true f-t value
-        current_F = ft_values[0:3]
-        current_M = ft_values[3:6]
+        current_F = force_sensor_values[0:3]
+        current_M = force_sensor_values[3:6]
         # normalised f-t value
         F_normalised = current_F - self.force_ref
         M_normalised = current_M - self.moment_ref
@@ -471,7 +471,7 @@ class RobotControl:
         # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
         # TODO: Change this entire part to compensate force properly in a feedback loop
 
-        return ft_values
+        return force_sensor_values
 
     def get_robot_status(self):
         # Update the robot state.
@@ -552,7 +552,7 @@ class RobotControl:
         # Check if the robot is already in the target position.
         if self.target_reached:
             # TODO: The robot shouldn't need this information, see a corresponding comment in Dobot class.
-            self.robot.set_target_reached(True)
+            #self.robot.set_target_reached(True)
 
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
@@ -610,7 +610,7 @@ class RobotControl:
             print('Normalised!')
 
         # Set the robot state to moving if the movement was successful.
-        if success:
+        if success and self.config['dwell_time']:
             self.robot_state_controller.set_state_to_moving()
 
         return success

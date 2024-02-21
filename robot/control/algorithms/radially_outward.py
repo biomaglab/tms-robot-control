@@ -156,7 +156,7 @@ class RadiallyOutwardAlgorithm:
         elif self.motion_type == MotionType.TUNING:
             # First try relative movement on all axes at once; if not supported by the robot, move along each axis separately.
             try:
-                self.robot.move_linear_relative_to_tool(displacement_to_target)
+                success = self.robot.move_linear_relative_to_tool(displacement_to_target)
 
             except NotImplementedError:
                 # Move along the first axis that has a displacement larger than the threshold.

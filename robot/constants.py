@@ -71,7 +71,7 @@ ROBOT_CONFIG = {
     'sleep': 0.005,
 
     # Head motion
-    'head_velocity_threshold': 30,
+    'head_velocity_threshold': 60,
 
     # Tuning motion
     'distance_threshold_for_tuning': 50,
@@ -89,7 +89,7 @@ ROBOT_CONFIG = {
     'transformation_matrix_threshold': 1,
 
     # Force and torque sensor
-    'force_sensor_threshold': 10,
+    'force_sensor_threshold': 7,
     'force_sensor_scale_threshold': 100,
   },
 

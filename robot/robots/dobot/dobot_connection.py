@@ -208,6 +208,14 @@ class DobotConnection:
         request = "RelMovLTool(" + self.list_to_str(offsets) + "," + str(tool) + ")"
         return self._send_and_receive(self.movement_socket, request)
 
+    def set_speed_ratio(self, speed):
+        """
+        Setting the Global rate
+        speed:Rate value(Value range:1~100)
+        """
+        speed = speed * 100
+        request = "SpeedFactor(" + str(int(speed)) + ")"
+        return self._send_and_receive(self.movement_socket, request)
 
 FeedbackType = np.dtype([(
     'len',
