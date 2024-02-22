@@ -31,16 +31,12 @@ class RadiallyOutwardAlgorithm:
         # Unused for now.
         self.config = config
 
+        # Reset the state
+        self.reset_state()
+
+    def reset_state(self):
         self.motion_type = MotionType.NORMAL
         self.tuning_ongoing = False
-
-        self.linear_out_target = None
-        self.arc_motion_target = None
-
-    def reset(self):
-        self.motion_type = MotionType.NORMAL
-        self.tuning_ongoing = False
-
         self.linear_out_target = None
         self.arc_motion_target = None
 

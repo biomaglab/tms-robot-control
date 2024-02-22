@@ -529,15 +529,31 @@ class RobotControl:
             if self.config['stop_robot_if_head_not_visible']:
                 print("Warning: Head marker is not visible, stopping the robot")
 
+                # Stop the robot. This is done because if the head marker is not visible, we cannot trust that the ongoing
+                # movement does not collide with the head.
                 self.robot.stop_robot()
+
+                # Reset the state of the movement algorithm. This is done because the movement algorithm may have trouble
+                # resuming the state after the robot is stopped - this is the case for 'directly upward' algorithm - hence,
+                # it's better to continue from a known, well-defined state.
+                self.movement_algorithm.reset_state()
+
                 return False
 
             print("Warning: Head marker is not visible")
 
-        # Check head velocity.
-        if not self.process_tracker.compute_head_move_threshold(head_pose_in_robot_space):
-            print("Head is moving too much")
+        # Check that the head is not moving too fast.
+        if self.process_tracker.is_head_moving_too_fast(head_pose_in_robot_space):
+            print("Warning: Head is moving too fast, stopping the robot")
+
+            # Stop the robot. This is done because if the head is moving too fast, we cannot trust that the ongoing
+            # movement does not collide with the head.
             self.robot.stop_robot()
+
+            # Reset the state of the movement algorithm. This is done because the movement algorithm may have trouble
+            # resuming the state after the robot is stopped - this is the case for 'directly upward' algorithm - hence,
+            # it's better to continue from a known, well-defined state.
+            self.movement_algorithm.reset_state()
 
             return False
 
@@ -550,9 +566,6 @@ class RobotControl:
 
         # Check if the robot is already in the target position.
         if self.target_reached:
-            # TODO: The robot shouldn't need this information, see a corresponding comment in Dobot class.
-            #self.robot.set_target_reached(True)
-
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
             return True

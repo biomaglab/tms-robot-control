@@ -91,6 +91,7 @@ class DirectlyUpwardAlgorithm:
 
     def _tune(self, displacement_to_target):
         try:
+            print("Initiating tuning motion")
             success = self.robot.move_linear_relative_to_tool(displacement_to_target)
 
         except NotImplementedError:

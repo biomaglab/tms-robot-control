@@ -369,9 +369,9 @@ class TrackerProcessing:
 
         return coord_kalman
 
-    def compute_head_move_threshold(self, current_ref):
+    def is_head_moving_too_fast(self, current_ref):
         """
-        Checks if the head velocity is bellow the threshold
+        Check if the head velocity is above the threshold. If yes, return True, otherwise False.
         """
         self.coord_vel.append(current_ref)
         self.timestamp.append(time())
@@ -390,13 +390,13 @@ class TrackerProcessing:
             if self.velocity_std > head_velocity_threshold:
                 self.coord_vel = []
                 self.timestamp = []
-                return False
+                return True
             else:
                 self.coord_vel = []
                 self.timestamp = []
-                return True
+                return False
 
-        return True
+        return False
 
     def estimate_head_center_in_robot_space(self, m_tracker_to_robot, head_pose_in_tracker_space):
         """
