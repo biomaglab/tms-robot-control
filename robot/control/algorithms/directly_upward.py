@@ -155,8 +155,9 @@ class DirectlyUpwardAlgorithm:
             pose = target_pose_in_robot_space
             success = self.robot.move_linear(pose)
 
-        # Transition to the next state.
-        self.motion_sequence_state = self.motion_sequence_state.next()
+        # Transition to the next state if movement command was given successfully.
+        if success:
+            self.motion_sequence_state = self.motion_sequence_state.next()
 
         return success
 
