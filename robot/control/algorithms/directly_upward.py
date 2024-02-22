@@ -10,8 +10,13 @@ class MotionSequenceState(Enum):
     NOT_INITIATED = 0
     MOVE_UPWARD = 1
     MOVE_AND_ROTATE_IN_XY_PLANE = 2
-    MOVE_DOWNWARD = 3
-    FINISHED = 4
+    # XXX: Due to calibration imprecision, there is inaccuracy in the estimated displacement; the inaccuracy is larger the farther
+    # away the robot is from the target. Therefore, move first partway downward to get a better estimate of the displacement, then rest of
+    # the way. If this is not done, the robot will either undershoot, causing the motion sequence to be re-triggered after the previous
+    # motion sequence is finished, or overshoot, causing the robot to potentially collide with the head.
+    MOVE_PARTWAY_DOWNWARD = 3
+    MOVE_DOWNWARD = 4
+    FINISHED = 5
 
     def next(self):
         """Returns the next state in the sequence, and remains in the last state."""
@@ -39,9 +44,13 @@ class DirectlyUpwardAlgorithm:
     # when performing tuning motion.
     DISTANCE_ANGLE_THRESHOLD = 1.0
 
+    # The proportion of the remaining distance to the target to move partway downward.
+    PARTWAY_DOWNWARD_REMAINING_PROPORTION = 0.1
+
     def __init__(self, robot, config, robot_config):
         self.robot = robot
-        self.config = config
+
+        self.safe_height = config['safe_height']
 
         # Unused for now.
         self.robot_config = robot_config
@@ -129,10 +138,15 @@ class DirectlyUpwardAlgorithm:
         elif self.motion_sequence_state == MotionSequenceState.MOVE_AND_ROTATE_IN_XY_PLANE:
             print("Moving and rotating in XY plane")
 
-            target_z = self.config['safe_height']
+            pose = target_pose_in_robot_space
+            pose[2] = self.safe_height
+            success = self.robot.move_linear(pose)
+
+        elif self.motion_sequence_state == MotionSequenceState.MOVE_PARTWAY_DOWNWARD:
+            print("Moving partway downward")
 
             pose = target_pose_in_robot_space
-            pose[2] = target_z
+            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.safe_height - pose[2])
             success = self.robot.move_linear(pose)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_DOWNWARD:
@@ -149,10 +163,8 @@ class DirectlyUpwardAlgorithm:
     def _move_to_safe_height(self):
         print("Moving upward to a safe height")
 
-        target_z = self.config['safe_height']
-
         pose = self.robot.get_coordinates()
-        pose[2] = target_z
+        pose[2] = self.safe_height
         success = self.robot.move_linear(pose)
 
         return success
