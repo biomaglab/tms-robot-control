@@ -46,11 +46,10 @@ class DirectlyUpwardAlgorithm:
         # Unused for now.
         self.robot_config = robot_config
 
-        self._reset_motion_sequence()
+        self.reset_state()
 
-    def reset(self):
-        self._reset_motion_sequence()
-        self._move_to_safe_height()
+    def reset_state(self):
+        self.motion_sequence_state = MotionSequenceState.NOT_INITIATED
 
     def move_decision(self,
                       displacement_to_target,
@@ -83,7 +82,7 @@ class DirectlyUpwardAlgorithm:
         # If the motion sequence is finished, reset the state.
         if self.motion_sequence_state == MotionSequenceState.FINISHED:
             print("Motion sequence finished")
-            self._reset_motion_sequence()
+            self.reset_state()
 
         # TODO: The force sensor is not normalized for now - add some logic here.
         normalize_force_sensor = False
@@ -156,6 +155,3 @@ class DirectlyUpwardAlgorithm:
         success = self.robot.move_linear(pose)
 
         return success
-
-    def _reset_motion_sequence(self):
-        self.motion_sequence_state = MotionSequenceState.NOT_INITIATED

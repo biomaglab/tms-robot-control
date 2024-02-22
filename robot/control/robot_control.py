@@ -83,7 +83,6 @@ class RobotControl:
                 self.robot.force_stop_robot()
                 self.m_target_to_head = [None] * 9
                 self.target_force_sensor_data = 5
-                self.movement_algorithm.reset()
                 print("Target removed")
             else:
                 target = np.array(target).reshape(4, 4)
