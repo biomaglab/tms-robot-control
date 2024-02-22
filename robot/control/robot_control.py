@@ -80,7 +80,9 @@ class RobotControl:
             self.target_set = data["robot_tracker_flag"]
             target = data["target"]
             if not self.target_set:
+                # If target is removed mid-movement, the current movement is rendered invalid; hence, stop the robot.
                 self.robot.force_stop_robot()
+
                 self.m_target_to_head = [None] * 9
                 self.target_force_sensor_data = 5
                 print("Target removed")
@@ -88,6 +90,12 @@ class RobotControl:
                 target = np.array(target).reshape(4, 4)
                 self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
                 self.target_force_sensor_data = self.new_force_sensor_data
+
+                # If target changes mid-movement, the current movement is rendered invalid; hence, stop the robot and reset the state
+                # of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
+                self.robot.force_stop_robot()
+                self.movement_algorithm.reset_state()
+
                 print("Target set")
 
     def OnResetProcessTracker(self, data):
