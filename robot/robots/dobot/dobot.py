@@ -140,10 +140,6 @@ class Dobot:
         return True, self.force_torque_data
 
     def compensate_force(self):
-        # If the robot is in an error state, return early.
-        if self.is_error_state():
-            return
-
         offsets = [0, 0, -2, 0, 0, 0]
         self.connection.move_linear_relative_to_tool(
             offsets=offsets,

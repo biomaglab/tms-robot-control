@@ -531,7 +531,11 @@ class RobotControl:
 
             #print("Compensating Force")
             print(self.new_force_sensor_data)
-            self.robot.compensate_force()
+
+            # TODO: Are these checks actually needed?
+            if not self.robot.is_moving() and not self.robot.is_error_state():
+                self.robot.compensate_force()
+
             time.sleep(0.5)
 
             return False

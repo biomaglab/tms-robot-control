@@ -55,11 +55,6 @@ class Elfin():
         return self.connection.read_force_sensor()
 
     def compensate_force(self):
-        # If the robot is not free to move, return early.
-        motion_state = self.connection.get_motion_state()
-        if motion_state != MotionState.FREE_TO_MOVE:
-            return
-
         axis = Axis.Z
         direction = Direction.NEGATIVE
         distance = 1
