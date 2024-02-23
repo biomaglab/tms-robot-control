@@ -12,10 +12,10 @@ class MotionSequenceState(Enum):
     MOVE_AND_ROTATE_IN_XY_PLANE = 2
     # XXX: Due to calibration imprecision, there is inaccuracy in the estimated displacement; the inaccuracy is larger the farther
     # away the robot is from the target. Therefore, move first partway downward to get a better estimate of the displacement, then rest of
-    # the way. If this is not done, the robot will either undershoot, causing the motion sequence to be re-triggered after the previous
-    # motion sequence is finished, or overshoot, causing the robot to potentially collide with the head.
+    # the way to the target. If this part-way movement is not first done, the robot will either undershoot, causing the motion sequence to
+    # be re-triggered after the previous motion sequence is finished, or overshoot, causing the robot to potentially collide with the head.
     MOVE_PARTWAY_DOWNWARD = 3
-    MOVE_DOWNWARD = 4
+    MOVE_TO_TARGET = 4
     FINISHED = 5
 
     def next(self):
@@ -149,8 +149,8 @@ class DirectlyUpwardAlgorithm:
             pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.safe_height - pose[2])
             success = self.robot.move_linear(pose)
 
-        elif self.motion_sequence_state == MotionSequenceState.MOVE_DOWNWARD:
-            print("Moving downward")
+        elif self.motion_sequence_state == MotionSequenceState.MOVE_TO_TARGET:
+            print("Moving to target")
 
             pose = target_pose_in_robot_space
             success = self.robot.move_linear(pose)
