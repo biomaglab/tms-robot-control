@@ -185,25 +185,6 @@ class ElfinConnection:
         success, _ = self._send_and_receive(request, verbose=True)
         return success
 
-    def move_linear_relative(self, axis, direction, distance):
-        """"
-        Moves the robot a given distance along the specified coordinate axis.
-
-        Note: There is a singular point in space motion.
-
-        TODO: This note could be clarified. How does the singularity affect this function?
-
-        :param: axis: A value of Axis enum, e.g., Axis.Z or Axis.RX.
-        :param: direction: A value of Direction enum: Direction.NEGATIVE or Direction.POSITIVE.
-        :param: distance: The movement distance (in mm).
-        :return: True if successful, otherwise False.
-        """
-        request = "MoveRelL," + str(self.ROBOT_ID) + ',' + \
-            str(axis.value) + ',' + str(direction.value) + ',' + str(distance)
-
-        success, _ = self._send_and_receive(request, verbose=True)
-        return success
-
     def read_force_sensor(self):
         """
         Reads the state of the force sensor.
