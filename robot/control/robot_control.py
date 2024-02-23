@@ -268,7 +268,8 @@ class RobotControl:
 
     def OnCoilAtTarget(self, data):
         self.target_reached = data["state"]
-        self.robot.set_target_reached(self.target_reached)
+        if self.robot is not None:
+            self.robot.set_target_reached(self.target_reached)
 
     def ConnectToRobot(self, robot_IP):
         robot_type = self.config['robot']
