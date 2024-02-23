@@ -25,6 +25,8 @@ class RobotControl:
         self.site_config = site_config
         self.robot_config = robot_config
 
+        self.verbose = config['verbose']
+
         self.process_tracker = robot_process.TrackerProcessing(
             robot_config=robot_config,
         )
@@ -143,12 +145,6 @@ class RobotControl:
             np.random.seed(1)
 
             X_est, Y_est, Y_est_check, ErrorStats = robot_process.Transformation_matrix.matrices_estimation(robot_coordinates, coord_coil_list)
-            print(robot_coordinates[:4, :4, -1][:3, 3].T - (Y_est @ coord_coil_list[:4, :4, -1] @ tr.inverse_matrix(X_est))[:3, 3].T)
-            print(robot_coordinates[:4, :4, -1][:3, 3].T - (affine_matrix_tracker_to_robot @ coord_coil_list[:4, :4, -1])[:3, 3].T)
-            # print(X_est)
-            # print(Y_est)
-            # print(Y_est_check)
-            print(ErrorStats)
             self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
             self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
@@ -258,7 +254,7 @@ class RobotControl:
         translation[1] += self.ft_displacement_offset[1]
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
-        if self.last_displacement_update_time is not None:
+        if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
                 ", ".join(["{:.2f}".format(x) for x in self.displacement_to_target]),
                 time.time() - self.last_displacement_update_time,
@@ -339,7 +335,7 @@ class RobotControl:
             self.remote_control.send_message(topic, data)
 
             self.robot = None
-            print('Unable to connect to robot.')
+            print('Error: Unable to connect to robot.')
 
         # Send message to neuronavigation indicating the state of connection.
         topic = 'Robot connection status'
@@ -364,7 +360,7 @@ class RobotControl:
 
         self.robot.stop_robot()
         time.sleep(0.1)
-        print("Reconnected!")
+        print("Reconnected")
 
     def SensorUpdateTarget(self, distance, status):
         topic = 'Update target from FT values'
@@ -492,6 +488,8 @@ class RobotControl:
         if self.robot.is_moving() or self.robot.is_error_state():
             return
 
+        print("Compensating force")
+
         # Get the current robot pose.
         success, robot_pose = self.robot.get_pose()
         if not success:
@@ -579,9 +577,6 @@ class RobotControl:
         if self.new_force_sensor_data > force_sensor_threshold and \
             self.new_force_sensor_data > (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
 
-            #print("Compensating Force")
-            print(self.new_force_sensor_data)
-
             self.compensate_force()
 
             return False
@@ -641,7 +636,7 @@ class RobotControl:
 
         # Ensure that the displacement to target has been updated recently.
         if time.time() > self.last_displacement_update_time + 0.2:
-            print("No displacement update received for 0.2 seconds")
+            print("Warning: No displacement update received for 0.2 seconds")
             self.displacement_to_target = None
             return True
 
@@ -650,7 +645,7 @@ class RobotControl:
         # Check if the target is outside the working space. If so, return early.
         working_space = self.robot_config['working_space']
         if np.linalg.norm(target_pose_in_robot_space_estimated_from_head_pose[:3]) >= working_space:
-            print("Head is too far from the robot basis")
+            print("Warning: Head is too far from the robot basis")
             return False
 
         # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout

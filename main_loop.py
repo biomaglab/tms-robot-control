@@ -96,6 +96,7 @@ def get_config():
     env_vars = [
         'SITE',
         'ROBOT',
+        'VERBOSE',
         'MOVEMENT_ALGORITHM',
         'USE_FORCE_SENSOR',
         'DWELL_TIME',
@@ -111,6 +112,7 @@ def get_config():
     # Create configuration dictionary.
     site = os.getenv('SITE')
     robot = os.getenv('ROBOT')
+    verbose = os.getenv('VERBOSE').lower() == 'true'
     movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
@@ -121,6 +123,7 @@ def get_config():
     config = {
         'site': site,
         'robot': robot,
+        'verbose': verbose,
         'movement_algorithm': movement_algorithm,
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,

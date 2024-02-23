@@ -25,8 +25,11 @@ class RobotStateController:
         self.dwell_time = dwell_time
 
         self.state = RobotState.READY
+        self.previous_state = None
 
     def update(self):
+        self.previous_state = self.state
+
         # Check if the robot was moving but is not anymore.
         if self.state == RobotState.MOVING and not self.robot.is_moving():
             self.state = RobotState.WAITING
@@ -42,11 +45,11 @@ class RobotStateController:
                 self.state = RobotState.READY
 
     def print_state(self):
-        if self.state == RobotState.READY:
+        if self.state == RobotState.READY and self.previous_state != RobotState.READY:
             print("Robot state: READY")
-        elif self.state == RobotState.MOVING:
+        elif self.state == RobotState.MOVING and self.previous_state != RobotState.MOVING:
             print("Robot state: MOVING")
-        elif self.state == RobotState.WAITING:
+        elif self.state == RobotState.WAITING and self.previous_state != RobotState.WAITING:
             print("Robot state: WAITING, remaining dwell time: {:.2f} s".format(self.remaining_dwell_time))
 
     def get_state(self):
