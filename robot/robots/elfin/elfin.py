@@ -5,7 +5,6 @@ import numpy as np
 from robot.robots.elfin.elfin_connection import (
     ElfinConnection,
     MotionState,
-    ReferenceFrame
 )
 
 from robot.robots.axis import Axis
@@ -34,11 +33,6 @@ class Elfin():
         # With the new Elfin firmware (5.51.9.beta.20230703), the speed ratio resets to 1% at start-up.
         # Hence, set it programmatically to a higher value.
         self.connection.set_speed_ratio(self.robot_speed)
-
-        # With the new firmware (5.51.9.beta.20230703), changing between reference frames is not possible
-        # during movement. Hence, set the reference frame to tool here, as it is the only reference frame used;
-        # it only applies to relative movement, which is always done with respect to the tool.
-        self.connection.set_reference_frame(ReferenceFrame.TOOL)
 
     def connect(self):
         return self.connection.connect()
