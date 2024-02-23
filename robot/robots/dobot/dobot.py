@@ -151,23 +151,20 @@ class Dobot:
         return True
 
     def stop_robot(self):
-        # Takes some microseconds to the robot actual stops after the command.
-        # The sleep time is required to guarantee the stop
         self.status_move = False
-        #if self.running_status == 1:
         self.connection.reset_robot()
-        #time.sleep(0.05)
 
-    def force_stop_robot(self):
-        self.stop_robot()
+        # Gracefully stop the movement thread.
         if self.moving:
             self.moving = False
-            print("ForceStopRobot")
             if self.thread_move:
                 try:
                     self.thread_move.join()
                 except RuntimeError:
                     pass
+
+    def force_stop_robot(self):
+        self.stop_robot()
 
     def close(self):
         self.stop_robot()
