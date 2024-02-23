@@ -27,8 +27,6 @@ class Elfin():
         return motion_state == MotionState.IN_MOTION
 
     def initialize(self):
-        # With the new Elfin firmware (5.51.9.beta.20230703), the speed ratio resets to 1% at start-up.
-        # Hence, set it programmatically to a higher value.
         self.connection.set_speed_ratio(self.robot_speed)
 
     def connect(self):
