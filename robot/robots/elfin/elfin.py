@@ -24,6 +24,10 @@ class Elfin():
         motion_state = self.connection.get_motion_state()
         return motion_state == MotionState.IN_MOTION
 
+    def is_error_state(self):
+        motion_state = self.connection.get_motion_state()
+        return motion_state == MotionState.ERROR
+
     def initialize(self):
         self.connection.set_speed_ratio(self.robot_speed)
 
@@ -39,23 +43,11 @@ class Elfin():
     def set_target_reached(self, _):
         pass
 
-    # Note: It is not possible to send a move command to elfin during movement.
-
     def move_linear(self, linear_target):
-        motion_state = self.connection.get_motion_state()
-        # TODO: Should motion state be used here to check that robot is free to move?
-
         success = self.connection.move_linear(linear_target)
         return success
 
     def move_circular(self, start_position, waypoint, target):
-        motion_state = self.connection.get_motion_state()
-
-        # If the robot is in an error state, stop the robot and return early.
-        if motion_state == MotionState.ERROR:
-            self.stop_robot()
-            return
-
         success = self.connection.move_circular(start_position, waypoint, target)
         return success
 

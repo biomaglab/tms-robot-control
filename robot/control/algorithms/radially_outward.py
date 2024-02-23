@@ -143,6 +143,16 @@ class RadiallyOutwardAlgorithm:
             success = self.robot.move_linear(self.linear_out_target)
 
         elif self.motion_type == MotionType.ARC:
+            # If the robot is in an error state, stop the robot and return early.
+            #
+            # TODO: Is this actually needed? If not, it could be removed to simplify the logic.
+            #   If it is needed, it should probably be somewhere where it's applied more globally,
+            #   for instance, at the beginning of this method. (Moving it there might in principle
+            #   break some other logic in this method, though, so it should be done with care.)
+            if self.robot.is_error_state():
+                self.stop_robot()
+                return success, normalize_force_sensor
+
             success = self.robot.move_circular(
                 start_position=robot_pose,
                 waypoint=waypoint,

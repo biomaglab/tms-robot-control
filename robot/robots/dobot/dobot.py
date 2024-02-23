@@ -85,6 +85,10 @@ class Dobot:
         motion_state = self.robot_status
         return motion_state == RobotStatus.RUNNING.value
 
+    def is_error_state(self):
+        status = self.connection.get_robot_status()
+        return status == RobotStatus.ERROR.value
+
     def initialize(self):
         self.connection.set_speed_ratio(self.robot_speed)
 
@@ -137,8 +141,7 @@ class Dobot:
 
     def compensate_force(self):
         # If the robot is in an error state, return early.
-        status = self.connection.get_robot_status()
-        if status == RobotStatus.ERROR.value:
+        if self.is_error_state():
             return
 
         offsets = [0, 0, -2, 0, 0, 0]
