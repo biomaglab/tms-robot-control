@@ -150,29 +150,8 @@ class RadiallyOutwardAlgorithm:
             )
 
         elif self.motion_type == MotionType.TUNING:
-            # First try relative movement on all axes at once; if not supported by the robot, move along each axis separately.
-            try:
-                success = self.robot.move_linear_relative_to_tool(displacement_to_target)
-
-            except NotImplementedError:
-                # Move along the first axis that has a displacement larger than the threshold.
-                axis_to_move = None
-                for axis in self.ORDERED_AXES:
-                    axis_index = axis.value
-                    distance = np.abs(displacement_to_target[axis_index])
-                    direction = Direction.NEGATIVE if displacement_to_target[axis_index] < 0 else Direction.POSITIVE
-
-                    if distance > self.DISTANCE_ANGLE_THRESHOLD:
-                        axis_to_move = axis
-                        break
-
-                # If any axis has a displacement larger than the threshold, move along that axis.
-                if axis_to_move is not None:
-                    success = self.robot.move_linear_relative_to_tool_on_single_axis(
-                        axis=axis_to_move,
-                        direction=direction,
-                        distance=distance,
-                    )
+            print("Initiating tuning motion")
+            success = self.robot.move_linear(target_pose_in_robot_space_estimated_from_displacement)
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?

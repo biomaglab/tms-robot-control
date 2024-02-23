@@ -86,7 +86,7 @@ class DirectlyUpwardAlgorithm:
         if self.motion_sequence_state != MotionSequenceState.NOT_INITIATED:
             success = self._perform_motion(target_pose_in_robot_space_estimated_from_displacement)
         else:
-            success = self._tune(displacement_to_target)
+            success = self._tune(target_pose_in_robot_space_estimated_from_displacement)
 
         # If the motion sequence is finished, reset the state.
         if self.motion_sequence_state == MotionSequenceState.FINISHED:
@@ -98,35 +98,10 @@ class DirectlyUpwardAlgorithm:
 
         return success, normalize_force_sensor
 
-    def _tune(self, displacement_to_target):
-        try:
-            print("Initiating tuning motion")
-            success = self.robot.move_linear_relative_to_tool(displacement_to_target)
+    def _tune(self, target_pose_in_robot_space):
+        print("Initiating tuning motion")
 
-        except NotImplementedError:
-            # Find the first axis with displacement larger than the threshold.
-            axis_to_move = None
-            for axis in self.ORDERED_AXES:
-                axis_index = axis.value
-                distance = np.abs(displacement_to_target[axis_index])
-                direction = Direction.NEGATIVE if displacement_to_target[axis_index] < 0 else Direction.POSITIVE
-
-                if distance > self.DISTANCE_ANGLE_THRESHOLD:
-                    axis_to_move = axis
-                    break
-
-            # If none of the axes has a displacement larger than the threshold, return early.
-            if axis_to_move is None:
-                return False
-
-            print("Initiating tuning motion")
-
-            # Move along that axis.
-            success = self.robot.move_linear_relative_to_tool_on_single_axis(
-                axis=axis_to_move,
-                direction=direction,
-                distance=distance,
-            )
+        success = self.robot.move_linear(target_pose_in_robot_space)
         return success
 
     def _perform_motion(self, target_pose_in_robot_space):
