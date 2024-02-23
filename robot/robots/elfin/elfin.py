@@ -17,9 +17,6 @@ class Elfin():
     """
     def __init__(self, ip, config, use_new_api=False):
         self.robot_speed = config['robot_speed']
-
-        self.target_reached = False
-
         self.connection = ElfinConnection(
             ip=ip,
             use_new_api=use_new_api,
