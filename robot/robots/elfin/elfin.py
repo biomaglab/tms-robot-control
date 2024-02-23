@@ -20,41 +20,46 @@ class Elfin():
             use_new_api=use_new_api,
         )
 
+    # Robot initialization functions
+    def connect(self):
+        return self.connection.connect()
+
+    def initialize(self):
+        self.connection.set_speed_ratio(self.robot_speed)
+
+    # Robot state functions
+    def get_pose(self):
+        return self.connection.get_pose()
+
     def is_moving(self):
         return self.connection.get_motion_state() == MotionState.IN_MOTION
 
     def is_error_state(self):
         return self.connection.get_motion_state() == MotionState.ERROR
 
-    def initialize(self):
-        self.connection.set_speed_ratio(self.robot_speed)
+    def read_force_sensor(self):
+        return self.connection.read_force_sensor()
 
-    def connect(self):
-        return self.connection.connect()
-
-    def get_pose(self):
-        return self.connection.get_pose()
-
-    # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
-    def set_target_reached(self, _):
-        pass
-
+    # Robot movement functions
     def move_linear(self, linear_target):
         return self.connection.move_linear(linear_target)
 
     def move_circular(self, start_position, waypoint, target):
         return self.connection.move_circular(start_position, waypoint, target)
 
-    def read_force_sensor(self):
-        return self.connection.read_force_sensor()
-
     def stop_robot(self):
         self.connection.stop_robot()
 
-        # After the stop command, it takes some milliseconds for the robot to stop;
-        # wait here to guarantee the stopping.
+        # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
         sleep(0.05)
 
+    # Robot destruction functions
     def close(self):
         self.stop_robot()
         self.connection.close()
+
+    # Other
+
+    # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
+    def set_target_reached(self, _):
+        pass
