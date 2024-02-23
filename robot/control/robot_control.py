@@ -394,8 +394,11 @@ class RobotControl:
             self.REF_FLAG = True
 
     def update_robot_pose(self):
-        robot_pose = self.robot.get_coordinates()
-        self.robot_pose_storage.SetRobotPose(robot_pose)
+        success, robot_pose = self.robot.get_coordinates()
+
+        # Only update the robot pose if the robot pose could be read.
+        if success:
+            self.robot_pose_storage.SetRobotPose(robot_pose)
 
     def create_calibration_point(self):
         coil_visible = self.tracker.coil_visible

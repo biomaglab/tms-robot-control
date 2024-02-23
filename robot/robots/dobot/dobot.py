@@ -89,7 +89,8 @@ class Dobot:
         self.connection.set_speed_ratio(self.robot_speed)
 
     def get_coordinates(self):
-        return self.coordinates
+        # Always successfully return coordinates.
+        return True, self.coordinates
 
     # TODO: This function is needlessly complicating the API between robot control and this class; there
     #   should not be a need for this low-level robot control class to know if the target has been reached.

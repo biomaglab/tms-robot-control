@@ -139,7 +139,10 @@ class DirectlyUpwardAlgorithm:
     def _move_to_safe_height(self):
         print("Moving upward to a safe height")
 
-        pose = self.robot.get_coordinates()
+        success, pose = self.robot.get_coordinates()
+        if not success:
+            return False
+
         pose[2] = self.safe_height
         success = self.robot.move_linear(pose)
 

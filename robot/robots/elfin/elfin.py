@@ -19,7 +19,6 @@ class Elfin():
     def __init__(self, ip, config, use_new_api=False):
         self.robot_speed = config['robot_speed']
 
-        self.coordinates = 6 * [None]
         self.target_reached = False
 
         self.connection = ElfinConnection(
@@ -47,12 +46,7 @@ class Elfin():
     def get_coordinates(self):
         success, coordinates = self.connection.get_coordinates()
 
-        # Only update coordinates if the reading was successful.
-        if success:
-            self.coordinates = coordinates
-
-        # Return the latest coordinates regardless of the success of the reading.
-        return self.coordinates
+        return success, coordinates
 
     # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
     def set_target_reached(self, _):
