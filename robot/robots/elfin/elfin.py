@@ -99,9 +99,6 @@ class Elfin():
         # wait here to guarantee the stopping.
         sleep(0.05)
 
-    def force_stop_robot(self):
-        self.stop_robot()
-
     def close(self):
         self.stop_robot()
         # TODO: Should the socket connection to the robot be closed?

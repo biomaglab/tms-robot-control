@@ -163,9 +163,6 @@ class Dobot:
                 except RuntimeError:
                     pass
 
-    def force_stop_robot(self):
-        self.stop_robot()
-
     def close(self):
         self.stop_robot()
         self.connected = False
