@@ -48,18 +48,6 @@ class Elfin():
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
 
-    def compensate_force(self):
-        axis = Axis.Z
-        direction = Direction.NEGATIVE
-        distance = 1
-
-        success = self.connection.move_linear_relative(
-            axis=axis,
-            direction=direction,
-            distance=distance,
-        )
-        return success
-
     def stop_robot(self):
         self.connection.stop_robot()
 

@@ -484,6 +484,56 @@ class RobotControl:
 
         return force_sensor_values
 
+    def compensate_force(self):
+        """
+        Compensate the force by moving the robot in the negative z-direction by 2 mm.
+        """
+        # TODO: Are these checks actually needed?
+        if self.robot.is_moving() or self.robot.is_error_state():
+            return
+
+        # Get the current robot pose.
+        success, robot_pose = self.robot.get_pose()
+        if not success:
+            print("Error: Could not read the robot pose.")
+            return
+
+        # Create the transformation matrix for the robot pose.
+        m_robot = robot_process.coordinates_to_transformation_matrix(
+            position=robot_pose[:3],
+            orientation=robot_pose[3:],
+            axes='sxyz',
+        )
+
+        # Create the compensation vector that points 2 mm to the negative z-direction.
+        compensation = [0, 0, -2, 0, 0, 0]
+
+        # Create the transformation matrix for the compensation.
+        m_compensation = robot_process.coordinates_to_transformation_matrix(
+            position=compensation[:3],
+            orientation=compensation[3:],
+            axes='sxyz',
+        )
+
+        # Compute the final transformation matrix.
+        m_final = m_robot @ m_compensation
+
+        # Convert the transformation matrix to coordinates.
+        translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
+
+        target_pose = list(translation) + list(angles_as_deg)
+
+        # Move the robot to the target pose.
+        success = self.robot.move_linear(target_pose)
+
+        if not success:
+            print("Error: Could not compensate the force.")
+            return
+
+        # Wait for the compensation to finish.
+        time.sleep(0.5)
+        return
+
     def get_robot_status(self):
         # Update the robot state.
         self.robot_state_controller.update()
@@ -532,11 +582,7 @@ class RobotControl:
             #print("Compensating Force")
             print(self.new_force_sensor_data)
 
-            # TODO: Are these checks actually needed?
-            if not self.robot.is_moving() and not self.robot.is_error_state():
-                self.robot.compensate_force()
-
-            time.sleep(0.5)
+            self.compensate_force()
 
             return False
 

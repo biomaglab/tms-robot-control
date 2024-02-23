@@ -139,16 +139,6 @@ class Dobot:
         #   not propagate to the caller.
         return True, self.force_torque_data
 
-    def compensate_force(self):
-        offsets = [0, 0, -2, 0, 0, 0]
-        self.connection.move_linear_relative_to_tool(
-            offsets=offsets,
-            tool=self.TOOL_ID,
-        )
-
-        # TODO: Properly handle errors and return the success of the movement here.
-        return True
-
     def stop_robot(self):
         self.status_move = False
         self.connection.reset_robot()
