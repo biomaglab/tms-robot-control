@@ -1,7 +1,5 @@
 from time import sleep
 
-import numpy as np
-
 from robot.robots.elfin.elfin_connection import (
     ElfinConnection,
     MotionState,
@@ -84,7 +82,7 @@ class Elfin():
     def stop_robot(self):
         self.connection.stop_robot()
 
-        # After the stop command, it takes some microseconds for the robot to stop;
+        # After the stop command, it takes some milliseconds for the robot to stop;
         # wait here to guarantee the stopping.
         sleep(0.05)
 

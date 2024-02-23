@@ -128,80 +128,6 @@ class ElfinConnection:
 
     # Robot commands
 
-    def power_up(self):
-        """
-        Powers up the robot.
-        Note: Waits until powered up. Power up time is about 44s.
-
-        :return: True if successful, otherwise False.
-        """
-        request = "Electrify"
-        success, _ = self._send_and_receive(request)
-        return success
-
-    def power_outage(self):
-        """
-        Creates a power outage for the robot.
-        Note: Waits until power outage is over (3 seconds).
-
-        :return: True if successful, otherwise False.
-        """
-        request = "BlackOut"
-        success, _ = self._send_and_receive(request)
-        return success
-
-    def start_master_station(self):
-        """
-        Starts the master station.
-        Note: Waits until the master station is started (approximately 4 seconds).
-
-        :return: True if successful, otherwise False.
-        """
-        request = "StartMaster"
-        success, _ = self._send_and_receive(request)
-        return success
-
-    def stop_master_station(self):
-        """
-        Stops the master station.
-        Note: Waits until the master station is stopped (approximately 2 seconds).
-
-        :return: True if successful, otherwise False.
-        """
-        request = "CloseMaster"
-        success, _ = self._send_and_receive(request)
-        return success
-
-    def enable_robot_servo(self):
-        """
-        Enables the robot's servo.
-
-        :return: True if successful, otherwise False.
-        """
-        request = "GrpPowerOn," + str(self.ROBOT_ID)
-        success, _ = self._send_and_receive(request)
-        return success
-
-    def disable_robot_servo(self):
-        """
-        Disables the robot's servo.
-
-        :return: True if successful, otherwise False.
-        """
-        request = "GrpPowerOff," + str(self.ROBOT_ID)
-        success, _ = self._send_and_receive(request)
-        return success
-
-    def clear_errors(self):
-        """
-        Clears any errors.
-
-        :return: True if successful, otherwise False.
-        """
-        request = "GrpReset," + str(self.ROBOT_ID)
-        success, _ = self._send_and_receive(request, verbose=True)
-        return success
-
     def stop_robot(self):
         """
         Stops the robot's movement.
@@ -222,32 +148,6 @@ class ElfinConnection:
         request = "SetOverride," + str(self.ROBOT_ID) + ',' + str(speed_ratio)
         success, _ = self._send_and_receive(request)
         return success
-
-    def get_tcp_offset(self):
-        """
-        Gets the offset of the tool center point, relative to the end effector.
-
-        TODO: Only works for the new Elfin API; for the old, returns None. We should switch
-        to a single API version so that fetching the TCP offset can be unified. It should
-        come from the robot instead of being hard-coded.
-
-        :return: A pair of a success indicator and the TCP offset.
-
-            The TCP offset is a list [x, y, z, rx, ry, rz], where
-
-            x, y, z are the coordinates in mm, and
-            rx, ry, rz are the rotation angles in degrees.
-        """
-        command = "ReadActPos" if self.use_new_api else "ReadPcsActualPos"
-        request = command + "," + str(self.ROBOT_ID)
-
-        success, params = self._send_and_receive(request)
-        if not success or params is None:
-            coordinates = None
-        else:
-            coordinates = [float(s) for s in params[12:18]] if self.use_new_api else None
-
-        return success, coordinates
 
     def get_pose(self):
         """
@@ -325,19 +225,6 @@ class ElfinConnection:
 
         return success, force_sensor_values
 
-    def set_reference_frame(self, reference_frame):
-        """
-        Sets the reference frame for movement: either robot or tool.
-
-        :param: A ReferenceFrame enum value: ReferenceFrame.ROBOT or ReferenceFrame.TOOL.
-        :return: True if successful, otherwise False.
-        """
-        command = "SetToolMotion" if self.use_new_api else "SetToolCoordinateMotion"
-        request = command + "," + str(self.ROBOT_ID) + ',' + str(reference_frame.value)
-
-        success, _ = self._send_and_receive(request)
-        return success
-
     def get_motion_state(self):
         """
         Gets the motion state of the robot.
@@ -377,16 +264,6 @@ class ElfinConnection:
                 print("Unknown motion state: {}".format(code))
                 return MotionState.UNKNOWN
 
-    def home_robot(self):
-        """
-        Homes the robot (= returns the robot to the origin).
-
-        :return: True if successful, otherwise False.
-        """
-        request = "MoveHoming," + str(self.ROBOT_ID)
-        success, _ = self._send_and_receive(request)
-        return success
-
     def move_circular(self, start_position, waypoint, target):
         """
         Moves the robot to the specified space coordinates using circular motion.
@@ -413,23 +290,6 @@ class ElfinConnection:
 
             # Note: The start position is unused in the old version of the Elfin API.
             request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint[:3]) + ',' + self.list_to_str(target) + ',' + movement_type_str
-
-        success, _ = self._send_and_receive(request, verbose=True)
-        return success
-
-    def move_linear_with_waypoint(self, waypoint, target):
-        """
-        Moves the robot to the specified space coordinates through a waypoint, using linear motion.
-
-        :param: waypoint: [x, y, z], where x, y, z are the coordinates in mm.
-        :param: target: [x, y, z, rx, ry, rz], where
-
-            x, y, z are the coordinates in mm, and
-            rx, ry, rz are the rotation angles in degrees.
-
-        :return: True if successful, otherwise False.
-        """
-        request = "MoveB," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint) + ',' + self.list_to_str(target)
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
