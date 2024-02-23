@@ -72,10 +72,6 @@ class Elfin():
         success = self.connection.move_circular(start_position, waypoint, target)
         return success
 
-    # Not supported by Elfin.
-    def move_linear_relative_to_tool(self, displacement):
-        raise NotImplementedError
-
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
 

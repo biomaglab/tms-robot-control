@@ -130,17 +130,6 @@ class Dobot:
         # TODO: Properly handle errors and return the success of the movement here.
         return True
 
-    def move_linear_relative_to_tool(self, displacement):
-        self.target = displacement
-        self.motion_type = MotionType.TUNING
-        self.status_move = True
-        if not self.moving:
-            self.moving = True
-            self._set_move_thread()
-
-        # TODO: Properly handle errors and return the success of the movement here.
-        return True
-
     def read_force_sensor(self):
         # TODO: Should return False if the force sensor cannot be read. Currently the error does
         #   not propagate to the caller.
