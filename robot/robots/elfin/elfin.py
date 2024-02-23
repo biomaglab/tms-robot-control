@@ -21,12 +21,10 @@ class Elfin():
         )
 
     def is_moving(self):
-        motion_state = self.connection.get_motion_state()
-        return motion_state == MotionState.IN_MOTION
+        return self.connection.get_motion_state() == MotionState.IN_MOTION
 
     def is_error_state(self):
-        motion_state = self.connection.get_motion_state()
-        return motion_state == MotionState.ERROR
+        return self.connection.get_motion_state() == MotionState.ERROR
 
     def initialize(self):
         self.connection.set_speed_ratio(self.robot_speed)
@@ -35,21 +33,17 @@ class Elfin():
         return self.connection.connect()
 
     def get_pose(self):
-        success, coordinates = self.connection.get_pose()
-
-        return success, coordinates
+        return self.connection.get_pose()
 
     # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
     def set_target_reached(self, _):
         pass
 
     def move_linear(self, linear_target):
-        success = self.connection.move_linear(linear_target)
-        return success
+        return self.connection.move_linear(linear_target)
 
     def move_circular(self, start_position, waypoint, target):
-        success = self.connection.move_circular(start_position, waypoint, target)
-        return success
+        return self.connection.move_circular(start_position, waypoint, target)
 
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
