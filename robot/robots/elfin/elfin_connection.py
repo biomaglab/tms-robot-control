@@ -48,11 +48,28 @@ class ElfinConnection:
             self.socket = new_socket
 
             self.connected = True
-
         except:
             print("Failed to connect")
 
         return self.connected
+
+    def close(self):
+        """
+        Closes the connection to the robot.
+
+        :return: True if successful, otherwise False.
+        """
+        if not self.connected:
+            print("Not connected, therefore cannot close the connection")
+            return True
+
+        try:
+            self.socket.close()
+            self.connected = False
+        except:
+            print("Failed to close the connection")
+
+        return not self.connected
 
     def _send_and_receive(self, request, verbose=False):
         if verbose:

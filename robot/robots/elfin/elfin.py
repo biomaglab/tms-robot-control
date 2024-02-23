@@ -101,4 +101,4 @@ class Elfin():
 
     def close(self):
         self.stop_robot()
-        # TODO: Should the socket connection to the robot be closed?
+        self.connection.close()
