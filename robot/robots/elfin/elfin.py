@@ -43,8 +43,8 @@ class Elfin():
     def connect(self):
         return self.connection.connect()
 
-    def get_coordinates(self):
-        success, coordinates = self.connection.get_coordinates()
+    def get_pose(self):
+        success, coordinates = self.connection.get_pose()
 
         return success, coordinates
 

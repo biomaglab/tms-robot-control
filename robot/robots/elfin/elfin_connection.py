@@ -232,7 +232,7 @@ class ElfinConnection:
 
         return success, coordinates
 
-    def get_coordinates(self):
+    def get_pose(self):
         """
         Gets the pose of the robot TCP.
 

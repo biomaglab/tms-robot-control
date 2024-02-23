@@ -88,7 +88,7 @@ class Dobot:
     def initialize(self):
         self.connection.set_speed_ratio(self.robot_speed)
 
-    def get_coordinates(self):
+    def get_pose(self):
         # Always successfully return coordinates.
         return True, self.coordinates
 

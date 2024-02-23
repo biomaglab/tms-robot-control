@@ -394,7 +394,7 @@ class RobotControl:
             self.REF_FLAG = True
 
     def update_robot_pose(self):
-        success, robot_pose = self.robot.get_coordinates()
+        success, robot_pose = self.robot.get_pose()
 
         # Only update the robot pose if the robot pose could be read.
         if success:
