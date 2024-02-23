@@ -3,8 +3,6 @@ from enum import Enum
 import numpy as np
 
 import robot.control.robot_processing as robot_process
-from robot.robots.axis import Axis
-from robot.robots.direction import Direction
 
 
 class MotionType(Enum):
@@ -16,10 +14,6 @@ class MotionType(Enum):
 
 
 class RadiallyOutwardAlgorithm:
-    # Ordered axes for the tuning motion: first rotation, then translation. This is the order
-    # in which the displacement is received from neuronavigation.
-    ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
-
     # The threshold for both distance (in mm) and angle (in degrees) to move to the next axis
     # when performing tuning motion.
     DISTANCE_ANGLE_THRESHOLD = 1.0

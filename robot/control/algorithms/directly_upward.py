@@ -2,9 +2,6 @@ from enum import Enum
 
 import numpy as np
 
-from robot.robots.axis import Axis
-from robot.robots.direction import Direction
-
 
 class MotionSequenceState(Enum):
     NOT_INITIATED = 0
@@ -35,10 +32,6 @@ class DirectlyUpwardAlgorithm:
     # Thresholds outside which a motion sequence is initiated.
     TRANSLATION_THRESHOLD = 10.0  # mm
     ROTATION_THRESHOLD = 5.0  # degrees
-
-    # Ordered axes for the tuning motion: first rotation, then translation. This is the order
-    # in which the displacement is received from neuronavigation.
-    ORDERED_AXES = (Axis.RX, Axis.RY, Axis.RZ, Axis.X, Axis.Y, Axis.Z)
 
     # The threshold for both distance (in mm) and angle (in degrees) to move to the next axis
     # when performing tuning motion.

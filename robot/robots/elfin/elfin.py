@@ -5,9 +5,6 @@ from robot.robots.elfin.elfin_connection import (
     MotionState,
 )
 
-from robot.robots.axis import Axis
-from robot.robots.direction import Direction
-
 
 class Elfin():
     """
