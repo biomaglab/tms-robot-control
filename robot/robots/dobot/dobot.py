@@ -141,11 +141,6 @@ class Dobot:
         # TODO: Properly handle errors and return the success of the movement here.
         return True
 
-    # Dobot supports relative movement along several axes at a time; hence do not implement
-    # single-axis relative movement for now.
-    def move_linear_relative_to_tool_on_single_axis(self, axis, direction, distance):
-        raise NotImplementedError
-
     def read_force_sensor(self):
         # TODO: Should return False if the force sensor cannot be read. Currently the error does
         #   not propagate to the caller.

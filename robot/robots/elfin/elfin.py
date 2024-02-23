@@ -76,22 +76,6 @@ class Elfin():
     def move_linear_relative_to_tool(self, displacement):
         raise NotImplementedError
 
-    def move_linear_relative_to_tool_on_single_axis(self, axis, direction, distance):
-        motion_state = self.connection.get_motion_state()
-
-        # If the robot is not free to move, return early.
-        #
-        # TODO: Should this follow a logic similar to MoveCircular function?
-        if motion_state != MotionState.FREE_TO_MOVE:
-            return
-
-        success = self.connection.move_linear_relative(
-            axis=axis,
-            direction=direction,
-            distance=distance,
-        )
-        return success
-
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
 
