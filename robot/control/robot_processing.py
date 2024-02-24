@@ -363,7 +363,6 @@ class TrackerProcessing:
         self.kalman_coord_vector.append(coord_kalman[:3])
         if len(self.kalman_coord_vector) < 20: #avoid initial fluctuations
             coord_kalman = coord_tracker
-            print('initializing filter')
         else:
             del self.kalman_coord_vector[0]
 
