@@ -102,7 +102,8 @@ def get_config():
         'DWELL_TIME',
         'SAFE_HEIGHT',
         'ROBOT_SPEED',
-        'STOP_ROBOT_IF_HEAD_NOT_VISIBLE'
+        'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
+        'TUNING_INTERVAL',
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -120,6 +121,13 @@ def get_config():
     robot_speed = float(os.getenv('ROBOT_SPEED'))
     stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
 
+    # If tuning interval is not provided, set it to None, otherwise convert to float.
+    tuning_interval = os.getenv('TUNING_INTERVAL')
+    if tuning_interval == "":
+        tuning_interval = None
+    else:
+        tuning_interval = float(tuning_interval)
+
     config = {
         'site': site,
         'robot': robot,
@@ -130,6 +138,7 @@ def get_config():
         'safe_height': safe_height,
         'robot_speed': robot_speed,
         'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
+        'tuning_interval': tuning_interval,
     }
 
     # Print configuration.

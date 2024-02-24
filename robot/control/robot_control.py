@@ -71,6 +71,7 @@ class RobotControl:
 
         self.last_displacement_update_time = None
         self.last_robot_status_logging_time = time.time()
+        self.last_tuning_time = time.time()
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
@@ -619,11 +620,20 @@ class RobotControl:
             # that the robot is generally in a good state.
             return True
 
-        # Check if the robot is already in the target position.
-        if self.target_reached:
+        # Check if enough time has passed since the last tuning.
+        tuning_interval = self.config['tuning_interval']
+        if tuning_interval is not None:
+            is_time_to_tune = self.last_tuning_time is not None and time.time() - self.last_tuning_time > tuning_interval
+        else:
+            is_time_to_tune = False
+
+        # Check if the robot is already in the target position and not enough time has passed since the last tuning.
+        if self.target_reached and not is_time_to_tune:
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
             return True
+
+        self.last_tuning_time = time.time()
 
         # Check if the displacement to the target is available.
         if self.displacement_to_target is None:
