@@ -67,7 +67,7 @@ SITE_CONFIG = {
 ROBOT_CONFIG = {
   'dobot': {
     # General
-    'working_space': 1500,
+    'working_space_radius': 1500,
     'sleep': 0.005,
 
     # Head motion
@@ -98,7 +98,7 @@ ROBOT_CONFIG = {
 
     # Robot working space is defined as 800 mm in Elfin 5 manual. For safety, the value is
     # reduced by 5%. For debugging, feel free to use 1000 mm.
-    'working_space': 1000,
+    'working_space_radius': 1000,
     'sleep': 0.0,
 
     # Head motion

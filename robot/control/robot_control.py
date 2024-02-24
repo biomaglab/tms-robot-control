@@ -640,11 +640,15 @@ class RobotControl:
             self.displacement_to_target = None
             return True
 
+        # Compute the target pose in robot space using the head pose.
         target_pose_in_robot_space_estimated_from_head_pose = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
 
+        # Compute the target pose in robot space using the displacement to the target.
+        target_pose_in_robot_space_estimated_from_displacement = self.compute_target_in_robot_space()
+
         # Check if the target is outside the working space. If so, return early.
-        working_space = self.robot_config['working_space']
-        if np.linalg.norm(target_pose_in_robot_space_estimated_from_head_pose[:3]) >= working_space:
+        working_space_radius = self.robot_config['working_space_radius']
+        if np.linalg.norm(target_pose_in_robot_space_estimated_from_displacement[:3]) >= working_space_radius:
             print("Warning: Head is too far from the robot basis")
             return False
 
@@ -653,9 +657,6 @@ class RobotControl:
         #         if self.status:
         #             self.SensorUpdateTarget(distance, self.status)
         #             self.status = False
-
-        # Compute the target pose in robot space.
-        target_pose_in_robot_space_estimated_from_displacement = self.compute_target_in_robot_space()
 
         # Compute the head center in robot space.
         head_center = self.process_tracker.estimate_head_center_in_robot_space(
