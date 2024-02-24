@@ -30,6 +30,7 @@ class ElfinConnection:
         self.use_new_api = use_new_api
 
         self.connected = False
+        self.socket = None
 
     def connect(self):
         """
@@ -38,7 +39,7 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         if self.connected:
-            print("Already connected")
+            print("Already connected to the robot")
             return True
 
         try:
@@ -49,25 +50,25 @@ class ElfinConnection:
 
             self.connected = True
         except:
-            print("Failed to connect")
+            print("Failed to connect to the robot")
 
         return self.connected
 
-    def close(self):
+    def disconnect(self):
         """
-        Closes the connection to the robot.
+        Disconnects from the robot.
 
         :return: True if successful, otherwise False.
         """
         if not self.connected:
-            print("Not connected, therefore cannot close the connection")
+            print("Not connected to the robot, therefore cannot disconnect")
             return True
 
         try:
             self.socket.close()
             self.connected = False
         except:
-            print("Failed to close the connection")
+            print("Failed to disconnect from the robot")
 
         return not self.connected
 
@@ -75,15 +76,16 @@ class ElfinConnection:
         if verbose:
             print("Sending request: {}".format(request))
 
-        # Send the request to the robot.
         full_request = request + self.REQUEST_ENDING_CHARS
-        self.socket.sendall(full_request.encode('utf-8'))
-
-        # Receive the response from the robot.
         try:
+            # Send the request to the robot.
+            self.socket.sendall(full_request.encode('utf-8'))
+
+            # Receive the response from the robot.
             response = self.socket.recv(self.RESPONSE_LENGTH).decode('utf-8').split(',')
-        except TimeoutError:
-            print("Robot connection error: TimeoutError")
+
+        except (BrokenPipeError, ConnectionResetError, TimeoutError) as e:
+            print("Robot connection error: {}".format(e))
             self.connected = False
             return False, None
 

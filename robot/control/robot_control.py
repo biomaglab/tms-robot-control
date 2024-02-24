@@ -342,26 +342,6 @@ class RobotControl:
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
-    # TODO: Unused for now; all robots should have a similar logic and interface for reconnecting,
-    #   that's why this function was moved here from Elfin robot class. However, how reconnecting
-    #   works exactly needs to be thought through later.
-    def ReconnectToRobot(self):
-        topic = 'Update robot status'
-        data = {'robot_status': False}
-        self.remote_control.send_message(topic, data)
-
-        while True:
-            print("Trying to reconnect to robot...")
-            success = self.robot.connect()
-            if success:
-                break
-
-            time.sleep(1)
-
-        self.robot.stop_robot()
-        time.sleep(0.1)
-        print("Reconnected")
-
     def SensorUpdateTarget(self, distance, status):
         topic = 'Update target from FT values'
         data = {'data' : (distance, status)}
@@ -532,7 +512,25 @@ class RobotControl:
         time.sleep(0.5)
         return
 
+    def reconnect_to_robot(self):
+        print("Trying to reconnect to robot...")
+        success = self.robot.connect()
+        if success:
+            print("Reconnected to robot")
+        else:
+            print("Error: Could not reconnect to robot")
+
+        return success
+
     def get_robot_status(self):
+        # Check if the robot is connected.
+        if not self.robot.is_connected():
+            print("Error: Robot is not connected")
+
+            success = self.reconnect_to_robot()
+            if not success:
+                return False
+
         # Update the robot state.
         self.robot_state_controller.update()
 
@@ -671,6 +669,14 @@ class RobotControl:
             robot_pose=robot_pose,
             head_center=head_center,
         )
+
+        if not success:
+            print("Error: Could not move the robot")
+
+            if self.robot.is_error_state():
+                print("Error: Robot is in error state")
+
+            return False
 
         # Normalize force sensor values if needed.
         use_force_sensor = self.config['use_force_sensor']

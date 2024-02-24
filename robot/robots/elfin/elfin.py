@@ -17,14 +17,21 @@ class Elfin():
             use_new_api=use_new_api,
         )
 
-    # Robot initialization functions
+    # Connection
     def connect(self):
         return self.connection.connect()
 
+    def disconnect(self):
+        return self.connection.disconnect()
+
+    def is_connected(self):
+        return self.connection.connected
+
+    # Initialization
     def initialize(self):
         self.connection.set_speed_ratio(self.robot_speed)
 
-    # Robot state functions
+    # Robot state
     def get_pose(self):
         return self.connection.get_pose()
 
@@ -37,7 +44,7 @@ class Elfin():
     def read_force_sensor(self):
         return self.connection.read_force_sensor()
 
-    # Robot movement functions
+    # Movement
     def move_linear(self, linear_target):
         return self.connection.move_linear(linear_target)
 
@@ -50,10 +57,10 @@ class Elfin():
         # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
         sleep(0.05)
 
-    # Robot destruction functions
+    # Destruction and cleanup
     def close(self):
         self.stop_robot()
-        self.connection.close()
+        self.disconnect()
 
     # Other
 

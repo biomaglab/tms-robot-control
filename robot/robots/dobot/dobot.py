@@ -81,6 +81,13 @@ class Dobot:
 
         return self.connected
 
+    def disconnect(self):
+        # Not implemented yet.
+        pass
+
+    def is_connected(self):
+        return self.connected
+
     def is_moving(self):
         motion_state = self.robot_status
         return motion_state == RobotStatus.RUNNING.value
