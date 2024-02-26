@@ -129,6 +129,12 @@ class DirectlyUpwardAlgorithm:
 
         return success
 
+    def move_away_from_head(self):
+        print("Moving away from head")
+
+        success = self._move_to_safe_height()
+        return success
+
     def _move_to_safe_height(self):
         print("Moving upward to a safe height")
 

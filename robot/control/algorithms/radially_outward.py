@@ -162,3 +162,7 @@ class RadiallyOutwardAlgorithm:
             pass
 
         return success, normalize_force_sensor
+
+    def move_away_from_head(self):
+        # TODO: Not implemented yet.
+        return False

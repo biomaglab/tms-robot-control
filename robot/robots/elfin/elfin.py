@@ -52,10 +52,12 @@ class Elfin():
         return self.connection.move_circular(start_position, waypoint, target)
 
     def stop_robot(self):
-        self.connection.stop_robot()
+        success = self.connection.stop_robot()
 
         # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
         sleep(0.05)
+
+        return success
 
     # Destruction and cleanup
     def close(self):

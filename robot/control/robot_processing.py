@@ -403,6 +403,11 @@ class TrackerProcessing:
         the left ear and right ear, using the fiducials registered in neuronavigation.
         """
         m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.matrix_tracker_fiducials
+
+        # Check that all fiducials are available.
+        if None in self.matrix_tracker_fiducials:
+            return None
+
         m_head = compute_marker_transformation(np.array([head_pose_in_tracker_space]), 0)
 
         m_ear_left_new = m_head @ m_probe_head_left
@@ -414,7 +419,7 @@ class TrackerProcessing:
 
         center_head_in_robot_space = (m_ear_left_new_in_robot_space[:3, -1] + m_ear_right_new_in_robot_space[:3, -1])/2
 
-        return center_head_in_robot_space
+        return center_head_in_robot_space.tolist()
 
     def estimate_head_anterior_posterior_versor(self, m_tracker_to_robot, current_head, center_head_in_robot):
         """

@@ -56,4 +56,10 @@ class RobotStateController:
         return self.state
 
     def set_state_to_moving(self):
+        # TODO: Dobot has internal methods to check and control if the robot is moving and the controller was making
+        #  dobot have weird behavior. The best approach would be to use the controller instead of the internal methods.
+        #  By now, for dobot, its requires that the self.config['dwell_time'] is equal to zero.
+        if not self.dwell_time:
+            return
+
         self.state = RobotState.MOVING

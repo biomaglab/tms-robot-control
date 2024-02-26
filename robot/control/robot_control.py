@@ -1,7 +1,9 @@
-import numpy as np
 from collections import deque
 from pynput import keyboard
+from enum import Enum
 import time
+
+import numpy as np
 
 import robot.constants as const
 import robot.transformations as tr
@@ -15,6 +17,12 @@ import robot.control.robot_processing as robot_process
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
+
+
+class RobotObjective(Enum):
+    NONE = 0
+    TRACK_TARGET = 1
+    MOVE_AWAY_FROM_HEAD = 2
 
 
 class RobotControl:
@@ -56,7 +64,7 @@ class RobotControl:
         #self.status = True
 
         self.target_set = False
-        self.m_target_to_head = [None] * 9
+        self.m_target_to_head = None
 
         self.linear_out_target = None
         self.arc_motion_target = None
@@ -73,6 +81,9 @@ class RobotControl:
         self.last_robot_status_logging_time = time.time()
         self.last_tuning_time = time.time()
 
+        self.objective = RobotObjective.NONE
+        self.moving_away_from_head = False
+
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
@@ -86,7 +97,7 @@ class RobotControl:
                 # If target is removed mid-movement, the current movement is rendered invalid; hence, stop the robot.
                 self.robot.stop_robot()
 
-                self.m_target_to_head = [None] * 9
+                self.m_target_to_head = None
                 self.target_force_sensor_data = 5
                 print("Target removed")
             else:
@@ -192,7 +203,21 @@ class RobotControl:
 
         return robot_process.transformation_matrix_to_coordinates(displacement_matrix, axes='sxyz')
 
+    def OnSetObjective(self, data):
+        objective = data['objective']
+        self.objective = RobotObjective(objective)
+
+        print("Objective set to: {}".format(self.objective.name))
+
+        # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
+        # buttons in neuronavigation to reflect the current state of the robot.
+        self.UpdateObjectiveToNeuronavigation()
+
     def compute_target_in_robot_space(self):
+        # If the displacement to the target is not available, return early.
+        if self.displacement_to_target is None:
+            return None
+
         robot_pose = self.robot_pose_storage.GetRobotPose()
         m_robot = robot_process.coordinates_to_transformation_matrix(
             position=robot_pose[:3],
@@ -349,6 +374,12 @@ class RobotControl:
 
         self.status = False
 
+        self.remote_control.send_message(topic, data)
+
+    def UpdateObjectiveToNeuronavigation(self):
+        # Send message to neuronavigation indicating the current objective.
+        topic = 'Send current objective from robot to neuronavigation'
+        data = {'objective': self.objective.value}
         self.remote_control.send_message(topic, data)
 
     def _on_press(self, key):
@@ -523,65 +554,34 @@ class RobotControl:
 
         return success
 
-    def get_robot_status(self):
-        # Check if the robot is connected.
-        if not self.robot.is_connected():
-            print("Error: Robot is not connected")
-
-            success = self.reconnect_to_robot()
-            if not success:
-                return False
-
-        # Update the robot state.
-        self.robot_state_controller.update()
-
-        # Print the robot state once every 0.1 seconds.
-        if self.last_robot_status_logging_time is not None and time.time() - self.last_robot_status_logging_time > 0.1:
-            self.robot_state_controller.print_state()
-            self.last_robot_status_logging_time = time.time()
-
-        head_pose_in_tracker_space = self.tracker.head_pose
-        if head_pose_in_tracker_space is None:
-            return False
-
-        head_visible = self.tracker.head_visible
-        coil_visible = self.tracker.coil_visible
-
-        head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(head_pose_in_tracker_space)
-
-        robot_pose = self.robot_pose_storage.GetRobotPose()
-
-        if self.config['use_force_sensor']:
-            force_sensor_values = self.read_force_sensor()
-        else:
-            force_sensor_values = False
-
-        if self.tracker.m_tracker_to_robot is not None:
-            head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_in_tracker_space_filtered)
-        else:
-            # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
-            #   claim that the head pose in tracker space is in robot space and use it as such.
-            head_pose_in_robot_space = head_pose_in_tracker_space_filtered
-
+    def handle_objective_track_target(self):
         # If target has not been received, return early.
-        if not self.target_set or not np.all(self.m_target_to_head[:3]):
-            #print("Navigation is off")
+        if not self.target_set:
+            print("Target has not been set")
             return False
 
-        #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
+        # Check if the robot is ready to move.
+        if self.robot_state_controller.get_state() != RobotState.READY:
 
-        # Check force sensor.
-        force_sensor_threshold = self.robot_config['force_sensor_threshold']
-        force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
-        if self.new_force_sensor_data > force_sensor_threshold and \
-            self.new_force_sensor_data > (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
+            # Return True even if the robot is not ready to move; the return value is used to indicate
+            # that the robot is generally in a good state.
+            return True
 
-            self.compensate_force()
+        # Check that the state variables are available.
+        if self.head_center is None:
+            print("Error: Could not compute the head center")
+            return False
 
+        if self.head_pose_in_robot_space is None:
+            print("Error: Could not compute the head pose in robot space")
+            return False
+
+        if self.tracker.m_tracker_to_robot is None:
+            print("Error: Transformation matrix from tracker to robot is not available")
             return False
 
         # Check if head is visible.
-        if head_pose_in_robot_space is None or not head_visible or not coil_visible:
+        if self.head_pose_in_robot_space is None or not self.tracker.head_visible or not self.tracker.coil_visible:
             if self.config['stop_robot_if_head_not_visible']:
                 print("Warning: Head marker is not visible, stopping the robot")
 
@@ -599,7 +599,7 @@ class RobotControl:
             print("Warning: Head marker is not visible")
 
         # Check that the head is not moving too fast.
-        if self.process_tracker.is_head_moving_too_fast(head_pose_in_robot_space):
+        if self.process_tracker.is_head_moving_too_fast(self.head_pose_in_robot_space):
             print("Warning: Head is moving too fast, stopping the robot")
 
             # Stop the robot. This is done because if the head is moving too fast, we cannot trust that the ongoing
@@ -612,13 +612,6 @@ class RobotControl:
             self.movement_algorithm.reset_state()
 
             return False
-
-        # Check if the robot is ready to move.
-        if self.robot_state_controller.get_state() != RobotState.READY:
-
-            # Return True even if the robot is not ready to move; the return value is used to indicate
-            # that the robot is generally in a good state.
-            return True
 
         # Check if enough time has passed since the last tuning.
         tuning_interval = self.config['tuning_interval']
@@ -637,6 +630,7 @@ class RobotControl:
 
         # Check if the displacement to the target is available.
         if self.displacement_to_target is None:
+            print("Error: Displacement to target is not available")
 
             # Even though a recent displacement should be always available, it turns out that the 0.2 second time limit
             # is quite strict. Hence, interpret the lack of displacement as a "good state".
@@ -644,20 +638,14 @@ class RobotControl:
 
         # Ensure that the displacement to target has been updated recently.
         if time.time() > self.last_displacement_update_time + 0.2:
-            print("Warning: No displacement update received for 0.2 seconds")
+            print("Error: No displacement update received for 0.2 seconds")
             self.displacement_to_target = None
             return True
 
-        # Compute the target pose in robot space using the head pose.
-        target_pose_in_robot_space_estimated_from_head_pose = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
-
-        # Compute the target pose in robot space using the displacement to the target.
-        target_pose_in_robot_space_estimated_from_displacement = self.compute_target_in_robot_space()
-
         # Check if the target is outside the working space. If so, return early.
         working_space_radius = self.robot_config['working_space_radius']
-        if np.linalg.norm(target_pose_in_robot_space_estimated_from_displacement[:3]) >= working_space_radius:
-            print("Warning: Head is too far from the robot basis")
+        if np.linalg.norm(self.target_pose_in_robot_space_estimated_from_displacement[:3]) >= working_space_radius:
+            print("Error: Head is too far from the robot basis")
             return False
 
         # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
@@ -666,18 +654,16 @@ class RobotControl:
         #             self.SensorUpdateTarget(distance, self.status)
         #             self.status = False
 
-        # Compute the head center in robot space.
-        head_center = self.process_tracker.estimate_head_center_in_robot_space(
-            self.tracker.m_tracker_to_robot,
-            head_pose_in_tracker_space_filtered).tolist()
+        robot_pose = self.robot_pose_storage.GetRobotPose()
 
         # Move the robot.
+        print("Moving the robot based on the displacement: {}".format(self.displacement_to_target))
         success, normalize_force_sensor = self.movement_algorithm.move_decision(
             displacement_to_target=self.displacement_to_target,
-            target_pose_in_robot_space_estimated_from_head_pose=target_pose_in_robot_space_estimated_from_head_pose,
-            target_pose_in_robot_space_estimated_from_displacement=target_pose_in_robot_space_estimated_from_displacement,
+            target_pose_in_robot_space_estimated_from_head_pose=self.target_pose_in_robot_space_estimated_from_head_pose,
+            target_pose_in_robot_space_estimated_from_displacement=self.target_pose_in_robot_space_estimated_from_displacement,
             robot_pose=robot_pose,
-            head_center=head_center,
+            head_center=self.head_center,
         )
 
         if not success:
@@ -695,12 +681,150 @@ class RobotControl:
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')
 
-        # TODO: Dobot has internal methods to check and control if the robot is moving and the controller was making
-        #  dobot have weird behavior. The best approach would be to use the controller instead of the internal methods.
-        #  By now, for dobot, its requires that the self.config['dwell_time'] is equal to zero.
-
         # Set the robot state to moving if the movement was successful and the dwell_time is different from zero.
-        if success and self.config['dwell_time']:
+        if success:
             self.robot_state_controller.set_state_to_moving()
+
+        return success
+
+    # Handle the movement away from the head.
+
+    def handle_objective_move_away_from_head(self):
+        # If the robot is not moving and the robot is in a state of moving away from the head, the movement is finished.
+        if self.robot_state_controller.get_state() != RobotState.MOVING and self.moving_away_from_head:
+            print("Finished moving away from head")
+
+            self.moving_away_from_head = False
+            self.objective = RobotObjective.NONE
+
+            self.UpdateObjectiveToNeuronavigation()
+
+            return True
+
+        # If the robot is already moving away from the head, return early.
+        if self.moving_away_from_head:
+            return True
+
+        # Otherwise, initiate the movement away from the head.
+        print("Initiating moving away from head")
+
+        success = self.movement_algorithm.move_away_from_head()
+
+        # Store the state of the movement in the state variable.
+        self.moving_away_from_head = success
+
+        if success:
+            self.robot_state_controller.set_state_to_moving()
+
+        return success
+
+    def handle_objective_none(self):
+        if self.robot_state_controller.get_state() != RobotState.MOVING:
+            return True
+
+        print("No objective set, stopping the robot")
+
+        self.moving_away_from_head = False
+
+        success = self.robot.stop_robot()
+        return success
+
+    # Update the state variables.
+
+    def update_state_variables(self):
+        """
+        Updates the following state variables:
+
+        - head_pose_in_tracker_space_filtered
+        - head_pose_in_robot_space
+        - head_center
+        - target_pose_in_robot_space_estimated_from_head_pose
+        - target_pose_in_robot_space_estimated_from_displacement
+
+        If they cannot be computed, set the corresponding state variable to None.
+
+        TODO: For now, store them in RobotControl object, but there would ideally be a better place for them.
+        """
+        if self.tracker.head_pose is None:
+            self.head_pose_in_tracker_space_filtered = None
+            self.head_pose_in_robot_space = None
+            self.head_center = None
+            self.target_pose_in_robot_space_estimated_from_head_pose = None
+            self.target_pose_in_robot_space_estimated_from_displacement = None
+
+            return
+
+        head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
+
+        if self.config['use_force_sensor']:
+            force_sensor_values = self.read_force_sensor()
+        else:
+            force_sensor_values = False
+
+        if self.tracker.m_tracker_to_robot is not None:
+            head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_in_tracker_space_filtered)
+        else:
+            # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
+            #   claim that the head pose in tracker space is in robot space and use it as such.
+            head_pose_in_robot_space = head_pose_in_tracker_space_filtered
+
+        # Compute the head center in robot space.
+        head_center = self.process_tracker.estimate_head_center_in_robot_space(
+            self.tracker.m_tracker_to_robot,
+            head_pose_in_tracker_space_filtered
+        )
+
+        # Compute the target pose in robot space using the displacement to the target.
+        target_pose_in_robot_space_estimated_from_displacement = self.compute_target_in_robot_space()
+
+        # Update the state variables.
+        self.head_center = head_center
+        self.head_pose_in_tracker_space_filtered = head_pose_in_tracker_space_filtered
+        self.head_pose_in_robot_space = head_pose_in_robot_space
+        self.target_pose_in_robot_space_estimated_from_displacement = target_pose_in_robot_space_estimated_from_displacement
+
+        # Compute the target pose in robot space using the head pose.
+        if self.m_target_to_head is None:
+            self.target_pose_in_robot_space_estimated_from_head_pose = None
+            return
+
+        self.target_pose_in_robot_space_estimated_from_head_pose = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
+
+    def check_force_sensor(self):
+        force_sensor_threshold = self.robot_config['force_sensor_threshold']
+        force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
+        if self.new_force_sensor_data > force_sensor_threshold and \
+            self.new_force_sensor_data > (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
+
+            self.compensate_force()
+
+            return False
+
+    def get_robot_status(self):
+        # Check if the robot is connected.
+        if not self.robot.is_connected():
+            print("Error: Robot is not connected")
+
+            success = self.reconnect_to_robot()
+            if not success:
+                return False
+
+        # Update and print the robot state.
+        self.robot_state_controller.update()
+        self.robot_state_controller.print_state()
+
+        self.update_state_variables()
+
+        self.check_force_sensor()
+        #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
+
+        if self.objective == RobotObjective.NONE:
+            success = self.handle_objective_none()
+
+        elif self.objective == RobotObjective.TRACK_TARGET:
+            success = self.handle_objective_track_target()
+
+        elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
+            success = self.handle_objective_move_away_from_head()
 
         return success

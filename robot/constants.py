@@ -138,6 +138,7 @@ PUB_MESSAGES = ['Connect to robot',
                 'Reset robot',
                 'Coil at target',
                 'Distance to the target',
+                'Send objective from neuronavigation to robot',
                 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
@@ -152,3 +153,4 @@ FUNCTION_LOAD_ROBOT_MATRIX = 8
 FUNCTION_RESET_ROBOT = 9
 FUNCTION_COIL_AT_TARGET = 10
 FUNCTION_DISTANCE_TO_TARGET = 11
+FUNCTION_SEND_OBJECTIVE_FROM_NEURONAVIGATION_TO_ROBOT = 12
