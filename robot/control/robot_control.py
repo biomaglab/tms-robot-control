@@ -210,6 +210,10 @@ class RobotControl:
 
         print("Objective set to: {}".format(self.objective.name))
 
+        # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
+        # known, well-defined state when the objective changes.
+        self.movement_algorithm.reset_state()
+
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
         self.UpdateObjectiveToNeuronavigation()
