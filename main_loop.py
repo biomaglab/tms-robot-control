@@ -8,7 +8,7 @@ import socketio
 from dotenv import load_dotenv
 
 import robot.constants as const
-from robot.control.robot_control import RobotControl
+from robot.control.robot_control import RobotControl, RobotObjective
 
 class RemoteControl:
     def __init__(self, remote_host):
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         robot_config=robot_config,
     )
 
-    previous_robot_status = False
+    previous_success = False
     while True:
         buf = remote_control.get_buffer()
         if len(buf) == 0:
@@ -212,15 +212,18 @@ if __name__ == '__main__':
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot_control.robot:
-            robot_control.update_robot_pose()
-            robot_status = robot_control.get_robot_status()
+            success = robot_control.update()
 
-            # If changed, send robot status to neuronavigation via remote control.
-            if previous_robot_status != robot_status:
+            if previous_success != success:
+                # Reset objective if robot update was not successful.
+                robot_control.objective = RobotObjective.NONE
+                robot_control.UpdateObjectiveToNeuronavigation()
+
+                # Send robot status to neuronavigation via remote control.
                 topic = 'Update robot status'
-                data = {'robot_status': robot_status}
+                data = {'robot_status': success}
                 remote_control.send_message(topic, data)
 
-            previous_robot_status = robot_status
+            previous_success = success
 
         time.sleep(robot_config['sleep'])

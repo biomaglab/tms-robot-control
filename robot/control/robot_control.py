@@ -800,7 +800,7 @@ class RobotControl:
 
             return False
 
-    def get_robot_status(self):
+    def update(self):
         # Check if the robot is connected.
         if not self.robot.is_connected():
             print("Error: Robot is not connected")
@@ -808,6 +808,9 @@ class RobotControl:
             success = self.reconnect_to_robot()
             if not success:
                 return False
+
+        # Update the robot pose.
+        self.update_robot_pose()
 
         # Update and print the robot state.
         self.robot_state_controller.update()
