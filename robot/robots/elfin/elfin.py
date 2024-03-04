@@ -1,12 +1,14 @@
 from time import sleep
 
+from robot.robots.robot import Robot
+
 from robot.robots.elfin.elfin_connection import (
     ElfinConnection,
     MotionState,
 )
 
 
-class Elfin():
+class Elfin(Robot):
     """
     The class for communicating with Elfin robot.
     """

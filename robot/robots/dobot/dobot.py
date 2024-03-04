@@ -10,6 +10,8 @@ import numpy as np
 import robot.control.robot_processing as robot_process
 from robot.robots.dobot.dobot_connection import DobotConnection, RobotStatus
 
+from robot.robots.robot import Robot
+
 
 # TODO: The motion type, indicating the state that the robot movement algorithm is in, spills into Dobot class,
 #   which should be the low-level robot control class. Hence the MotionType enum is copied below from the
@@ -23,7 +25,7 @@ class MotionType(Enum):
     TUNING = 4
 
 
-class Dobot:
+class Dobot(Robot):
     """
     The class for communicating with Dobot robot.
     """
