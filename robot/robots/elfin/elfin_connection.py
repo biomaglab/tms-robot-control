@@ -60,17 +60,20 @@ class ElfinConnection:
 
         :return: True if successful, otherwise False.
         """
+        success = False
+
         if not self.connected:
             print("Not connected to the robot, therefore cannot disconnect")
-            return True
+            return success
 
         try:
             self.socket.close()
             self.connected = False
+            success = True
         except:
             print("Failed to disconnect from the robot")
 
-        return not self.connected
+        return success
 
     def _send_and_receive(self, request, verbose=False):
         if verbose:

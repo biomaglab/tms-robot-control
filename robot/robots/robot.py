@@ -86,7 +86,7 @@ class Robot(ABC):
     @abstractmethod
     def move_linear(self, linear_target):
         """
-        Move the robot in a linear path to the target.
+        Move the robot in a linear path to the target in robot's base coordinate system.
 
         If the robot is already moving, this method should stop the current movement and start the new one.
 
@@ -97,7 +97,8 @@ class Robot(ABC):
     @abstractmethod
     def move_circular(self, start_position, waypoint, target):
         """
-        Move the robot in a circular path through a specified waypoint to the target.
+        Move the robot in a circular path through a specified waypoint to the target in robot's base
+        coordinate system.
 
         If the robot is already moving, this method should stop the current movement and start the new one.
 
