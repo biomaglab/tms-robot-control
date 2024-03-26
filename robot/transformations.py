@@ -150,7 +150,7 @@ Examples
 >>> Rx = rotation_matrix(alpha, xaxis)
 >>> Ry = rotation_matrix(beta, yaxis)
 >>> Rz = rotation_matrix(gamma, zaxis)
->>> R = concatenate_matrices(Rx, Ry, Rz)
+>>> R = multiply_matrices(Rx, Ry, Rz)
 >>> euler = euler_from_matrix(R, 'rxyz')
 >>> numpy.allclose([alpha, beta, gamma], euler)
 True
@@ -172,7 +172,7 @@ True
 >>> T = translation_matrix([1, 2, 3])
 >>> Z = shear_matrix(beta, xaxis, origin, zaxis)
 >>> R = random_rotation_matrix(numpy.random.rand(3))
->>> M = concatenate_matrices(T, R, Z, S)
+>>> M = multiply_matrices(T, R, Z, S)
 >>> scale, shear, angles, trans, persp = decompose_matrix(M)
 >>> numpy.allclose(scale, 1.23)
 True
@@ -915,7 +915,7 @@ def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
     >>> T = translation_matrix(numpy.random.random(3)-0.5)
     >>> R = random_rotation_matrix(numpy.random.random(3))
     >>> S = scale_matrix(random.random())
-    >>> M = concatenate_matrices(T, R, S)
+    >>> M = multiply_matrices(T, R, S)
     >>> v0 = (numpy.random.rand(4, 100) - 0.5) * 20
     >>> v0[3] = 1
     >>> v1 = numpy.dot(M, v0)
@@ -1024,7 +1024,7 @@ def superimposition_matrix(v0, v1, scale=False, usesvd=True):
     True
     >>> S = scale_matrix(random.random())
     >>> T = translation_matrix(numpy.random.random(3)-0.5)
-    >>> M = concatenate_matrices(T, R, S)
+    >>> M = multiply_matrices(T, R, S)
     >>> v1 = numpy.dot(M, v0)
     >>> v0[:3] += numpy.random.normal(0, 1e-9, 300).reshape(3, -1)
     >>> M = superimposition_matrix(v0, v1, scale=True)
@@ -1846,13 +1846,13 @@ def inverse_matrix(matrix):
     return numpy.linalg.inv(matrix)
 
 
-def concatenate_matrices(*matrices):
-    """Return concatenation of series of transformation matrices.
+def multiply_matrices(*matrices):
+    """Multiply a sequence of transformation matrices.
 
     >>> M = numpy.random.rand(16).reshape((4, 4)) - 0.5
-    >>> numpy.allclose(M, concatenate_matrices(M))
+    >>> numpy.allclose(M, multiply_matrices(M))
     True
-    >>> numpy.allclose(numpy.dot(M, M.T), concatenate_matrices(M, M.T))
+    >>> numpy.allclose(numpy.dot(M, M.T), multiply_matrices(M, M.T))
     True
 
     """
