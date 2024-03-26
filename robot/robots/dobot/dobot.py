@@ -39,19 +39,12 @@ class Dobot(Robot):
         # TODO: Unused for now.
         self.robot_speed = config['robot_speed']
 
-        self.stop_threads = False
-
-        self.moving = False
-        self.thread_move = False
-
         self.coordinates = 6 * [None]
         self.force_torque_data = 6 * [None]
         self.robot_status = None
         self.running_status = 0
 
-        self.status_move = False
         self.target = [None] * 6
-        self.target_reached = False
         self.motion_type = MotionType.NORMAL
 
         self.connected = False
@@ -61,9 +54,7 @@ class Dobot(Robot):
     def connect(self):
         self.connected = self.connection.connect()
 
-        self.moving = False
         self._set_feedback()
-        self._set_move_thread()
 
         time.sleep(2)
         print("Dobot initialization status: ", self.robot_status)
@@ -95,7 +86,7 @@ class Dobot(Robot):
         return motion_state == RobotStatus.RUNNING.value
 
     def is_error_state(self):
-        status = self.connection.get_robot_status()
+        status = self.robot_status
         return status == RobotStatus.ERROR.value
 
     def initialize(self):
@@ -104,11 +95,6 @@ class Dobot(Robot):
     def get_pose(self):
         # Always successfully return coordinates.
         return True, self.coordinates
-
-    # TODO: This function is needlessly complicating the API between robot control and this class; there
-    #   should not be a need for this low-level robot control class to know if the target has been reached.
-    def set_target_reached(self, target_reached):
-        self.target_reached = target_reached
 
     # TODO: Note that move_linear, move_circular, and
     #   tune_robot functions are almost identical at this stage.
@@ -121,11 +107,9 @@ class Dobot(Robot):
 
     def move_linear(self, linear_target):
         self.target = linear_target
+        self.connection.move_linear(self.target)
         self.motion_type = MotionType.NORMAL
-        self.status_move = True
-        if not self.moving:
-            self.moving = True
-            self._set_move_thread()
+        self._motion_loop()
 
         # TODO: Properly handle errors and return the success of the movement here.
         return True
@@ -135,10 +119,25 @@ class Dobot(Robot):
         #   variables, not in one variable (self.target).
         self.target = start_position, waypoint, target
         self.motion_type = MotionType.ARC
-        self.status_move = True
-        if not self.moving:
-            self.moving = True
-            self._set_move_thread()
+
+        arc_bezier_curve_step = self.robot_config['arc_bezier_curve_step']
+        curve_set = robot_process.bezier_curve(
+            points=np.asarray(self.target),
+            step=arc_bezier_curve_step,
+        )
+        target = self.target
+        for curve_point in curve_set:
+            self.connection.move_servo(curve_point)
+            self._motion_loop()
+            if self.motion_type != MotionType.ARC:
+                self.stop_robot()
+                break
+
+            distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
+            if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0,
+                               distance_threshold_for_arc_motion):
+                self.stop_robot()
+                break
 
         # TODO: Properly handle errors and return the success of the movement here.
         return True
@@ -149,27 +148,16 @@ class Dobot(Robot):
         return True, self.force_torque_data
 
     def stop_robot(self):
-        self.status_move = False
-        self.connection.reset_robot()
+        success = self.connection.reset_robot()
 
-        # Gracefully stop the movement thread.
-        if self.moving:
-            self.moving = False
-            if self.thread_move:
-                try:
-                    self.thread_move.join()
-                except RuntimeError:
-                    pass
+        # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
+        time.sleep(0.05)
+
+        return success
 
     def close(self):
         self.stop_robot()
         self.connected = False
-        self.moving = False
-        if self.thread_move:
-            try:
-                self.thread_move.join()
-            except RuntimeError:
-                pass
         #TODO: robot function to close? self.cobot.close()
 
     ## Internal methods
@@ -196,13 +184,6 @@ class Dobot(Robot):
 
             #time.sleep(0.001)
 
-    def _set_move_thread(self):
-        if self.connected:
-            thread = Thread(target=self._move_thread)
-            thread.daemon = True
-            thread.start()
-            self.thread_move = thread
-
     def _motion_loop(self):
         timeout_start = time.time()
         while self.running_status != 1:
@@ -220,47 +201,4 @@ class Dobot(Robot):
                 self.stop_robot()
                 print("break")
                 break
-            time.sleep(0.001)
-
-    def _move_thread(self):
-        while True:
-            if self.robot_status == RobotStatus.ERROR.value:
-                print('Cleaning errors...')
-                self.connection.clear_error()
-            if not self.moving:
-                self.stop_robot()
-                break
-            if self.status_move and not self.target_reached and not self.running_status:
-                print('moving')
-                if self.motion_type == MotionType.NORMAL or self.motion_type == MotionType.LINEAR_OUT:
-                    self.connection.move_linear(self.target)
-                    self._motion_loop()
-                elif self.motion_type == MotionType.ARC:
-                    arc_bezier_curve_step = self.robot_config['arc_bezier_curve_step']
-                    curve_set = robot_process.bezier_curve(
-                        points=np.asarray(self.target),
-                        step=arc_bezier_curve_step,
-                    )
-                    target = self.target
-                    for curve_point in curve_set:
-                        self.connection.move_servo(curve_point)
-                        self._motion_loop()
-                        if self.motion_type != MotionType.ARC:
-                            self.stop_robot()
-                            break
-
-                        distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
-                        if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0, distance_threshold_for_arc_motion):
-                            self.stop_robot()
-                            break
-                        if not self.moving:
-                            self.stop_robot()
-                            break
-                elif self.motion_type == MotionType.TUNING:
-                    self.connection.move_linear_relative_to_tool(
-                      offsets=self.target,
-                      tool=self.TOOL_ID
-                    )
-                    self._motion_loop()
-
             time.sleep(0.001)

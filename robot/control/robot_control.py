@@ -293,11 +293,6 @@ class RobotControl:
 
         self.last_displacement_update_time = time.time()
 
-    def OnCoilAtTarget(self, data):
-        self.target_reached = data["state"]
-        if self.robot is not None:
-            self.robot.set_target_reached(self.target_reached)
-
     def ConnectToRobot(self, robot_IP):
         robot_type = self.config['robot']
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
@@ -537,7 +532,6 @@ class RobotControl:
         translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
 
         target_pose = list(translation) + list(angles_as_deg)
-
         # Move the robot to the target pose.
         success = self.robot.move_linear(target_pose)
 
@@ -599,7 +593,7 @@ class RobotControl:
                 # it's better to continue from a known, well-defined state.
                 self.movement_algorithm.reset_state()
 
-                return False
+                return True
 
             print("Warning: Head marker is not visible")
 
@@ -616,7 +610,7 @@ class RobotControl:
             # it's better to continue from a known, well-defined state.
             self.movement_algorithm.reset_state()
 
-            return False
+            return True
 
         # Check if enough time has passed since the last tuning.
         tuning_interval = self.config['tuning_interval']
@@ -682,6 +676,7 @@ class RobotControl:
         # Normalize force sensor values if needed.
         use_force_sensor = self.config['use_force_sensor']
         if use_force_sensor and normalize_force_sensor:
+            force_sensor_values = self.read_force_sensor()
             self.force_ref = force_sensor_values[0:3]
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')

@@ -65,9 +65,3 @@ class Elfin(Robot):
     def close(self):
         self.stop_robot()
         self.disconnect()
-
-    # Other
-
-    # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
-    def set_target_reached(self, _):
-        pass

@@ -24,6 +24,7 @@ class RadiallyOutwardAlgorithm:
 
         # Unused for now.
         self.config = config
+        self.safe_height = config['safe_height']
 
         # Reset the state
         self.reset_state()
@@ -66,15 +67,18 @@ class RadiallyOutwardAlgorithm:
         success = False
         normalize_force_sensor = False
 
-        # Check the distance to target to determine the motion mode.
-        distance_to_target = np.linalg.norm(target_pose_in_robot_space_estimated_from_displacement[:3] - robot_pose[:3])
-        angular_distance_to_target = np.linalg.norm(target_pose_in_robot_space_estimated_from_displacement[3:] - robot_pose[3:])
-
         distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
         angular_distance_threshold_for_arc_motion = self.robot_config['angular_distance_threshold_for_arc_motion']
 
-        if distance_to_target >= distance_threshold_for_arc_motion or \
-           angular_distance_to_target >= angular_distance_threshold_for_arc_motion:
+        # Compute the maximum translation and rotation to the target.
+        max_translation = np.max(np.abs(displacement_to_target[:3]))
+        max_rotation = np.max(np.abs(displacement_to_target[3:]))
+
+        # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence.
+        if max_translation > distance_threshold_for_arc_motion or max_rotation > angular_distance_threshold_for_arc_motion:
+            print("Max translation: {:.2f} mm, max rotation: {:.2f} degrees, exceeding the threshold".format(
+                max_translation, max_rotation))
+            print("Initiating motion sequence")
 
             versor_scale_factor = self.robot_config['versor_scale_factor']
             middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
@@ -164,5 +168,19 @@ class RadiallyOutwardAlgorithm:
         return success, normalize_force_sensor
 
     def move_away_from_head(self):
-        # TODO: Not implemented yet.
-        return False
+        print("Moving away from head")
+
+        success = self._move_to_safe_height()
+        return success
+
+    def _move_to_safe_height(self):
+        print("Moving upward to a safe height")
+
+        success, pose = self.robot.get_pose()
+        if not success:
+            return False
+
+        pose[2] = self.safe_height
+        success = self.robot.move_linear(pose)
+
+        return success
