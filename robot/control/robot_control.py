@@ -293,6 +293,9 @@ class RobotControl:
 
         self.last_displacement_update_time = time.time()
 
+    def OnCoilAtTarget(self, data):
+        self.target_reached = data["state"]
+
     def ConnectToRobot(self, robot_IP):
         robot_type = self.config['robot']
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
@@ -818,13 +821,13 @@ class RobotControl:
 
         self.update_state_variables()
 
-        self.check_force_sensor()
         #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
 
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
+            self.check_force_sensor()
             success = self.handle_objective_track_target()
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:

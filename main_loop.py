@@ -205,6 +205,7 @@ if __name__ == '__main__':
                         const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
                         const.FUNCTION_LOAD_ROBOT_MATRIX: robot_control.OnLoadRobotMatrix,
                         const.FUNCTION_RESET_ROBOT: reset_robot,
+                        const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
                         const.FUNCTION_DISTANCE_TO_TARGET: robot_control.OnDistanceToTarget,
                         const.FUNCTION_SEND_OBJECTIVE_FROM_NEURONAVIGATION_TO_ROBOT: robot_control.OnSetObjective,
                     }

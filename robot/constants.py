@@ -136,6 +136,7 @@ PUB_MESSAGES = ['Connect to robot',
                 'Robot transformation matrix estimation',
                 'Load robot transformation matrix',
                 'Reset robot',
+                'Coil at target',
                 'Distance to the target',
                 'Send objective from neuronavigation to robot',
                 ]
@@ -150,5 +151,6 @@ FUNCTION_RESET_ROBOT_MATRIX = 6
 FUNCTION_ROBOT_MATRIX_ESTIMATION = 7
 FUNCTION_LOAD_ROBOT_MATRIX = 8
 FUNCTION_RESET_ROBOT = 9
-FUNCTION_DISTANCE_TO_TARGET = 10
-FUNCTION_SEND_OBJECTIVE_FROM_NEURONAVIGATION_TO_ROBOT = 11
+FUNCTION_COIL_AT_TARGET = 10
+FUNCTION_DISTANCE_TO_TARGET = 11
+FUNCTION_SEND_OBJECTIVE_FROM_NEURONAVIGATION_TO_ROBOT = 12
