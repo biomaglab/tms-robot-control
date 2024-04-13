@@ -6,8 +6,9 @@ import numpy as np
 
 class RobotState(Enum):
     READY = 0
-    MOVING = 1
-    WAITING = 2
+    START_MOVING = 1
+    MOVING = 2
+    WAITING = 3
 
 
 class RobotStateController:
@@ -17,6 +18,7 @@ class RobotStateController:
     The robot has three states:
 
     - READY: The robot is ready to receive a new command.
+    - START_MOVING: The robot has received a command to move but has not started moving yet.
     - MOVING: The robot is moving.
     - WAITING: The robot has stopped moving and is waiting for a while before going back to READY.
     """
@@ -27,11 +29,33 @@ class RobotStateController:
         self.state = RobotState.READY
         self.previous_state = None
 
+        self.not_moving_counter = 0
+
     def update(self):
         self.previous_state = self.state
 
-        # Check if the robot was moving but is not anymore.
+        stopped_moving = False
+
+        # Check if the robot is starting to move
+        if self.state == RobotState.START_MOVING:
+            # Check if the robot has started moving; if it has, change the state to MOVING.
+            if self.robot.is_moving():
+                self.state = RobotState.MOVING
+            else:
+                # Sometimes the robot movement may be over already before this 'update' method is called.
+                #
+                # Infer if that's the case by checking if the movement command has been issued (resulting in the
+                # robot being in the START_MOVING state) but the robot has not moved for a while.
+                self.not_moving_counter += 1
+                if self.not_moving_counter > 10:
+                    stopped_moving = True
+
+        # Check if the robot was previously detected to be moving but is not moving anymore.
         if self.state == RobotState.MOVING and not self.robot.is_moving():
+            stopped_moving = True
+
+        # If the robot has stopped moving, change the state to WAITING.
+        if stopped_moving:
             self.state = RobotState.WAITING
             self.waiting_start_time = time.time()
 
@@ -44,9 +68,11 @@ class RobotStateController:
             if self.remaining_dwell_time <= 0:
                 self.state = RobotState.READY
 
-    def print_state(self):
+        # Print the state if it has changed.
         if self.state == RobotState.READY and self.previous_state != RobotState.READY:
             print("Robot state: READY")
+        elif self.state == RobotState.START_MOVING and self.previous_state != RobotState.START_MOVING:
+            print("Robot state: START_MOVING")
         elif self.state == RobotState.MOVING and self.previous_state != RobotState.MOVING:
             print("Robot state: MOVING")
         elif self.state == RobotState.WAITING and self.previous_state != RobotState.WAITING:
@@ -55,11 +81,12 @@ class RobotStateController:
     def get_state(self):
         return self.state
 
-    def set_state_to_moving(self):
+    def set_state_to_start_moving(self):
         # TODO: Dobot has internal methods to check and control if the robot is moving and the controller was making
         #  dobot have weird behavior. The best approach would be to use the controller instead of the internal methods.
         #  By now, for dobot, its requires that the self.config['dwell_time'] is equal to zero.
         if not self.dwell_time:
             return
 
-        self.state = RobotState.MOVING
+        self.state = RobotState.START_MOVING
+        self.not_moving_counter = 0

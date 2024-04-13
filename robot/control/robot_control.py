@@ -684,17 +684,19 @@ class RobotControl:
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')
 
-        # Set the robot state to moving if the movement was successful and the dwell_time is different from zero.
+        # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
-            self.robot_state_controller.set_state_to_moving()
+            self.robot_state_controller.set_state_to_start_moving()
 
         return success
 
     # Handle the movement away from the head.
 
     def handle_objective_move_away_from_head(self):
-        # If the robot is not moving and the robot is in a state of moving away from the head, the movement is finished.
-        if self.robot_state_controller.get_state() != RobotState.MOVING and self.moving_away_from_head:
+        # If the robot is not moving or starting to move, and we are in a state of moving away from the head, the movement is finished.
+        if self.moving_away_from_head and \
+           self.robot_state_controller.get_state() not in (RobotState.MOVING, RobotState.START_MOVING):
+
             print("Finished moving away from head")
 
             self.moving_away_from_head = False
@@ -717,7 +719,7 @@ class RobotControl:
         self.moving_away_from_head = success
 
         if success:
-            self.robot_state_controller.set_state_to_moving()
+            self.robot_state_controller.set_state_to_start_moving()
 
         return success
 
@@ -815,9 +817,8 @@ class RobotControl:
         # Update the robot pose.
         self.update_robot_pose()
 
-        # Update and print the robot state.
+        # Update the robot state.
         self.robot_state_controller.update()
-        self.robot_state_controller.print_state()
 
         self.update_state_variables()
 
