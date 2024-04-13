@@ -732,6 +732,8 @@ class RobotControl:
         self.moving_away_from_head = False
 
         success = self.robot.stop_robot()
+        self.robot_state_controller.set_state_to_stopping()
+
         return success
 
     # Update the state variables.

@@ -9,6 +9,7 @@ class RobotState(Enum):
     START_MOVING = 1
     MOVING = 2
     WAITING = 3
+    STOPPING = 4
 
 
 class RobotStateController:
@@ -21,6 +22,7 @@ class RobotStateController:
     - START_MOVING: The robot has received a command to move but has not started moving yet.
     - MOVING: The robot is moving.
     - WAITING: The robot has stopped moving and is waiting for a while before going back to READY.
+    - STOPPING: The robot has been issued a stop command and is stopping. Once finished, it will go back to READY.
     """
     def __init__(self, robot, dwell_time):
         self.robot = robot
@@ -68,6 +70,10 @@ class RobotStateController:
             if self.remaining_dwell_time <= 0:
                 self.state = RobotState.READY
 
+        # If we are in STOPPING, check if we should go back to READY.
+        if self.state == RobotState.STOPPING and not self.robot.is_moving():
+            self.state = RobotState.READY
+
         # Print the state if it has changed.
         if self.state == RobotState.READY and self.previous_state != RobotState.READY:
             print("Robot state: READY")
@@ -77,6 +83,8 @@ class RobotStateController:
             print("Robot state: MOVING")
         elif self.state == RobotState.WAITING and self.previous_state != RobotState.WAITING:
             print("Robot state: WAITING, remaining dwell time: {:.2f} s".format(self.remaining_dwell_time))
+        elif self.state == RobotState.STOPPING and self.previous_state != RobotState.STOPPING:
+            print("Robot state: STOPPING")
 
     def get_state(self):
         return self.state
@@ -90,3 +98,6 @@ class RobotStateController:
 
         self.state = RobotState.START_MOVING
         self.not_moving_counter = 0
+
+    def set_state_to_stopping(self):
+        self.state = RobotState.STOPPING
