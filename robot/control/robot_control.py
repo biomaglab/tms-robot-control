@@ -123,22 +123,22 @@ class RobotControl:
 
         # Reset the objective if the target is unset.
         self.objective = RobotObjective.NONE
-        self.UpdateObjectiveToNeuronavigation()
+        self.SendObjectiveToNeuronavigation()
 
         self.m_target_to_head = None
         self.target_force_sensor_data = 5
 
         print("Target unset")
 
-    def OnUpdateCoordinates(self, data):
+    def OnUpdateTrackerPoses(self, data):
         if len(data) > 1:
-            coord = data["coord"]
-            markers_flag = data["markers_flag"]
-            self.tracker.SetCoordinates(np.vstack([coord[0], coord[1], coord[2]]), markers_flag)
+            poses = data["poses"]
+            visibilities = data["visibilities"]
+            self.tracker.SetCoordinates(np.vstack([poses[0], poses[1], poses[2]]), visibilities)
 
     def OnCreatePoint(self, data):
         if self.create_calibration_point():
-            topic = 'Coordinates for the robot transformation matrix collected'
+            topic = 'Robot to Neuronavigation: Coordinates for the robot transformation matrix collected'
             data = {}
             self.remote_control.send_message(topic, data)
 
@@ -168,7 +168,7 @@ class RobotControl:
             self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
             self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-            topic = 'Update robot transformation matrix'
+            topic = 'Robot to Neuronavigation: Update robot transformation matrix'
             data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
             self.remote_control.send_message(topic, data)
 
@@ -176,7 +176,7 @@ class RobotControl:
             print("numpy.linalg.LinAlgError")
             print("Try a new acquisition")
 
-    def OnLoadRobotMatrix(self, data):
+    def OnSetRobotTransformationMatrix(self, data):
         X_est, Y_est, affine_matrix_tracker_to_robot = np.split(np.array(data["data"]).reshape(12, 4), 3, axis=0)
         self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
         self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
@@ -223,7 +223,7 @@ class RobotControl:
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
-        self.UpdateObjectiveToNeuronavigation()
+        self.SendObjectiveToNeuronavigation()
 
     def compute_target_in_robot_space(self):
         # If the displacement to the target is not available, return early.
@@ -259,8 +259,8 @@ class RobotControl:
 
         return list(translation) + list(angles_as_deg)
 
-    def OnDistanceToTarget(self, data):
-        # For the displacement received from the neuronavigation, the following is true:
+    def OnUpdateDisplacementToTarget(self, data):
+        # For the displacement received from the neuronavigation, the following holds:
         #
         # - It is a vector from the current robot pose to the target pose.
         # - It is represented as the vector (Dx, Dy, Dz, Da, Db, Dc) in the coordinate system of the tool center point (TCP), where
@@ -270,9 +270,7 @@ class RobotControl:
         #   rotation around y-axis, and finally rotation around z-axis.
         # - The rotations are applied in this order in a rotating frame ('rxyz'), not a static frame.
         # - Contrary to the common convention and the convention used elsewhere in the code, the rotation is applied _before_ translation.
-
-        # XXX: The variable received from neuronavigation is called 'distance', but displacement is a more accurate name.
-        displacement = data["distance"]
+        displacement = data["displacement"]
 
         # XXX: The handedness of the coordinate system used by neuronavigation is different from the one used by the robot,
         #   hence the sign reversal below.
@@ -366,7 +364,7 @@ class RobotControl:
 
         else:
             # Send message to neuronavigation to close the robot dialog.
-            topic = 'Dialog robot destroy'
+            topic = 'Robot to Neuronavigation: Close robot dialog'
             data = {}
             self.remote_control.send_message(topic, data)
 
@@ -374,21 +372,21 @@ class RobotControl:
             print('Error: Unable to connect to robot.')
 
         # Send message to neuronavigation indicating the state of connection.
-        topic = 'Robot connection status'
+        topic = 'Robot to Neuronavigation: Robot connection status'
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
-        topic = 'Update target from FT values'
+        topic = 'Robot to Neuronavigation: Update target from FT values'
         data = {'data' : (distance, status)}
 
         self.status = False
 
         self.remote_control.send_message(topic, data)
 
-    def UpdateObjectiveToNeuronavigation(self):
+    def SendObjectiveToNeuronavigation(self):
         # Send message to neuronavigation indicating the current objective.
-        topic = 'Send current objective from robot to neuronavigation'
+        topic = 'Robot to Neuronavigation: Set objective'
         data = {'objective': self.objective.value}
         self.remote_control.send_message(topic, data)
 
@@ -446,18 +444,6 @@ class RobotControl:
         else:
             print('Cannot collect the coil markers, please try again')
             return False
-
-    # Unused and bitrotten for now.
-    def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
-                                         marker_obj_flag):
-        if marker_obj_flag:
-            transformation_matrix_threshold = self.robot_config['transformation_matrix_threshold']
-            if not np.allclose(np.array(current_tracker_coordinates_in_robot)[:3], np.array(coord_obj_tracker_in_robot)[:3], 0,
-                               transformation_matrix_threshold):
-                topic = 'Request new robot transformation matrix'
-                data = {}
-                self.remote_control.send_message(topic, data)
-                print('Request new robot transformation matrix')
 
     def read_force_sensor(self):
         success, force_sensor_values = self.robot.read_force_sensor()
@@ -709,7 +695,7 @@ class RobotControl:
             self.moving_away_from_head = False
             self.objective = RobotObjective.NONE
 
-            self.UpdateObjectiveToNeuronavigation()
+            self.SendObjectiveToNeuronavigation()
 
             return True
 
@@ -830,8 +816,6 @@ class RobotControl:
         self.robot_state_controller.update()
 
         self.update_state_variables()
-
-        #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
 
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()

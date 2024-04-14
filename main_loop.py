@@ -65,10 +65,6 @@ class RemoteControl:
     def send_message(self, topic, data={}):
         self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
 
-def reset_robot(data):
-    robot_control.__init__(remote_control)
-    print("Resetting robot control")
-
 # Run the script like this: python main_loop.py [host] [port].
 #
 # If not given, use the defaults, as shown below.
@@ -199,14 +195,13 @@ if __name__ == '__main__':
                         const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
                         const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
                         const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
-                        const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot_control.OnUpdateCoordinates,
+                        const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.OnUpdateTrackerPoses,
                         const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
                         const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
                         const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
-                        const.FUNCTION_LOAD_ROBOT_MATRIX: robot_control.OnLoadRobotMatrix,
-                        const.FUNCTION_RESET_ROBOT: reset_robot,
+                        const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.OnSetRobotTransformationMatrix,
                         const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
-                        const.FUNCTION_DISTANCE_TO_TARGET: robot_control.OnDistanceToTarget,
+                        const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
                         const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
                     }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
@@ -217,10 +212,10 @@ if __name__ == '__main__':
             if previous_success != success:
                 # Reset objective if robot update was not successful.
                 robot_control.objective = RobotObjective.NONE
-                robot_control.UpdateObjectiveToNeuronavigation()
+                robot_control.SendObjectiveToNeuronavigation()
 
                 # Send robot status to neuronavigation via remote control.
-                topic = 'Update robot status'
+                topic = 'Robot to Neuronavigation: Update robot status'
                 data = {'robot_status': success}
                 remote_control.send_message(topic, data)
 

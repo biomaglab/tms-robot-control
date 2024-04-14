@@ -127,18 +127,17 @@ ROBOT_CONFIG = {
 
 # Publisher messages from invesalius
 PUB_MESSAGES = [
-    'Connect to robot',
+    'Neuronavigation to Robot: Connect to robot',
     'Neuronavigation to Robot: Set target',
     'Neuronavigation to Robot: Unset target',
     'Neuronavigation to Robot: Set tracker fiducials',
-    'Update tracker coordinates',
-    'Collect coordinates for the robot transformation matrix',
-    'Reset coordinates collection for the robot transformation matrix',
-    'Robot transformation matrix estimation',
-    'Load robot transformation matrix',
-    'Reset robot',
-    'Coil at target',
-    'Distance to the target',
+    'Neuronavigation to Robot: Update tracker poses',
+    'Neuronavigation to Robot: Collect coordinates for the robot transformation matrix',
+    'Neuronavigation to Robot: Reset coordinates collection for the robot transformation matrix',
+    'Neuronavigation to Robot: Estimate robot transformation matrix',
+    'Neuronavigation to Robot: Set robot transformation matrix',
+    'Neuronavigation to Robot: Coil at target',
+    'Neuronavigation to Robot: Update displacement to target',
     'Neuronavigation to Robot: Set objective',
 ]
 
@@ -146,12 +145,11 @@ FUNCTION_CONNECT_TO_ROBOT = 0
 FUNCTION_SET_TARGET = 1
 FUNCTION_UNSET_TARGET = 2
 FUNCTION_SET_TRACKER_FIDUCIALS = 3
-FUNCTION_UPDATE_TRACKER_COORDINATES = 4
+FUNCTION_UPDATE_TRACKER_POSES = 4
 FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX = 5
 FUNCTION_RESET_ROBOT_MATRIX = 6
 FUNCTION_ROBOT_MATRIX_ESTIMATION = 7
-FUNCTION_LOAD_ROBOT_MATRIX = 8
-FUNCTION_RESET_ROBOT = 9
-FUNCTION_COIL_AT_TARGET = 10
-FUNCTION_DISTANCE_TO_TARGET = 11
-FUNCTION_SET_OBJECTIVE = 12
+FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX = 8
+FUNCTION_COIL_AT_TARGET = 9
+FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET = 10
+FUNCTION_SET_OBJECTIVE = 11
