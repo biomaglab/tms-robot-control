@@ -342,15 +342,27 @@ class TrackerProcessing:
         self.velocity_vector = []
         self.kalman_coord_vector = []
         self.velocity_std = 0
-        self.matrix_tracker_fiducials = 3*[None]
+        self.tracker_fiducials = 3*[None]
 
         self.tracker_stabilizers = [KalmanTracker(
             state_num=2,
             covariance_process=0.001,
             covariance_measure=0.1) for _ in range(6)]
 
-    def SetMatrixTrackerFiducials(self, matrix_tracker_fiducials):
-        self.matrix_tracker_fiducials = matrix_tracker_fiducials
+    def SetTrackerFiducials(self, tracker_fiducials):
+        self.tracker_fiducials = tracker_fiducials
+
+        m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.tracker_fiducials
+
+        # Check that all fiducials are available.
+        if None in self.tracker_fiducials:
+            print("ERROR: Not all tracker fiducials are available:")
+            if m_probe_head_left is None:
+                print("  Left ear fiducial is not available")
+            if m_probe_head_right is None:
+                print("  Right ear fiducial is not available")
+            if m_probe_head_nasion is None:
+                print("  Nasion fiducial is not available")
 
     def kalman_filter(self, coord_tracker):
         kalman_array = []
@@ -402,10 +414,11 @@ class TrackerProcessing:
         Estimates the actual head center position in robot space as the average of the positions of
         the left ear and right ear, using the fiducials registered in neuronavigation.
         """
-        m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.matrix_tracker_fiducials
+        m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.tracker_fiducials
 
-        # Check that all fiducials are available.
-        if None in self.matrix_tracker_fiducials:
+        # Return early if tracker fiducials are not available (i.e., target has not been set yet,
+        # as the tracker fiducials come together with the target.)
+        if None in self.tracker_fiducials:
             return None
 
         m_head = compute_marker_transformation(np.array([head_pose_in_tracker_space]), 0)
@@ -425,7 +438,7 @@ class TrackerProcessing:
         """
         Estimates the actual anterior-posterior versor using nasion fiducial
         """
-        _, _, m_probe_head_nasion = self.matrix_tracker_fiducials
+        _, _, m_probe_head_nasion = self.tracker_fiducials
         m_current_head = compute_marker_transformation(np.array([current_head]), 0)
 
         m_nasion_new = m_current_head @ m_probe_head_nasion
@@ -441,7 +454,7 @@ class TrackerProcessing:
         """
         Estimates the actual left-right versor using fiducials
         """
-        m_probe_head_left, m_probe_head_right, _ = self.matrix_tracker_fiducials
+        m_probe_head_left, m_probe_head_right, _ = self.tracker_fiducials
         m_current_head = compute_marker_transformation(np.array([current_head]), 0)
 
         m_ear_left_new = m_current_head @ m_probe_head_left

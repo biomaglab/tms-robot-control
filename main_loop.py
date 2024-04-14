@@ -196,10 +196,10 @@ if __name__ == '__main__':
                 if topic[i] in const.PUB_MESSAGES:
                     get_function = {
                         const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
-                        const.FUNCTION_UPDATE_ROBOT_TARGET: robot_control.OnUpdateRobotTargetMatrix,
-                        const.FUNCTION_RESET_ROBOT_PROCESS: robot_control.OnResetProcessTracker,
+                        const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
+                        const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
+                        const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
                         const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot_control.OnUpdateCoordinates,
-                        const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot_control.OnUpdateTrackerFiducialsMatrix,
                         const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
                         const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
                         const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
@@ -207,7 +207,7 @@ if __name__ == '__main__':
                         const.FUNCTION_RESET_ROBOT: reset_robot,
                         const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
                         const.FUNCTION_DISTANCE_TO_TARGET: robot_control.OnDistanceToTarget,
-                        const.FUNCTION_SEND_OBJECTIVE_FROM_NEURONAVIGATION_TO_ROBOT: robot_control.OnSetObjective,
+                        const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
                     }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 

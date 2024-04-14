@@ -88,46 +88,53 @@ class RobotControl:
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
 
-    def OnUpdateRobotTargetMatrix(self, data):
-        if self.robot:
-            # XXX: The variable received from neuronavigation is called 'robot_tracker_flag', which is confusing.
-            self.target_set = data["robot_tracker_flag"]
-            target = data["target"]
-            if not self.target_set:
-                print("Target removed")
-
-                # Reset the objective if the target is removed.
-                self.objective = RobotObjective.NONE
-                self.UpdateObjectiveToNeuronavigation()
-
-                self.m_target_to_head = None
-                self.target_force_sensor_data = 5
-            else:
-                target = np.array(target).reshape(4, 4)
-
-                self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
-                self.target_force_sensor_data = self.new_force_sensor_data
-
-                # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
-                self.movement_algorithm.reset_state()
-
-                print("Target set")
-
-    def OnResetProcessTracker(self, data):
+    def OnSetTrackerFiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
         self.process_tracker.__init__(
             robot_config=self.robot_config
         )
+
+        # Set tracker fiducials.
+        self.tracker_fiducials = np.array(data["tracker_fiducials"])
+        self.process_tracker.SetTrackerFiducials(self.tracker_fiducials)
+
+        print("Tracker fiducials set")
+
+    def OnSetTarget(self, data):
+        if not self.robot:
+            print("ERROR: Attempting to set target, but robot not initialized.")
+            return
+
+        self.target_set = True
+
+        target = data["target"]
+        target = np.array(target).reshape(4, 4)
+
+        self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
+        self.target_force_sensor_data = self.new_force_sensor_data
+
+        # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
+        self.movement_algorithm.reset_state()
+
+        print("Target set")
+
+    def OnUnsetTarget(self, data):
+        self.target_set = False
+
+        # Reset the objective if the target is unset.
+        self.objective = RobotObjective.NONE
+        self.UpdateObjectiveToNeuronavigation()
+
+        self.m_target_to_head = None
+        self.target_force_sensor_data = 5
+
+        print("Target unset")
 
     def OnUpdateCoordinates(self, data):
         if len(data) > 1:
             coord = data["coord"]
             markers_flag = data["markers_flag"]
             self.tracker.SetCoordinates(np.vstack([coord[0], coord[1], coord[2]]), markers_flag)
-
-    def OnUpdateTrackerFiducialsMatrix(self, data):
-        self.matrix_tracker_fiducials = np.array(data["matrix_tracker_fiducials"])
-        self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
 
     def OnCreatePoint(self, data):
         if self.create_calibration_point():
