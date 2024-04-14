@@ -13,6 +13,7 @@ import robot.robots.dobot.dobot as dobot
 import robot.control.coordinates as coordinates
 import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
+from robot.control.color import Color
 
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
@@ -215,7 +216,9 @@ class RobotControl:
         objective = data['objective']
         self.objective = RobotObjective(objective)
 
-        print("Objective set to: {}".format(self.objective.name))
+        print("")
+        print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
+        print("")
 
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
@@ -690,7 +693,7 @@ class RobotControl:
         if self.moving_away_from_head and \
            self.robot_state_controller.get_state() not in (RobotState.MOVING, RobotState.START_MOVING):
 
-            print("Finished moving away from head")
+            print("Finished movement away from head")
 
             self.moving_away_from_head = False
             self.objective = RobotObjective.NONE
@@ -704,7 +707,7 @@ class RobotControl:
             return True
 
         # Otherwise, initiate the movement away from the head.
-        print("Initiating moving away from head")
+        print("Initiating movement away from head")
 
         success = self.movement_algorithm.move_away_from_head()
 

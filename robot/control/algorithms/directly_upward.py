@@ -2,6 +2,8 @@ from enum import Enum
 
 import numpy as np
 
+from robot.control.color import Color
+
 
 class MotionSequenceState(Enum):
     NOT_INITIATED = 0
@@ -104,21 +106,24 @@ class DirectlyUpwardAlgorithm:
             success = self._move_to_safe_height()
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_AND_ROTATE_IN_XY_PLANE:
-            print("Moving and rotating in XY plane")
+            print("")
+            print("{}Moving and rotating in XY plane{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
             pose[2] = self.safe_height
             success = self.robot.move_linear(pose)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_PARTWAY_DOWNWARD:
-            print("Moving partway downward")
+            print("")
+            print("{}Moving partway downward{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
             pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.safe_height - pose[2])
             success = self.robot.move_linear(pose)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_TO_TARGET:
-            print("Moving to target")
+            print("")
+            print("{}Moving to target{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
             success = self.robot.move_linear(pose)
@@ -130,13 +135,12 @@ class DirectlyUpwardAlgorithm:
         return success
 
     def move_away_from_head(self):
-        print("Moving away from head")
-
         success = self._move_to_safe_height()
         return success
 
     def _move_to_safe_height(self):
-        print("Moving upward to a safe height")
+        print("")
+        print("{}Moving upward to a safe height{}".format(Color.BOLD, Color.END))
 
         success, pose = self.robot.get_pose()
         if not success:

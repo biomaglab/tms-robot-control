@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 
 import robot.constants as const
 from robot.control.robot_control import RobotControl, RobotObjective
+from robot.control.color import Color
+
 
 class RemoteControl:
     def __init__(self, remote_host):
@@ -142,7 +144,7 @@ def get_config():
     print("")
     for key, value in config.items():
         key_formatted = key.replace('_', ' ').capitalize()
-        print("{}: {}".format(key_formatted, value))
+        print("{}: {}{}{}".format(key_formatted, Color.BOLD, value, Color.END))
 
     print("")
 
