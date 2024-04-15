@@ -32,12 +32,8 @@ class MotionSequenceState(Enum):
 
 class DirectlyUpwardAlgorithm:
     # Thresholds outside which a motion sequence is initiated.
-    TRANSLATION_THRESHOLD = 10.0  # mm
-    ROTATION_THRESHOLD = 5.0  # degrees
-
-    # The threshold for both distance (in mm) and angle (in degrees) to move to the next axis
-    # when performing tuning motion.
-    DISTANCE_ANGLE_THRESHOLD = 1.0
+    TRANSLATION_THRESHOLD = 3.0  # mm
+    ROTATION_THRESHOLD = 3.0  # degrees
 
     # The proportion of the remaining distance to the target to move partway downward.
     PARTWAY_DOWNWARD_REMAINING_PROPORTION = 0.1
