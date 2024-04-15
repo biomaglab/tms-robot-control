@@ -662,7 +662,7 @@ class RobotControl:
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
         # Move the robot.
-        print("Moving the robot based on the displacement: {}".format(np.round(self.displacement_to_target, 1)))
+        print("Moving the robot based on the displacement:", np.array(self.displacement_to_target))
         success, normalize_force_sensor = self.movement_algorithm.move_decision(
             displacement_to_target=self.displacement_to_target,
             target_pose_in_robot_space_estimated_from_head_pose=self.target_pose_in_robot_space_estimated_from_head_pose,

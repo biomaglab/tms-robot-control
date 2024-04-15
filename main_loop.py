@@ -5,6 +5,7 @@ import time
 from threading import Lock
 
 import socketio
+import numpy as np
 from dotenv import load_dotenv
 
 import robot.constants as const
@@ -172,6 +173,9 @@ if __name__ == '__main__':
     config = get_config()
     if config is None:
         exit(1)
+
+    # Configure logging.
+    np.set_printoptions(formatter={'float': '{:0.1f}'.format})
 
     # Connect to neuronavigation
     url = 'http://{}:{}'.format(host, port)

@@ -480,7 +480,7 @@ class TrackerProcessing:
         target_pose_in_robot_space = tracker.transform_matrix_to_robot_space(m_target)
         head_pose_in_robot_space = tracker.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
-        print("Target received from neuronavigation (in robot space):", np.round(target_pose_in_robot_space, 1))
+        print("Target received from neuronavigation (in robot space):", np.array(target_pose_in_robot_space))
 
         return compute_transformation_to_head_space(
             pose=target_pose_in_robot_space,
