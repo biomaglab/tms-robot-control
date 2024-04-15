@@ -5,6 +5,13 @@
 # the neuronavigation system to the robot. That is, upon receiving a
 # 'from_neuronavigation' message, it emits 'to_robot' message with the same
 # data.
+#
+# Important:
+#      :param data: The data to send to the client or clients. Data can be of
+#      type ``str``, ``bytes``, ``list`` or ``dict``. To send
+#      multiple arguments, use a tuple where each element is of
+#      one of the types indicated above.
+#
 
 import asyncio
 import sys
