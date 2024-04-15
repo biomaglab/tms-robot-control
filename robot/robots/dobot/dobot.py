@@ -87,7 +87,7 @@ class Dobot(Robot):
         return status == RobotStatus.ERROR.value
 
     def initialize(self):
-        self.connection.set_speed_ratio(self.default_speed)
+        pass
 
     def get_pose(self):
         # Always successfully return coordinates.
@@ -104,6 +104,10 @@ class Dobot(Robot):
 
     # TODO: 'speed' parameter is currently ignored.
     def move_linear(self, target, speed):
+        success = self.connection.set_speed_ratio(speed)
+        if not success:
+            return False
+
         self.target = target
         self.connection.move_linear(self.target)
         self.motion_type = MotionType.NORMAL
