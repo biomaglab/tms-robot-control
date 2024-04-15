@@ -103,6 +103,7 @@ def get_config():
         'DEFAULT_SPEED',
         'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
         'TUNING_INTERVAL',
+        'WAIT_FOR_KEYPRESS',
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -120,6 +121,7 @@ def get_config():
     default_speed = float(os.getenv('DEFAULT_SPEED'))
     tuning_speed = float(os.getenv('TUNING_SPEED'))
     stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
+    wait_for_keypress = os.getenv('WAIT_FOR_KEYPRESS').lower() == 'true'
 
     # If tuning interval is not provided, set it to None, otherwise convert to float.
     tuning_interval = os.getenv('TUNING_INTERVAL')
@@ -140,6 +142,7 @@ def get_config():
         'tuning_speed': tuning_speed,
         'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
         'tuning_interval': tuning_interval,
+        'wait_for_keypress': wait_for_keypress,
     }
 
     # Print configuration.
@@ -150,6 +153,9 @@ def get_config():
         print("{}: {}{}{}".format(key_formatted, Color.BOLD, value, Color.END))
 
     print("")
+    if wait_for_keypress:
+        print("{}Note: The robot only performs a movement when a key is pressed{}".format(Color.BOLD, Color.END))
+        print("")
 
     # Validate configuration.
     if site not in const.SITE_CONFIG:

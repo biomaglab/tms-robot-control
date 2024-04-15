@@ -40,6 +40,10 @@ class RobotControl:
             robot_config=robot_config,
         )
 
+        # Robot state controller is initialized when the robot is connected;
+        # initialize to None for now.
+        self.robot_state_controller = None
+
         self.robot_pose_storage = coordinates.RobotPoseStorage()
         self.tracker = coordinates.Tracker()
 
@@ -60,7 +64,7 @@ class RobotControl:
         self.M_dq = deque(maxlen=6)
 
         self.REF_FLAG = False
-        listener = keyboard.Listener(on_press=self._on_press)
+        listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
         #self.status = True
 
@@ -344,10 +348,9 @@ class RobotControl:
             print('Robot initialized.')
 
             # Initialize the robot state controller.
-            dwell_time = self.config['dwell_time']
             self.robot_state_controller = RobotStateController(
                 robot=robot,
-                dwell_time=dwell_time,
+                config=self.config,
             )
 
             self.robot = robot
@@ -398,24 +401,33 @@ class RobotControl:
         data = {'objective': self.objective.value}
         self.remote_control.send_message(topic, data)
 
-    def _on_press(self, key):
-        '''
-        Listen to keyboard press while the loop to display
-        F - T values is running.
+    def on_keypress(self, key):
+        """
+        Listens to keypresses:
 
-        Returns: None - regular actions
-                    False - stop listener
+          - If 'n' is pressed, normalizes the F-T values.
+          - If any key (except 'n' and any of the modifier keys, such as 'alt' or 'control') is pressed,
+            informs the robot state controller that a keypress has been detected. (Only has an effect if
+            the environment variable WAIT_FOR_KEYPRESS is set to 'true'.)
+        """
+        # Single-char keys (such as 'n') have the attribute 'char', whereas, e.g., the function keys do not.
+        #
+        # Hence, check if 'key' has the attribute 'char' and use it if it does.
+        key_str = key.char if hasattr(key, 'char') and key.char is not None else key.name
 
-        '''
-        if key == keyboard.Key.esc:
-            return False  # stop listener
-        try:
-            k = key.char  # single-char keys
-        except:
-            k = key.name  # other keys
-        if k == 'n':
-            print('Normalising . . . .')
+        # Disregard some commonly used modifier keys.
+        if key_str in ("caps_lock", "shift", "ctrl_l", "cmd", "alt_l", "tab", \
+                       "alt_gr", "cmd_r", "menu", "ctrl_r", "shift_r"):
+            return
+
+        if key_str == 'n':
+            print("{}Key 'n' pressed: Normalising...{}".format(Color.BOLD, Color.END))
             self.REF_FLAG = True
+            return
+
+        print("{}A keypress detected{}".format(Color.BOLD, Color.END))
+        if self.robot_state_controller is not None:
+            self.robot_state_controller.keypress_detected()
 
     def update_robot_pose(self):
         success, robot_pose = self.robot.get_pose()
@@ -720,8 +732,8 @@ class RobotControl:
 
             return success
 
-        # If robot is still stopping the previous movement, return early.
-        if self.robot_state_controller.get_state() == RobotState.STOPPING:
+        # If robot is not ready (e.g., it is still stopping the previous movement), return early.
+        if self.robot_state_controller.get_state() != RobotState.READY:
             return True
 
         # Otherwise, initiate the movement away from the head.
