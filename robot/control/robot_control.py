@@ -220,6 +220,11 @@ class RobotControl:
         print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
         print("")
 
+        # If the target has already been reached and the objective is to track the target, notify the user.
+        if self.target_reached and self.objective == RobotObjective.TRACK_TARGET:
+            print("Target already reached, not initiating movement.")
+            print("")
+
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
         self.movement_algorithm.reset_state()
