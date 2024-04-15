@@ -314,15 +314,15 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
         if robot_type == "elfin":
-            robot = elfin.Elfin(robot_IP, config=self.config)
+            robot = elfin.Elfin(robot_IP)
             success = robot.connect()
 
         elif robot_type == "elfin_new_api":
-            robot = elfin.Elfin(robot_IP, config=self.config, use_new_api=True)
+            robot = elfin.Elfin(robot_IP, use_new_api=True)
             success = robot.connect()
 
         elif robot_type == "dobot":
-            robot = dobot.Dobot(robot_IP, config=self.config, robot_config=self.robot_config)
+            robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
             success = robot.connect()
 
         elif robot_type == "ur":
@@ -536,8 +536,10 @@ class RobotControl:
         translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
 
         target_pose = list(translation) + list(angles_as_deg)
+
         # Move the robot to the target pose.
-        success = self.robot.move_linear(target_pose)
+        tuning_speed = self.config['tuning_speed']
+        success = self.robot.move_linear(target_pose, tuning_speed)
 
         if not success:
             print("Error: Could not compensate the force.")

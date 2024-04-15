@@ -12,8 +12,7 @@ class Elfin(Robot):
     """
     The class for communicating with Elfin robot.
     """
-    def __init__(self, ip, config, use_new_api=False):
-        self.robot_speed = config['robot_speed']
+    def __init__(self, ip, use_new_api=False):
         self.connection = ElfinConnection(
             ip=ip,
             use_new_api=use_new_api,
@@ -31,7 +30,7 @@ class Elfin(Robot):
 
     # Initialization
     def initialize(self):
-        self.connection.set_speed_ratio(self.robot_speed)
+        pass
 
     # Robot state
     def get_pose(self):
@@ -47,10 +46,34 @@ class Elfin(Robot):
         return self.connection.read_force_sensor()
 
     # Movement
-    def move_linear(self, linear_target):
-        return self.connection.move_linear(linear_target)
+    def move_linear(self, target, speed):
+        success = self.connection.set_speed_ratio(speed)
+        if not success:
+            return False
 
-    def move_circular(self, start_position, waypoint, target):
+        # After sending the speed command, wait for a while, as it takes a moment for the robot to actually change speed.
+        #
+        # XXX: This seems to not be enough time for at least Elfin's new (Linux-based) version to fully change speed,
+        # resulting in a speed gradient. However, it's better than not waiting at all, and the current design, where
+        # there is a main loop that is periodically called, does not work that well with longer waiting times, as it
+        # delays the main loop.
+        sleep(0.1)
+
+        return self.connection.move_linear(target)
+
+    def move_circular(self, start_position, waypoint, target, speed):
+        success = self.connection.set_speed_ratio(speed)
+        if not success:
+            return False
+
+        # After sending the speed command, wait for a while, as it takes a moment for the robot to actually change speed.
+        #
+        # XXX: This seems to not be enough time for at least Elfin's new (Linux-based) version to fully change speed,
+        # resulting in a speed gradient. However, it's better than not waiting at all, and the current design, where
+        # there is a main loop that is periodically called, does not work that well with longer waiting times, as it
+        # delays the main loop.
+        sleep(0.1)
+
         return self.connection.move_circular(start_position, waypoint, target)
 
     def stop_robot(self):
@@ -64,4 +87,4 @@ class Elfin(Robot):
     # Destruction and cleanup
     def close(self):
         self.stop_robot()
-        self.disconnect()
+        self.disconnect() 

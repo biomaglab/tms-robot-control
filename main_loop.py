@@ -90,7 +90,7 @@ def get_config():
     # Load environment variables from .env file.
     load_dotenv()
 
-    # Validate environment variables.
+    # List environment variables.
     env_vars = [
         'SITE',
         'ROBOT',
@@ -99,7 +99,7 @@ def get_config():
         'USE_FORCE_SENSOR',
         'DWELL_TIME',
         'SAFE_HEIGHT',
-        'ROBOT_SPEED',
+        'DEFAULT_SPEED',
         'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
         'TUNING_INTERVAL',
     ]
@@ -116,7 +116,8 @@ def get_config():
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
     safe_height = float(os.getenv('SAFE_HEIGHT'))
-    robot_speed = float(os.getenv('ROBOT_SPEED'))
+    default_speed = float(os.getenv('DEFAULT_SPEED'))
+    tuning_speed = float(os.getenv('TUNING_SPEED'))
     stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
 
     # If tuning interval is not provided, set it to None, otherwise convert to float.
@@ -134,7 +135,8 @@ def get_config():
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
         'safe_height': safe_height,
-        'robot_speed': robot_speed,
+        'default_speed': default_speed,
+        'tuning_speed': tuning_speed,
         'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
         'tuning_interval': tuning_interval,
     }
@@ -147,6 +149,19 @@ def get_config():
         print("{}: {}{}{}".format(key_formatted, Color.BOLD, value, Color.END))
 
     print("")
+
+    # Validate configuration.
+    if site not in const.SITE_CONFIG:
+        print("Invalid site configuration, exiting.")
+        return None
+
+    if default_speed < 0.01 or default_speed > 1:
+        print("Default speed must be between 0.01 and 1, exiting.")
+        return None
+
+    if tuning_speed < 0.01 or tuning_speed > 1:
+        print("Tuning speed must be between 0.01 and 1, exiting.")
+        return None
 
     return config
 
