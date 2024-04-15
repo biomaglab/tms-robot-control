@@ -713,6 +713,17 @@ class RobotControl:
         if self.moving_away_from_head:
             return True
 
+        # If robot is still performing the previous movement, first stop that.
+        if self.robot_state_controller.get_state() in (RobotState.MOVING, RobotState.START_MOVING):
+            success = self.robot.stop_robot()
+            self.robot_state_controller.set_state_to_stopping()
+
+            return success
+
+        # If robot is still stopping the previous movement, return early.
+        if self.robot_state_controller.get_state() == RobotState.STOPPING:
+            return True
+
         # Otherwise, initiate the movement away from the head.
         print("Initiating movement away from head")
 

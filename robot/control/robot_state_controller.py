@@ -72,7 +72,12 @@ class RobotStateController:
 
         # If we are in STOPPING, check if we should go back to READY.
         if self.state == RobotState.STOPPING and not self.robot.is_moving():
-            self.state = RobotState.READY
+            # XXX: At least Elfin's new version (using Linux) is not ready to receive a new movement
+            #   command immediately when it reports not moving. This is a workaround to wait for a while
+            #   before going back to READY.
+            self.not_moving_counter += 1
+            if self.not_moving_counter > 5:
+                self.state = RobotState.READY
 
         # Print the state if it has changed.
         if self.state == RobotState.READY and self.previous_state != RobotState.READY:
@@ -101,3 +106,4 @@ class RobotStateController:
 
     def set_state_to_stopping(self):
         self.state = RobotState.STOPPING
+        self.not_moving_counter = 0
