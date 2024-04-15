@@ -1,7 +1,7 @@
 
 import numpy as np
 import cv2
-from time import time
+import time
 
 import robot.transformations as tr
 import robot.constants as const
@@ -74,12 +74,18 @@ def AffineTransformation(tracker, robot):
                                             shear=False, scale=False, usesvd=False)
     return m_change
 
-def estimate_head_velocity(coord_vel, timestamp):
+def estimate_head_velocity(coord_vel, timestamps):
     coord_vel = np.vstack(np.array(coord_vel))
     coord_init = coord_vel[:int(len(coord_vel) / 2)].mean(axis=0)
     coord_final = coord_vel[int(len(coord_vel) / 2):].mean(axis=0)
-    velocity = (coord_final - coord_init)/(timestamp[-1] - timestamp[0])
-    distance = (coord_final - coord_init)
+
+    distance = coord_final - coord_init
+
+    delta_time = timestamps[-1] - timestamps[0]
+    if delta_time == 0:
+        velocity = np.zeros(6)
+    else:
+        velocity = distance / delta_time
 
     return velocity, distance
 
@@ -338,7 +344,7 @@ class TrackerProcessing:
         self.robot_config = robot_config
 
         self.coord_vel = []
-        self.timestamp = []
+        self.timestamps = []
         self.velocity_vector = []
         self.kalman_coord_vector = []
         self.velocity_std = 0
@@ -385,13 +391,13 @@ class TrackerProcessing:
         Check if the head velocity is above the threshold. If yes, return True, otherwise False.
         """
         self.coord_vel.append(current_ref)
-        self.timestamp.append(time())
+        self.timestamps.append(time.time())
         if len(self.coord_vel) >= 10:
-            head_velocity, head_distance = estimate_head_velocity(self.coord_vel, self.timestamp)
+            head_velocity, head_distance = estimate_head_velocity(self.coord_vel, self.timestamps)
             self.velocity_vector.append(head_velocity)
 
             del self.coord_vel[0]
-            del self.timestamp[0]
+            del self.timestamps[0]
 
             if len(self.velocity_vector) >= 15:
                 self.velocity_std = np.std(self.velocity_vector)
@@ -400,11 +406,11 @@ class TrackerProcessing:
             head_velocity_threshold = self.robot_config['head_velocity_threshold']
             if self.velocity_std > head_velocity_threshold:
                 self.coord_vel = []
-                self.timestamp = []
+                self.timestamps = []
                 return True
             else:
                 self.coord_vel = []
-                self.timestamp = []
+                self.timestamps = []
                 return False
 
         return False
