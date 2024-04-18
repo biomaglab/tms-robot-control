@@ -1,7 +1,7 @@
 
 import numpy as np
 import cv2
-from time import time
+import time
 
 import robot.transformations as tr
 import robot.constants as const
@@ -74,12 +74,18 @@ def AffineTransformation(tracker, robot):
                                             shear=False, scale=False, usesvd=False)
     return m_change
 
-def estimate_head_velocity(coord_vel, timestamp):
+def estimate_head_velocity(coord_vel, timestamps):
     coord_vel = np.vstack(np.array(coord_vel))
     coord_init = coord_vel[:int(len(coord_vel) / 2)].mean(axis=0)
     coord_final = coord_vel[int(len(coord_vel) / 2):].mean(axis=0)
-    velocity = (coord_final - coord_init)/(timestamp[-1] - timestamp[0])
-    distance = (coord_final - coord_init)
+
+    distance = coord_final - coord_init
+
+    delta_time = timestamps[-1] - timestamps[0]
+    if delta_time == 0:
+        velocity = np.zeros(6)
+    else:
+        velocity = distance / delta_time
 
     return velocity, distance
 
@@ -338,19 +344,31 @@ class TrackerProcessing:
         self.robot_config = robot_config
 
         self.coord_vel = []
-        self.timestamp = []
+        self.timestamps = []
         self.velocity_vector = []
         self.kalman_coord_vector = []
         self.velocity_std = 0
-        self.matrix_tracker_fiducials = 3*[None]
+        self.tracker_fiducials = 3*[None]
 
         self.tracker_stabilizers = [KalmanTracker(
             state_num=2,
             covariance_process=0.001,
             covariance_measure=0.1) for _ in range(6)]
 
-    def SetMatrixTrackerFiducials(self, matrix_tracker_fiducials):
-        self.matrix_tracker_fiducials = matrix_tracker_fiducials
+    def SetTrackerFiducials(self, tracker_fiducials):
+        self.tracker_fiducials = tracker_fiducials
+
+        m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.tracker_fiducials
+
+        # Check that all fiducials are available.
+        if None in self.tracker_fiducials:
+            print("ERROR: Not all tracker fiducials are available:")
+            if m_probe_head_left is None:
+                print("  Left ear fiducial is not available")
+            if m_probe_head_right is None:
+                print("  Right ear fiducial is not available")
+            if m_probe_head_nasion is None:
+                print("  Nasion fiducial is not available")
 
     def kalman_filter(self, coord_tracker):
         kalman_array = []
@@ -373,13 +391,13 @@ class TrackerProcessing:
         Check if the head velocity is above the threshold. If yes, return True, otherwise False.
         """
         self.coord_vel.append(current_ref)
-        self.timestamp.append(time())
+        self.timestamps.append(time.time())
         if len(self.coord_vel) >= 10:
-            head_velocity, head_distance = estimate_head_velocity(self.coord_vel, self.timestamp)
+            head_velocity, head_distance = estimate_head_velocity(self.coord_vel, self.timestamps)
             self.velocity_vector.append(head_velocity)
 
             del self.coord_vel[0]
-            del self.timestamp[0]
+            del self.timestamps[0]
 
             if len(self.velocity_vector) >= 15:
                 self.velocity_std = np.std(self.velocity_vector)
@@ -388,11 +406,11 @@ class TrackerProcessing:
             head_velocity_threshold = self.robot_config['head_velocity_threshold']
             if self.velocity_std > head_velocity_threshold:
                 self.coord_vel = []
-                self.timestamp = []
+                self.timestamps = []
                 return True
             else:
                 self.coord_vel = []
-                self.timestamp = []
+                self.timestamps = []
                 return False
 
         return False
@@ -402,10 +420,11 @@ class TrackerProcessing:
         Estimates the actual head center position in robot space as the average of the positions of
         the left ear and right ear, using the fiducials registered in neuronavigation.
         """
-        m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.matrix_tracker_fiducials
+        m_probe_head_left, m_probe_head_right, m_probe_head_nasion = self.tracker_fiducials
 
-        # Check that all fiducials are available.
-        if None in self.matrix_tracker_fiducials:
+        # Return early if tracker fiducials are not available (i.e., target has not been set yet,
+        # as the tracker fiducials come together with the target.)
+        if None in self.tracker_fiducials:
             return None
 
         m_head = compute_marker_transformation(np.array([head_pose_in_tracker_space]), 0)
@@ -425,7 +444,7 @@ class TrackerProcessing:
         """
         Estimates the actual anterior-posterior versor using nasion fiducial
         """
-        _, _, m_probe_head_nasion = self.matrix_tracker_fiducials
+        _, _, m_probe_head_nasion = self.tracker_fiducials
         m_current_head = compute_marker_transformation(np.array([current_head]), 0)
 
         m_nasion_new = m_current_head @ m_probe_head_nasion
@@ -441,7 +460,7 @@ class TrackerProcessing:
         """
         Estimates the actual left-right versor using fiducials
         """
-        m_probe_head_left, m_probe_head_right, _ = self.matrix_tracker_fiducials
+        m_probe_head_left, m_probe_head_right, _ = self.tracker_fiducials
         m_current_head = compute_marker_transformation(np.array([current_head]), 0)
 
         m_ear_left_new = m_current_head @ m_probe_head_left
@@ -461,7 +480,7 @@ class TrackerProcessing:
         target_pose_in_robot_space = tracker.transform_matrix_to_robot_space(m_target)
         head_pose_in_robot_space = tracker.transform_pose_to_robot_space(head_pose_in_tracker_space)
 
-        print("Target received from neuronavigation (in robot space):", np.round(target_pose_in_robot_space, 1))
+        print("Target received from neuronavigation (in robot space):", np.array(target_pose_in_robot_space))
 
         return compute_transformation_to_head_space(
             pose=target_pose_in_robot_space,

@@ -25,6 +25,8 @@ class RadiallyOutwardAlgorithm:
         # Unused for now.
         self.config = config
         self.safe_height = config['safe_height']
+        self.default_speed = config['default_speed']
+        self.tuning_speed = config['tuning_speed']
 
         # Reset the state
         self.reset_state()
@@ -135,10 +137,16 @@ class RadiallyOutwardAlgorithm:
 
         # Branch to different movement functions depending on the motion type.
         if self.motion_type == MotionType.NORMAL:
-            success = self.robot.move_linear(target_pose_in_robot_space_estimated_from_displacement)
+            success = self.robot.move_linear(
+                target=target_pose_in_robot_space_estimated_from_displacement,
+                speed=self.default_speed,
+            )
 
         elif self.motion_type == MotionType.LINEAR_OUT:
-            success = self.robot.move_linear(self.linear_out_target)
+            success = self.robot.move_linear(
+                target=self.linear_out_target,
+                speed=self.default_speed,
+            )
 
         elif self.motion_type == MotionType.ARC:
             # If the robot is in an error state, stop the robot and return early.
@@ -154,12 +162,16 @@ class RadiallyOutwardAlgorithm:
             success = self.robot.move_circular(
                 start_position=robot_pose,
                 waypoint=waypoint,
-                target=self.arc_motion_target
+                target=self.arc_motion_target,
+                speed=self.default_speed,
             )
 
         elif self.motion_type == MotionType.TUNING:
             print("Initiating tuning motion")
-            success = self.robot.move_linear(target_pose_in_robot_space_estimated_from_displacement)
+            success = self.robot.move_linear(
+                target=target_pose_in_robot_space_estimated_from_displacement,
+                speed=self.tuning_speed,
+            )
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
             # TODO: Should this be implemented?
@@ -181,6 +193,9 @@ class RadiallyOutwardAlgorithm:
             return False
 
         pose[2] = self.safe_height
-        success = self.robot.move_linear(pose)
+        success = self.robot.move_linear(
+            target=pose,
+            speed=self.default_speed,
+        )
 
         return success

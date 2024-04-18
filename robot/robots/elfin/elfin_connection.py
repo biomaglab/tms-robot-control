@@ -124,12 +124,12 @@ class ElfinConnection:
 
     def list_to_str(self, list):
         """
-        Converts a list of numbers to a string.
+        Converts a list of numbers to a string, with each number formatted to two decimal places.
 
-        :param: list: A list of numbers, e.g. [1,2,3].
-        :return: A string representation of the list, e.g. "1,2,3".
+        :param list: A list of numbers, e.g. [1, 2.333, 3].
+        :return: A string representation of the list with two decimal places, e.g. "1.00,2.33,3.00".
         """
-        return ",".join([str(s) for s in list])
+        return ",".join([f"{s:.2f}" for s in list])
 
     # Robot commands
 

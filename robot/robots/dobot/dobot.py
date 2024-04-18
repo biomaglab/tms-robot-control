@@ -33,11 +33,8 @@ class Dobot(Robot):
     TIMEOUT_START_MOTION = 10
     TIMEOUT_MOTION = 45
 
-    def __init__(self, ip, config, robot_config):
+    def __init__(self, ip, robot_config):
         self.robot_config = robot_config
-
-        # TODO: Unused for now.
-        self.robot_speed = config['robot_speed']
 
         self.coordinates = 6 * [None]
         self.force_torque_data = 6 * [None]
@@ -90,7 +87,7 @@ class Dobot(Robot):
         return status == RobotStatus.ERROR.value
 
     def initialize(self):
-        self.connection.set_speed_ratio(self.robot_speed)
+        pass
 
     def get_pose(self):
         # Always successfully return coordinates.
@@ -105,8 +102,13 @@ class Dobot(Robot):
     #   variable (self.target) for each. After that change is implemented,
     #   the functions below will branch off.
 
-    def move_linear(self, linear_target):
-        self.target = linear_target
+    # TODO: 'speed' parameter is currently ignored.
+    def move_linear(self, target, speed):
+        success = self.connection.set_speed_ratio(speed)
+        if not success:
+            return False
+
+        self.target = target
         self.connection.move_linear(self.target)
         self.motion_type = MotionType.NORMAL
         self._motion_loop()
@@ -114,7 +116,8 @@ class Dobot(Robot):
         # TODO: Properly handle errors and return the success of the movement here.
         return True
 
-    def move_circular(self, start_position, waypoint, target):
+    # TODO: 'speed' parameter is currently ignored.
+    def move_circular(self, start_position, waypoint, target, speed):
         # TODO: Start position, waypoint, and target should be stored in three separate
         #   variables, not in one variable (self.target).
         self.target = start_position, waypoint, target

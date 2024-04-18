@@ -27,7 +27,7 @@ class Tracker:
     The class is required to avoid acquisition conflict with different threads
     """
     def __init__(self):
-        self.coord = [None, None, None]
+        self.poses = [None, None, None]
         self.m_tracker_to_robot = None
 
         self.probe_visible = False
@@ -39,15 +39,15 @@ class Tracker:
     def SetTrackerToRobotMatrix(self, m_tracker_to_robot):
         self.m_tracker_to_robot = m_tracker_to_robot
 
-    def SetCoordinates(self, coord, markers_flag):
-        self.coord = coord
+    def SetCoordinates(self, poses, visibilities):
+        self.poses = poses
 
-        self.probe_visible = markers_flag[0]
-        self.head_visible = markers_flag[1]
-        self.coil_visible = markers_flag[2]
+        self.probe_visible = visibilities[0]
+        self.head_visible = visibilities[1]
+        self.coil_visible = visibilities[2]
 
-        self.head_pose = coord[1]
-        self.coil_pose = coord[2]
+        self.head_pose = poses[1]
+        self.coil_pose = poses[2]
 
         # XXX: The poses comes from neuronavigation using the 'rzyx' convention for interpreting Euler angles
         #   (That is, the axis order is z, y, x, using rotating frame). Convert it to the 'sxyz' convention used in
@@ -56,9 +56,6 @@ class Tracker:
         #   z-rotations.
         self.head_pose[3], self.head_pose[5] = self.head_pose[5], self.head_pose[3]
         self.coil_pose[3], self.coil_pose[5] = self.coil_pose[5], self.coil_pose[3]
-
-    def GetCoordinates(self):
-        return self.coord
 
     def get_head_pose(self):
         return self.head_pose

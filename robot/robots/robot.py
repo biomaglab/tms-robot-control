@@ -84,27 +84,29 @@ class Robot(ABC):
         pass
 
     @abstractmethod
-    def move_linear(self, linear_target):
+    def move_linear(self, target, speed):
         """
-        Move the robot in a linear path to the target in robot's base coordinate system.
+        Move the robot in a linear path to the target in robot's base coordinate system with a given speed.
 
         If the robot is already moving, this method should stop the current movement and start the new one.
 
-        :param linear_target: The target position in a linear path.
+        :param target: The target position in a linear path.
+        :param speed: The speed of the movement (as a proportion of the maximum speed; 0-1).
         """
         pass
 
     @abstractmethod
-    def move_circular(self, start_position, waypoint, target):
+    def move_circular(self, start_position, waypoint, target, speed):
         """
         Move the robot in a circular path through a specified waypoint to the target in robot's base
-        coordinate system.
+        coordinate system with a given speed.
 
         If the robot is already moving, this method should stop the current movement and start the new one.
 
         :param start_position: The starting position of the robot.
         :param waypoint: The intermediate waypoint.
         :param target: The target position.
+        :param speed: The speed of the movement (as a proportion of the maximum speed; 0-1).
         """
         pass
 

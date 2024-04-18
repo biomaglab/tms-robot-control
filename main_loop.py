@@ -5,10 +5,13 @@ import time
 from threading import Lock
 
 import socketio
+import numpy as np
 from dotenv import load_dotenv
 
 import robot.constants as const
 from robot.control.robot_control import RobotControl, RobotObjective
+from robot.control.color import Color
+
 
 class RemoteControl:
     def __init__(self, remote_host):
@@ -65,10 +68,6 @@ class RemoteControl:
     def send_message(self, topic, data={}):
         self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
 
-def reset_robot(data):
-    robot_control.__init__(remote_control)
-    print("Resetting robot control")
-
 # Run the script like this: python main_loop.py [host] [port].
 #
 # If not given, use the defaults, as shown below.
@@ -92,7 +91,7 @@ def get_config():
     # Load environment variables from .env file.
     load_dotenv()
 
-    # Validate environment variables.
+    # List environment variables.
     env_vars = [
         'SITE',
         'ROBOT',
@@ -101,9 +100,10 @@ def get_config():
         'USE_FORCE_SENSOR',
         'DWELL_TIME',
         'SAFE_HEIGHT',
-        'ROBOT_SPEED',
+        'DEFAULT_SPEED',
         'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
         'TUNING_INTERVAL',
+        'WAIT_FOR_KEYPRESS',
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -118,8 +118,10 @@ def get_config():
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
     safe_height = float(os.getenv('SAFE_HEIGHT'))
-    robot_speed = float(os.getenv('ROBOT_SPEED'))
+    default_speed = float(os.getenv('DEFAULT_SPEED'))
+    tuning_speed = float(os.getenv('TUNING_SPEED'))
     stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
+    wait_for_keypress = os.getenv('WAIT_FOR_KEYPRESS').lower() == 'true'
 
     # If tuning interval is not provided, set it to None, otherwise convert to float.
     tuning_interval = os.getenv('TUNING_INTERVAL')
@@ -136,9 +138,11 @@ def get_config():
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
         'safe_height': safe_height,
-        'robot_speed': robot_speed,
+        'default_speed': default_speed,
+        'tuning_speed': tuning_speed,
         'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
         'tuning_interval': tuning_interval,
+        'wait_for_keypress': wait_for_keypress,
     }
 
     # Print configuration.
@@ -146,9 +150,25 @@ def get_config():
     print("")
     for key, value in config.items():
         key_formatted = key.replace('_', ' ').capitalize()
-        print("{}: {}".format(key_formatted, value))
+        print("{}: {}{}{}".format(key_formatted, Color.BOLD, value, Color.END))
 
     print("")
+    if wait_for_keypress:
+        print("{}Note: The robot only performs a movement when a key is pressed{}".format(Color.BOLD, Color.END))
+        print("")
+
+    # Validate configuration.
+    if site not in const.SITE_CONFIG:
+        print("Invalid site configuration, exiting.")
+        return None
+
+    if default_speed < 0.01 or default_speed > 1:
+        print("Default speed must be between 0.01 and 1, exiting.")
+        return None
+
+    if tuning_speed < 0.01 or tuning_speed > 1:
+        print("Tuning speed must be between 0.01 and 1, exiting.")
+        return None
 
     return config
 
@@ -159,6 +179,9 @@ if __name__ == '__main__':
     config = get_config()
     if config is None:
         exit(1)
+
+    # Configure logging.
+    np.set_printoptions(formatter={'float': '{:0.1f}'.format})
 
     # Connect to neuronavigation
     url = 'http://{}:{}'.format(host, port)
@@ -196,18 +219,17 @@ if __name__ == '__main__':
                 if topic[i] in const.PUB_MESSAGES:
                     get_function = {
                         const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
-                        const.FUNCTION_UPDATE_ROBOT_TARGET: robot_control.OnUpdateRobotTargetMatrix,
-                        const.FUNCTION_RESET_ROBOT_PROCESS: robot_control.OnResetProcessTracker,
-                        const.FUNCTION_UPDATE_TRACKER_COORDINATES: robot_control.OnUpdateCoordinates,
-                        const.FUNCTION_UPDATE_TRACKER_FIDUCIALS: robot_control.OnUpdateTrackerFiducialsMatrix,
+                        const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
+                        const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
+                        const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
+                        const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.OnUpdateTrackerPoses,
                         const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
                         const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
                         const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
-                        const.FUNCTION_LOAD_ROBOT_MATRIX: robot_control.OnLoadRobotMatrix,
-                        const.FUNCTION_RESET_ROBOT: reset_robot,
+                        const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.OnSetRobotTransformationMatrix,
                         const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
-                        const.FUNCTION_DISTANCE_TO_TARGET: robot_control.OnDistanceToTarget,
-                        const.FUNCTION_SEND_OBJECTIVE_FROM_NEURONAVIGATION_TO_ROBOT: robot_control.OnSetObjective,
+                        const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
+                        const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
                     }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
@@ -217,10 +239,10 @@ if __name__ == '__main__':
             if previous_success != success:
                 # Reset objective if robot update was not successful.
                 robot_control.objective = RobotObjective.NONE
-                robot_control.UpdateObjectiveToNeuronavigation()
+                robot_control.SendObjectiveToNeuronavigation()
 
                 # Send robot status to neuronavigation via remote control.
-                topic = 'Update robot status'
+                topic = 'Robot to Neuronavigation: Update robot status'
                 data = {'robot_status': success}
                 remote_control.send_message(topic, data)
 

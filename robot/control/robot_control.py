@@ -13,6 +13,7 @@ import robot.robots.dobot.dobot as dobot
 import robot.control.coordinates as coordinates
 import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
+from robot.control.color import Color
 
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
@@ -39,6 +40,10 @@ class RobotControl:
             robot_config=robot_config,
         )
 
+        # Robot state controller is initialized when the robot is connected;
+        # initialize to None for now.
+        self.robot_state_controller = None
+
         self.robot_pose_storage = coordinates.RobotPoseStorage()
         self.tracker = coordinates.Tracker()
 
@@ -59,7 +64,7 @@ class RobotControl:
         self.M_dq = deque(maxlen=6)
 
         self.REF_FLAG = False
-        listener = keyboard.Listener(on_press=self._on_press)
+        listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
         #self.status = True
 
@@ -88,50 +93,57 @@ class RobotControl:
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
 
-    def OnUpdateRobotTargetMatrix(self, data):
-        if self.robot:
-            # XXX: The variable received from neuronavigation is called 'robot_tracker_flag', which is confusing.
-            self.target_set = data["robot_tracker_flag"]
-            target = data["target"]
-            if not self.target_set:
-                print("Target removed")
-
-                # Reset the objective if the target is removed.
-                self.objective = RobotObjective.NONE
-                self.UpdateObjectiveToNeuronavigation()
-
-                self.m_target_to_head = None
-                self.target_force_sensor_data = 5
-            else:
-                target = np.array(target).reshape(4, 4)
-
-                self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
-                self.target_force_sensor_data = self.new_force_sensor_data
-
-                # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
-                self.movement_algorithm.reset_state()
-
-                print("Target set")
-
-    def OnResetProcessTracker(self, data):
+    def OnSetTrackerFiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
         self.process_tracker.__init__(
             robot_config=self.robot_config
         )
 
-    def OnUpdateCoordinates(self, data):
-        if len(data) > 1:
-            coord = data["coord"]
-            markers_flag = data["markers_flag"]
-            self.tracker.SetCoordinates(np.vstack([coord[0], coord[1], coord[2]]), markers_flag)
+        # Set tracker fiducials.
+        self.tracker_fiducials = np.array(data["tracker_fiducials"])
+        self.process_tracker.SetTrackerFiducials(self.tracker_fiducials)
 
-    def OnUpdateTrackerFiducialsMatrix(self, data):
-        self.matrix_tracker_fiducials = np.array(data["matrix_tracker_fiducials"])
-        self.process_tracker.SetMatrixTrackerFiducials(self.matrix_tracker_fiducials)
+        print("Tracker fiducials set")
+
+    def OnSetTarget(self, data):
+        if not self.robot:
+            print("ERROR: Attempting to set target, but robot not initialized.")
+            return
+
+        self.target_set = True
+
+        target = data["target"]
+        target = np.array(target).reshape(4, 4)
+
+        self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
+        self.target_force_sensor_data = self.new_force_sensor_data
+
+        # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
+        self.movement_algorithm.reset_state()
+
+        print("Target set")
+
+    def OnUnsetTarget(self, data):
+        self.target_set = False
+
+        # Reset the objective if the target is unset.
+        self.objective = RobotObjective.NONE
+        self.SendObjectiveToNeuronavigation()
+
+        self.m_target_to_head = None
+        self.target_force_sensor_data = 5
+
+        print("Target unset")
+
+    def OnUpdateTrackerPoses(self, data):
+        if len(data) > 1:
+            poses = data["poses"]
+            visibilities = data["visibilities"]
+            self.tracker.SetCoordinates(np.vstack([poses[0], poses[1], poses[2]]), visibilities)
 
     def OnCreatePoint(self, data):
         if self.create_calibration_point():
-            topic = 'Coordinates for the robot transformation matrix collected'
+            topic = 'Robot to Neuronavigation: Coordinates for the robot transformation matrix collected'
             data = {}
             self.remote_control.send_message(topic, data)
 
@@ -161,7 +173,7 @@ class RobotControl:
             self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
             self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-            topic = 'Update robot transformation matrix'
+            topic = 'Robot to Neuronavigation: Update robot transformation matrix'
             data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
             self.remote_control.send_message(topic, data)
 
@@ -169,7 +181,7 @@ class RobotControl:
             print("numpy.linalg.LinAlgError")
             print("Try a new acquisition")
 
-    def OnLoadRobotMatrix(self, data):
+    def OnSetRobotTransformationMatrix(self, data):
         X_est, Y_est, affine_matrix_tracker_to_robot = np.split(np.array(data["data"]).reshape(12, 4), 3, axis=0)
         self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
         self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
@@ -208,7 +220,14 @@ class RobotControl:
         objective = data['objective']
         self.objective = RobotObjective(objective)
 
-        print("Objective set to: {}".format(self.objective.name))
+        print("")
+        print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
+        print("")
+
+        # If the target has already been reached and the objective is to track the target, notify the user.
+        if self.target_reached and self.objective == RobotObjective.TRACK_TARGET:
+            print("Target already reached, not initiating movement.")
+            print("")
 
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
@@ -216,7 +235,7 @@ class RobotControl:
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
-        self.UpdateObjectiveToNeuronavigation()
+        self.SendObjectiveToNeuronavigation()
 
     def compute_target_in_robot_space(self):
         # If the displacement to the target is not available, return early.
@@ -252,8 +271,8 @@ class RobotControl:
 
         return list(translation) + list(angles_as_deg)
 
-    def OnDistanceToTarget(self, data):
-        # For the displacement received from the neuronavigation, the following is true:
+    def OnUpdateDisplacementToTarget(self, data):
+        # For the displacement received from the neuronavigation, the following holds:
         #
         # - It is a vector from the current robot pose to the target pose.
         # - It is represented as the vector (Dx, Dy, Dz, Da, Db, Dc) in the coordinate system of the tool center point (TCP), where
@@ -263,9 +282,7 @@ class RobotControl:
         #   rotation around y-axis, and finally rotation around z-axis.
         # - The rotations are applied in this order in a rotating frame ('rxyz'), not a static frame.
         # - Contrary to the common convention and the convention used elsewhere in the code, the rotation is applied _before_ translation.
-
-        # XXX: The variable received from neuronavigation is called 'distance', but displacement is a more accurate name.
-        displacement = data["distance"]
+        displacement = data["displacement"]
 
         # XXX: The handedness of the coordinate system used by neuronavigation is different from the one used by the robot,
         #   hence the sign reversal below.
@@ -301,15 +318,15 @@ class RobotControl:
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
         if robot_type == "elfin":
-            robot = elfin.Elfin(robot_IP, config=self.config)
+            robot = elfin.Elfin(robot_IP)
             success = robot.connect()
 
         elif robot_type == "elfin_new_api":
-            robot = elfin.Elfin(robot_IP, config=self.config, use_new_api=True)
+            robot = elfin.Elfin(robot_IP, use_new_api=True)
             success = robot.connect()
 
         elif robot_type == "dobot":
-            robot = dobot.Dobot(robot_IP, config=self.config, robot_config=self.robot_config)
+            robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
             success = robot.connect()
 
         elif robot_type == "ur":
@@ -331,10 +348,9 @@ class RobotControl:
             print('Robot initialized.')
 
             # Initialize the robot state controller.
-            dwell_time = self.config['dwell_time']
             self.robot_state_controller = RobotStateController(
                 robot=robot,
-                dwell_time=dwell_time,
+                config=self.config,
             )
 
             self.robot = robot
@@ -359,7 +375,7 @@ class RobotControl:
 
         else:
             # Send message to neuronavigation to close the robot dialog.
-            topic = 'Dialog robot destroy'
+            topic = 'Robot to Neuronavigation: Close robot dialog'
             data = {}
             self.remote_control.send_message(topic, data)
 
@@ -367,42 +383,51 @@ class RobotControl:
             print('Error: Unable to connect to robot.')
 
         # Send message to neuronavigation indicating the state of connection.
-        topic = 'Robot connection status'
+        topic = 'Robot to Neuronavigation: Robot connection status'
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
-        topic = 'Update target from FT values'
+        topic = 'Robot to Neuronavigation: Update target from FT values'
         data = {'data' : (distance, status)}
 
         self.status = False
 
         self.remote_control.send_message(topic, data)
 
-    def UpdateObjectiveToNeuronavigation(self):
+    def SendObjectiveToNeuronavigation(self):
         # Send message to neuronavigation indicating the current objective.
-        topic = 'Send current objective from robot to neuronavigation'
+        topic = 'Robot to Neuronavigation: Set objective'
         data = {'objective': self.objective.value}
         self.remote_control.send_message(topic, data)
 
-    def _on_press(self, key):
-        '''
-        Listen to keyboard press while the loop to display
-        F - T values is running.
+    def on_keypress(self, key):
+        """
+        Listens to keypresses:
 
-        Returns: None - regular actions
-                    False - stop listener
+          - If 'n' is pressed, normalizes the F-T values.
+          - If any key (except 'n' and any of the modifier keys, such as 'alt' or 'control') is pressed,
+            informs the robot state controller that a keypress has been detected. (Only has an effect if
+            the environment variable WAIT_FOR_KEYPRESS is set to 'true'.)
+        """
+        # Single-char keys (such as 'n') have the attribute 'char', whereas, e.g., the function keys do not.
+        #
+        # Hence, check if 'key' has the attribute 'char' and use it if it does.
+        key_str = key.char if hasattr(key, 'char') and key.char is not None else key.name
 
-        '''
-        if key == keyboard.Key.esc:
-            return False  # stop listener
-        try:
-            k = key.char  # single-char keys
-        except:
-            k = key.name  # other keys
-        if k == 'n':
-            print('Normalising . . . .')
+        # Disregard some commonly used modifier keys.
+        if key_str in ("caps_lock", "shift", "ctrl_l", "cmd", "alt_l", "tab", \
+                       "alt_gr", "cmd_r", "menu", "ctrl_r", "shift_r"):
+            return
+
+        if key_str == 'n':
+            print("{}Key 'n' pressed: Normalising...{}".format(Color.BOLD, Color.END))
             self.REF_FLAG = True
+            return
+
+        print("{}A keypress detected{}".format(Color.BOLD, Color.END))
+        if self.robot_state_controller is not None:
+            self.robot_state_controller.keypress_detected()
 
     def update_robot_pose(self):
         success, robot_pose = self.robot.get_pose()
@@ -439,18 +464,6 @@ class RobotControl:
         else:
             print('Cannot collect the coil markers, please try again')
             return False
-
-    # Unused and bitrotten for now.
-    def check_robot_tracker_registration(self, current_tracker_coordinates_in_robot, coord_obj_tracker_in_robot,
-                                         marker_obj_flag):
-        if marker_obj_flag:
-            transformation_matrix_threshold = self.robot_config['transformation_matrix_threshold']
-            if not np.allclose(np.array(current_tracker_coordinates_in_robot)[:3], np.array(coord_obj_tracker_in_robot)[:3], 0,
-                               transformation_matrix_threshold):
-                topic = 'Request new robot transformation matrix'
-                data = {}
-                self.remote_control.send_message(topic, data)
-                print('Request new robot transformation matrix')
 
     def read_force_sensor(self):
         success, force_sensor_values = self.robot.read_force_sensor()
@@ -535,8 +548,10 @@ class RobotControl:
         translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
 
         target_pose = list(translation) + list(angles_as_deg)
+
         # Move the robot to the target pose.
-        success = self.robot.move_linear(target_pose)
+        tuning_speed = self.config['tuning_speed']
+        success = self.robot.move_linear(target_pose, tuning_speed)
 
         if not success:
             print("Error: Could not compensate the force.")
@@ -659,7 +674,7 @@ class RobotControl:
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
         # Move the robot.
-        print("Moving the robot based on the displacement: {}".format(np.round(self.displacement_to_target, 1)))
+        print("Moving the robot based on the displacement:", np.array(self.displacement_to_target))
         success, normalize_force_sensor = self.movement_algorithm.move_decision(
             displacement_to_target=self.displacement_to_target,
             target_pose_in_robot_space_estimated_from_head_pose=self.target_pose_in_robot_space_estimated_from_head_pose,
@@ -684,23 +699,25 @@ class RobotControl:
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')
 
-        # Set the robot state to moving if the movement was successful and the dwell_time is different from zero.
+        # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
-            self.robot_state_controller.set_state_to_moving()
+            self.robot_state_controller.set_state_to_start_moving()
 
         return success
 
     # Handle the movement away from the head.
 
     def handle_objective_move_away_from_head(self):
-        # If the robot is not moving and the robot is in a state of moving away from the head, the movement is finished.
-        if self.robot_state_controller.get_state() != RobotState.MOVING and self.moving_away_from_head:
-            print("Finished moving away from head")
+        # If the robot is not moving or starting to move, and we are in a state of moving away from the head, the movement is finished.
+        if self.moving_away_from_head and \
+           self.robot_state_controller.get_state() not in (RobotState.MOVING, RobotState.START_MOVING):
+
+            print("Finished movement away from head")
 
             self.moving_away_from_head = False
             self.objective = RobotObjective.NONE
 
-            self.UpdateObjectiveToNeuronavigation()
+            self.SendObjectiveToNeuronavigation()
 
             return True
 
@@ -708,8 +725,19 @@ class RobotControl:
         if self.moving_away_from_head:
             return True
 
+        # If robot is still performing the previous movement, first stop that.
+        if self.robot_state_controller.get_state() in (RobotState.MOVING, RobotState.START_MOVING):
+            success = self.robot.stop_robot()
+            self.robot_state_controller.set_state_to_stopping()
+
+            return success
+
+        # If robot is not ready (e.g., it is still stopping the previous movement), return early.
+        if self.robot_state_controller.get_state() != RobotState.READY:
+            return True
+
         # Otherwise, initiate the movement away from the head.
-        print("Initiating moving away from head")
+        print("Initiating movement away from head")
 
         success = self.movement_algorithm.move_away_from_head()
 
@@ -717,7 +745,7 @@ class RobotControl:
         self.moving_away_from_head = success
 
         if success:
-            self.robot_state_controller.set_state_to_moving()
+            self.robot_state_controller.set_state_to_start_moving()
 
         return success
 
@@ -730,6 +758,8 @@ class RobotControl:
         self.moving_away_from_head = False
 
         success = self.robot.stop_robot()
+        self.robot_state_controller.set_state_to_stopping()
+
         return success
 
     # Update the state variables.
@@ -815,13 +845,10 @@ class RobotControl:
         # Update the robot pose.
         self.update_robot_pose()
 
-        # Update and print the robot state.
+        # Update the robot state.
         self.robot_state_controller.update()
-        self.robot_state_controller.print_state()
 
         self.update_state_variables()
-
-        #self.check_robot_tracker_registration(robot_pose, coord_obj_tracker_in_robot, marker_obj_flag)
 
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
