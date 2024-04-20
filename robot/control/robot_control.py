@@ -408,6 +408,7 @@ class RobotControl:
           - If 'f1' is pressed, normalizes the F-T values.
           - If 'f2' is pressed, informs the robot state controller that a keypress has been detected.
             (Only has an effect if the environment variable WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT is set to 'true'.)
+          - If 'f12' is pressed, stops the robot and sets the objective to NONE.
         """
         # Single-char keys (such as 'n') have the attribute 'char', whereas, e.g., the function keys do not.
         #
@@ -422,6 +423,23 @@ class RobotControl:
         elif key_str == 'f2' and self.robot_state_controller is not None and self.config['wait_for_keypress_before_movement']:
             print("{}Key 'f2' pressed: Initiating next movement...{}".format(Color.BOLD, Color.END))
             self.robot_state_controller.keypress_detected()
+
+        elif key_str == 'f12':
+            print("{}Key 'f12' pressed: Stopping the robot and setting objective to NONE...{}".format(Color.BOLD, Color.END))
+
+            self.stop_robot()
+
+            self.objective = RobotObjective.NONE
+            self.SendObjectiveToNeuronavigation()
+
+    def stop_robot(self):
+        success = self.robot.stop_robot()
+        if success:
+            self.robot_state_controller.set_state_to_stopping()
+        else:
+            print("Error: Could not stop the robot")
+
+        return success
 
     def update_robot_pose(self):
         success, robot_pose = self.robot.get_pose()
@@ -598,7 +616,7 @@ class RobotControl:
 
                 # Stop the robot. This is done because if the head marker is not visible, we cannot trust that the ongoing
                 # movement does not collide with the head.
-                self.robot.stop_robot()
+                self.stop_robot()
 
                 # Reset the state of the movement algorithm. This is done because the movement algorithm may have trouble
                 # resuming the state after the robot is stopped - this is the case for 'directly upward' algorithm - hence,
@@ -615,7 +633,7 @@ class RobotControl:
 
             # Stop the robot. This is done because if the head is moving too fast, we cannot trust that the ongoing
             # movement does not collide with the head.
-            self.robot.stop_robot()
+            self.stop_robot()
 
             # Reset the state of the movement algorithm. This is done because the movement algorithm may have trouble
             # resuming the state after the robot is stopped - this is the case for 'directly upward' algorithm - hence,
@@ -721,9 +739,7 @@ class RobotControl:
 
         # If robot is still performing the previous movement, first stop that.
         if self.robot_state_controller.get_state() in (RobotState.MOVING, RobotState.START_MOVING):
-            success = self.robot.stop_robot()
-            self.robot_state_controller.set_state_to_stopping()
-
+            success = self.stop_robot()
             return success
 
         # If robot is not ready (e.g., it is still stopping the previous movement), return early.
@@ -751,9 +767,7 @@ class RobotControl:
 
         self.moving_away_from_head = False
 
-        success = self.robot.stop_robot()
-        self.robot_state_controller.set_state_to_stopping()
-
+        success = self.stop_robot()
         return success
 
     # Update the state variables.
