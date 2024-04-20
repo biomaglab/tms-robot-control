@@ -427,6 +427,10 @@ class TrackerProcessing:
         if None in self.tracker_fiducials:
             return None
 
+        # Return early if the transformation matrix from tracker to robot space is not available.
+        if m_tracker_to_robot is None:
+            return None
+
         m_head = compute_marker_transformation(np.array([head_pose_in_tracker_space]), 0)
 
         m_ear_left_new = m_head @ m_probe_head_left
