@@ -416,16 +416,22 @@ class RobotControl:
         key_str = key.char if hasattr(key, 'char') and key.char is not None else key.name
 
         if key_str == 'f1':
-            print("{}Key 'f1' pressed: Normalising...{}".format(Color.BOLD, Color.END))
+            print("")
+            print("{}Key 'f1' pressed:{} Normalising...".format(Color.BOLD, Color.END))
+            print("")
             self.REF_FLAG = True
             return
 
         elif key_str == 'f2' and self.robot_state_controller is not None and self.config['wait_for_keypress_before_movement']:
-            print("{}Key 'f2' pressed: Initiating next movement...{}".format(Color.BOLD, Color.END))
+            print("")
+            print("{}Key 'f2' pressed:{} Initiating next movement...".format(Color.BOLD, Color.END))
+            print("")
             self.robot_state_controller.keypress_detected()
 
         elif key_str == 'f12':
-            print("{}Key 'f12' pressed: Stopping the robot and setting objective to NONE...{}".format(Color.BOLD, Color.END))
+            print("")
+            print("{}Key 'f12' pressed:{} Stopping the robot and setting objective to NONE...".format(Color.BOLD, Color.END))
+            print("")
 
             self.stop_robot()
 
