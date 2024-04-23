@@ -669,13 +669,13 @@ class RobotControl:
         if self.displacement_to_target is None:
             print("Error: Displacement to target is not available")
 
-            # Even though a recent displacement should be always available, it turns out that the 0.2 second time limit
+            # Even though a recent displacement should be always available, it turns out that the 0.3 second time limit
             # is quite strict. Hence, interpret the lack of displacement as a "good state".
             return True
 
         # Ensure that the displacement to target has been updated recently.
-        if time.time() > self.last_displacement_update_time + 0.2:
-            print("Error: No displacement update received for 0.2 seconds")
+        if time.time() > self.last_displacement_update_time + 0.3:
+            print("Error: No displacement update received for 0.3 seconds")
             self.displacement_to_target = None
             return True
 
