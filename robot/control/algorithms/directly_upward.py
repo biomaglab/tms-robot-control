@@ -31,10 +31,6 @@ class MotionSequenceState(Enum):
 
 
 class DirectlyUpwardAlgorithm:
-    # Thresholds outside which a motion sequence is initiated.
-    TRANSLATION_THRESHOLD = 3.0  # mm
-    ROTATION_THRESHOLD = 3.0  # degrees
-
     # The proportion of the remaining distance to the target to move partway downward.
     PARTWAY_DOWNWARD_REMAINING_PROPORTION = 0.1
 
@@ -44,6 +40,8 @@ class DirectlyUpwardAlgorithm:
         self.safe_height = config['safe_height']
         self.default_speed = config['default_speed']
         self.tuning_speed = config['tuning_speed']
+        self.translation_threshold = config['translation_threshold']
+        self.rotation_threshold = config['rotation_threshold']
 
         # Unused for now.
         self.robot_config = robot_config
@@ -68,8 +66,13 @@ class DirectlyUpwardAlgorithm:
             max_rotation = np.max(np.abs(displacement_to_target[3:]))
 
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence.
-            if max_translation > self.TRANSLATION_THRESHOLD or max_rotation > self.ROTATION_THRESHOLD:
-                print("Max translation: {:.2f} mm, max rotation: {:.2f} degrees, exceeding the threshold".format(max_translation, max_rotation))
+            if max_translation > self.translation_threshold or max_rotation > self.rotation_threshold:
+
+                if max_translation > self.translation_threshold:
+                    print("Translation ({:.2f} mm) exceeds the threshold ({:.2f} mm)".format(max_translation, self.translation_threshold))
+                if max_rotation > self.rotation_threshold:
+                    print("Rotation ({:.2f} deg) exceeds the threshold ({:.2f} deg)".format(max_rotation, self.rotation_threshold))
+
                 print("Initiating motion sequence")
 
                 # Start the motion sequence by moving upward.

@@ -64,6 +64,7 @@ class RadiallyOutwardAlgorithm:
                  A middle point, between the actual position and the target, is required.
                 The last step is to make a linear move until the target (goes to the inner sphere)
 
+        TODO: Environment-variable-configurable translation or rotation thresholds not implemented here yet.
         """
         # Initialize the return values.
         success = False

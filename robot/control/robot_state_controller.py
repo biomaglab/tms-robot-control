@@ -30,9 +30,9 @@ class RobotStateController:
         self.robot = robot
 
         self.dwell_time = config['dwell_time']
-        self.wait_for_keypress = config['wait_for_keypress']
+        self.wait_for_keypress_before_movement = config['wait_for_keypress_before_movement']
 
-        self.state = RobotState.READY if not self.wait_for_keypress else RobotState.WAITING_FOR_KEYPRESS
+        self.state = RobotState.READY if not self.wait_for_keypress_before_movement else RobotState.WAITING_FOR_KEYPRESS
         self.previous_state = None
 
         self.not_moving_counter = 0
@@ -79,7 +79,7 @@ class RobotStateController:
 
             # If we have waited long enough, go back to READY.
             if self.remaining_dwell_time <= 0:
-                self.state = RobotState.READY if not self.wait_for_keypress else RobotState.WAITING_FOR_KEYPRESS
+                self.state = RobotState.READY if not self.wait_for_keypress_before_movement else RobotState.WAITING_FOR_KEYPRESS
 
         # If we are in STOPPING, check if we should go back to READY.
         if self.state == RobotState.STOPPING and not self.robot.is_moving():
@@ -88,7 +88,7 @@ class RobotStateController:
             #   before going back to READY.
             self.not_moving_counter += 1
             if self.not_moving_counter > 5:
-                self.state = RobotState.READY if not self.wait_for_keypress else RobotState.WAITING_FOR_KEYPRESS
+                self.state = RobotState.READY if not self.wait_for_keypress_before_movement else RobotState.WAITING_FOR_KEYPRESS
 
         # If we are in WAITING_FOR_KEYPRESS, check if a keypress has been detected; if so, set state to READY.
         if self.state == RobotState.WAITING_FOR_KEYPRESS:
