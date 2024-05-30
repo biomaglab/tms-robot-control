@@ -26,18 +26,13 @@ class UniversalRobot(Robot):
     # Connection
     def connect(self):
         success = self.command_connection.connect()
-        success = success and self.state_connection.connect()
-
-        # If the connection was successful, start the thread for
-        # polling the robot state.
-        if success:
-            self.state_connection.start()
+        success = success and self.state_connection.connect_and_start()
 
         return success
 
     def disconnect(self):
         success = self.command_connection.disconnect()
-        success = success and self.state_connection.disconnect()
+        success = success and self.state_connection.disconnect_and_stop()
 
         return success
 

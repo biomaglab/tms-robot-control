@@ -1,6 +1,6 @@
 from socket import socket, AF_INET, SOCK_STREAM
 import time
-from threading import Thread
+from threading import Thread, Event
 
 import numpy as np
 
@@ -32,14 +32,11 @@ class StateConnection(Thread):
 
         self.daemon = True
 
-    def start(self):
-        if not self.connected:
-            print("Failed to start the thread: not connected to the robot")
-            return
+        self.stop_event = Event()
 
-        Thread.start(self)
+        self.worker_thread = None
 
-    def connect(self):
+    def connect_and_start(self):
         if self.connected:
             print("Already connected to the robot")
             return True
@@ -51,18 +48,29 @@ class StateConnection(Thread):
             self.socket = new_socket
 
             self.connected = True
+
+            self.stop_event.clear()
+
+            self.worker_thread = Thread(target=self.run, daemon=True)
+            self.worker_thread.start()
+
         except socket.error as e:
             print("Failed to connect to the robot")
             print(e)
 
         return self.connected
 
-    def disconnect(self):
+    def disconnect_and_stop(self):
         """
-        Disconnects from the robot.
+        Disconnects from the robot and stops the thread.
 
         :return: True if successful, otherwise False.
         """
+        self.stop_event.set()
+
+        if self.worker_thread:
+            self.worker_thread.join()
+
         success = False
 
         if not self.connected:
@@ -93,12 +101,17 @@ class StateConnection(Thread):
                 new_bytes = self.socket.recv(num_of_bytes - bytes_received)
                 if len(new_bytes) == 0:
                     raise RuntimeError("Socket connection broken")
+
                 data[bytes_received:bytes_received + len(new_bytes)] = new_bytes
                 bytes_received += len(new_bytes)
             except socket.error as e:
                 print(f"Socket error: {e}")
                 self.socket.close()
                 raise
+
+            # If the stop event is set, return None to indicate that the operation was interrupted.
+            if self.stop_event.is_set():
+                return None
 
         return data
 
@@ -128,11 +141,14 @@ class StateConnection(Thread):
 
     def run(self):
         previous_state_message_time = None
-        while True:
+
+        while not self.stop_event.is_set():            
             message_type, data = self.get_message_from_socket()
 
             if message_type is None:
-                print("Failed to get message from the socket")
+                if not self.stop_event.is_set():
+                    print("Failed to get message from the socket")
+
                 continue
 
             # If message is not a state message, skip it.
