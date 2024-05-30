@@ -1,8 +1,8 @@
 import time
 
-from universal_robot_state import UniversalRobotState
+from robot.robots.universal_robot.state_connection import StateConnection
 
-robot_state = UniversalRobotState("192.168.5.5")
+robot_state = StateConnection("192.168.5.5")
 
 robot_state.connect()
 robot_state.start()

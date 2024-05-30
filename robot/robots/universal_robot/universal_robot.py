@@ -2,8 +2,12 @@ from time import sleep
 
 from robot.robots.robot import Robot
 
-from robot.robots.universal_robot.universal_robot_connection import (
-    UniversalRobotConnection,
+from robot.robots.universal_robot.command_connection import (
+    CommandConnection,
+)
+
+from robot.robots.universal_robot.state_connection import (
+    StateConnection,
 )
 
 
@@ -12,19 +16,28 @@ class UniversalRobot(Robot):
     The class for communicating with Universal robot.
     """
     def __init__(self, ip):
-        self.connection = UniversalRobotConnection(
+        self.command_connection = CommandConnection(
+            ip=ip,
+        )
+        self.state_connection = StateConnection(
             ip=ip,
         )
 
     # Connection
     def connect(self):
-        return self.connection.connect()
+        success = self.command_connection.connect()
+        success = success and self.state_connection.connect()
+
+        return success
 
     def disconnect(self):
-        return self.connection.disconnect()
+        success = self.command_connection.disconnect()
+        success = success and self.state_connection.disconnect()
+        
+        return success
 
     def is_connected(self):
-        return self.connection.connected
+        return self.command_connection.connected and self.state_connection.connected
 
     # Initialization
     def initialize(self):
@@ -44,10 +57,10 @@ class UniversalRobot(Robot):
         pass
 
     # Movement
-    def move_linear(self, linear_target, a, v, t, r):
-        return self.connection.move_linear(linear_target, a, v, t, r)
+    def move_linear(self, target, speed):
+        return self.connection.move_linear(target, a, v, t, r)
 
-    def move_circular(self, waypoint, target, a, v, r, mode):
+    def move_circular(self, start_position, waypoint, target, speed):
         return self.connection.move_circular(waypoint, target, a, v, r, mode)
 
     def stop_robot(self):

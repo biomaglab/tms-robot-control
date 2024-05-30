@@ -5,7 +5,7 @@ from threading import Thread
 import numpy as np
 
 
-class UniversalRobotState(Thread):
+class StateConnection(Thread):
     # Use a read-only port for reading the robot state.
     PORT=30011
 

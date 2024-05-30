@@ -2,7 +2,7 @@ from enum import Enum
 from socket import socket, AF_INET, SOCK_STREAM
 
 
-class UniversalRobotConnection:
+class CommandConnection:
     PORT = 30011
     ip = "192.168.5.5"
     REQUEST_ENDING_CHARS = "\n"
