@@ -3,7 +3,7 @@ from socket import socket, AF_INET, SOCK_STREAM
 
 
 class CommandConnection:
-    PORT = 30011
+    PORT = 30002
     ip = "192.168.5.5"
     REQUEST_ENDING_CHARS = "\n"
     RESPONSE_LENGTH = 1024
@@ -60,7 +60,7 @@ class CommandConnection:
 
         return success
 
-    def _send_and_receive(self, request, verbose=False):
+    def _send(self, request, verbose=False):
         if verbose:
             print("Sending request: {}".format(request))
 
@@ -69,21 +69,15 @@ class CommandConnection:
             # Send the request to the robot.
             self.socket.sendall(full_request.encode('utf-8'))
 
-            # Receive the response from the robot.
-            response = self.socket.recv(self.RESPONSE_LENGTH)
-            print(response)
-            return response, None
-            response = response.decode('utf-8').split(',')
-
         except (BrokenPipeError, ConnectionResetError, TimeoutError) as e:
             print("Robot connection error: {}".format(e))
             self.connected = False
-            return False, None
+            return False
 
         if verbose:
             print("Done.")
 
-        return True, response
+        return True
 
     def list_to_str(self, listt):
         """
@@ -108,7 +102,7 @@ class CommandConnection:
         """
         request = "stopl({})".format(deceleration)
 
-        success, _ = self._send_and_receive(request, verbose=True)
+        success = self._send(request, verbose=True)
         return success
 
     def move_linear(self, target, acceleration, velocity, time, radius):
@@ -124,16 +118,16 @@ class CommandConnection:
             • radius: blend radius [m]
         :return: True if successful, otherwise False.
         """
-        request = "movel([], a={}, v={}, t={}, r={})".format(
-            self.list_to_str(target),
+        target_str = "p[{}]".format(self.list_to_str(target))
+
+        request = "movel({}, a={}, v={}, t={}, r={})".format(
+            target_str,
             acceleration,
             velocity,
             time,
             radius,
         )
-
-        success, _ = self._send_and_receive(request, verbose=True)
-        return success
+        return self._send(request, verbose=True)
 
     def move_circular(self, waypoint, target, acceleration, velocity, radius, mode):
         """
@@ -157,14 +151,15 @@ class CommandConnection:
 
         :return: True if successful, otherwise False.
         """
-        request = "movec([{}],[{}],a={},v={},r={},mode={})".format(
-            self.list_to_str(waypoint),
-            self.list_to_str(target),
+        waypoint_str = "p[{}]".format(self.list_to_str(waypoint))
+        target_str = "p[{}]".format(self.list_to_str(target))
+
+        request = "movec({},{},a={},v={},r={},mode={})".format(
+            waypoint_str,
+            target_str,
             acceleration,
             velocity,
             radius,
             mode,
         )
-
-        success, _ = self._send_and_receive(request, verbose=True)
-        return success
+        return self._send(request, verbose=True)

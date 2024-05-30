@@ -28,12 +28,17 @@ class UniversalRobot(Robot):
         success = self.command_connection.connect()
         success = success and self.state_connection.connect()
 
+        # If the connection was successful, start the thread for
+        # polling the robot state.
+        if success:
+            self.state_connection.start()
+
         return success
 
     def disconnect(self):
         success = self.command_connection.disconnect()
         success = success and self.state_connection.disconnect()
-        
+
         return success
 
     def is_connected(self):
@@ -41,7 +46,10 @@ class UniversalRobot(Robot):
 
     # Initialization
     def initialize(self):
-        pass
+        # Wait until the robot state has been received.
+        while not self.state_connection.is_state_received():
+            print("Waiting for the robot state...")
+            sleep(0.2)
 
     # Robot state
     def get_pose(self):
@@ -54,18 +62,17 @@ class UniversalRobot(Robot):
         return self.state_connection.is_error_state()
 
     def read_force_sensor(self):
-        # Not implemented.
-        pass
+        raise NotImplementedError
 
     # Movement
     def move_linear(self, target, speed):
         # Use a default acceleration value.
-        acceleration = 1.2
+        acceleration = 0.2
 
         # Use constant velocity for now; ignore 'speed' argument.
-        velocity = 0.05
+        velocity = 0.02
 
-        return self.connection.move_linear(
+        return self.command_connection.move_linear(
             target=target,
             acceleration=acceleration,
             velocity=velocity,
@@ -75,12 +82,12 @@ class UniversalRobot(Robot):
 
     def move_circular(self, start_position, waypoint, target, speed):
         # Use a default acceleration value.
-        acceleration = 1.2
+        acceleration = 0.2
 
         # Use constant velocity for now; ignore 'speed' argument.
-        velocity = 0.05
+        velocity = 0.02
 
-        return self.connection.move_circular(
+        return self.command_connection.move_circular(
             start_position=start_position,
             waypoint=waypoint,
             target=target,
@@ -91,7 +98,7 @@ class UniversalRobot(Robot):
         )
 
     def stop_robot(self):
-        return self.connection.stop_robot()
+        return self.command_connection.stop_robot()
 
     # Destruction and cleanup
     def close(self):

@@ -27,7 +27,7 @@ class StateConnection(Thread):
 
         self.connected = False
         self.socket = None
-        
+
         self.state = None
 
         self.daemon = True
@@ -77,6 +77,9 @@ class StateConnection(Thread):
             print("Failed to disconnect from the robot")
 
         return success
+
+    def is_state_received(self):
+        return self.state is not None        
 
     def get_bytes_from_socket(self, num_of_bytes):
         if not self.connected:
@@ -180,15 +183,21 @@ class StateConnection(Thread):
         return self.state["CartesianInfo"]["Rz"][0] if self.state is not None else None
 
     def is_moving(self):
-        return self.state["RobotMode"]["IsProgramRunning"][0] if self.state is not None else None
+        return self.state["RobotMode"]["isProgramRunning"][0] if self.state is not None else None
 
     def is_error_state(self):
-        is_emergency_stopped = self.state["RobotMode"]["IsEmergencyStopped"][0] if self.state is not None else None
-        is_protective_stopped = self.state["RobotMode"]["IsProtectiveStopped"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        is_emergency_stopped = self.state["RobotMode"]["isEmergencyStopped"][0]
+        is_protective_stopped = self.state["RobotMode"]["isProtectiveStopped"][0]
 
         return is_emergency_stopped or is_protective_stopped
 
     def get_pose(self):
+        if self.state is None:
+            return None
+
         return [self.X, self.Y, self.Z, self.Rx, self.Ry, self.Rz]
 
     def __repr__(self):

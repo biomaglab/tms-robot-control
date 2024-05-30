@@ -1,37 +1,28 @@
-from robot.robots.universal.universal import Universal
+import time
+
+from robot.robots.universal_robot.universal_robot import UniversalRobot
 
 ip = "192.168.5.5"
-vel = 0.2
-acc = 0.2
-time = 0
-radius = 0
-mode = 0
-# config = {
-#     'vel': 0.2,
-#     'acc': 0.2
-# }
 
-universal = Universal(
+robot = UniversalRobot(
     ip=ip,
-    # config=config,
-    # use_new_api=False
 )
 
-universal.connect()
+success = robot.connect()
+print("Connected: ", success)
 
-# universal.initialize()
+robot.initialize()
 
 # Get the current pose of the robot.
-# target = universal.get_pose()
-target = [25, -209, 588, 0, -2, -1]
+
+target = robot.get_pose()
 
 print("Current position: ", target)
 
 # Move the robot to a new position.
-target[2] += 10  # in mm
+target[0] -= 0.05
 
-
-response = universal.move_linear(target, vel, acc, time, radius)
+response = robot.move_linear(target, 0.1)
 
 # Check if the robot is moving.
 # moving = universal.is_moving()

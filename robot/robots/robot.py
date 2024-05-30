@@ -50,27 +50,30 @@ class Robot(ABC):
     @abstractmethod
     def get_pose(self):
         """
-        Get the current pose of the robot.
+        Get the current pose of the robot, or None if the pose is not available.
 
-        :return: The current pose.
+        :return: The current pose. The pose is a list of 6 values: [x, y, z, rx, ry, rz].
+          Return None if the pose is not available.
         """
         pass
 
     @abstractmethod
     def is_moving(self):
         """
-        Check if the robot is currently moving.
+        Return True if the robot is currently moving, False if it is not moving, and None if the
+        information is not available.
 
-        :return: True if the robot is moving, False otherwise.
+        :return: True if the robot is moving, False if not moving, None if the information is not available.
         """
         pass
 
     @abstractmethod
     def is_error_state(self):
         """
-        Check if the robot is in an error state.
+        Return True if the robot is in an error state, False if it is not in an error state, and None if the
+        information is not available.
 
-        :return: True if in error state, False otherwise.
+        :return: True if in error state, False if not, and None if the information is not available.
         """
         pass
 
