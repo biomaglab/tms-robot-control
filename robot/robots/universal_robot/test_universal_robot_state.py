@@ -1,6 +1,6 @@
 import time
 
-from robot.robots.universal_robot.state_connection import StateConnection
+from state_connection import StateConnection
 
 robot_state = StateConnection("192.168.5.5")
 

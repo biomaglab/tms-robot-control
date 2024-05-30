@@ -97,37 +97,45 @@ class CommandConnection:
 
     # Robot commands
 
-    def stop_robot(self, a):
+    def stop_robot(self, deceleration):
         """
         Stops the robot's movement.
 
+        :params:
+            • deceleration: tool deceleration [m/s^2]
+
         :return: True if successful, otherwise False.
         """
-        request = "stopl" + '(' + str(a) + ')'
+        request = "stopl({})".format(deceleration)
+
         success, _ = self._send_and_receive(request, verbose=True)
         return success
 
-    def move_linear(self, target, a, v, t, r):
+    def move_linear(self, target, acceleration, velocity, time, radius):
         """
         Moves the robot to the specified space coordinates using linear motion.
 
         :params:
             • target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in [mm]
                 and rx, ry, rz are the rotation angles in [degree].
-            • a: tool acceleration [m/s^2]
-            • v: tool speed [m/s]
-            • t: time [S] to make the move. If it were specified the command would ignore the a and v values.
-            • r: blend radius [m]
+            • acceleration: tool acceleration [m/s^2]
+            • velocity: tool speed [m/s]
+            • time: time [S] to make the move. If it were specified the command would ignore the a and v values.
+            • radius: blend radius [m]
         :return: True if successful, otherwise False.
         """
-        # command = "MoveL" if self.use_new_api else "MoveB"
-        request = "movel([" + self.list_to_str(target) + '],a=' + str(a) +\
-            ',v=' + str(v) + ',t=' + str(t) + ',r=' + str(r) + ')'
+        request = "movel([], a={}, v={}, t={}, r={})".format(
+            self.list_to_str(target),
+            acceleration,
+            velocity,
+            time,
+            radius,
+        )
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
 
-    def move_circular(self, waypoint, target, a, v, r, mode):
+    def move_circular(self, waypoint, target, acceleration, velocity, radius, mode):
         """
         Moves the robot to the specified space coordinates using circular motion.
 
@@ -139,9 +147,9 @@ class CommandConnection:
                     then forward kinematics is used to calculate the corresponding pose
             • target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates [mm],
                 and rx, ry, rz are the rotation angles [deg].
-            • a: tool acceleration [m/s^2]
-            • v: tool speed [m/s]
-            • r: blend radius (of target pose) [m]
+            • acceleration: tool acceleration [m/s^2]
+            • velocity: tool speed [m/s]
+            • radius: blend radius (of target pose) [m]
             • mode:
                 0: Unconstrained mode. Interpolate orientation from current pose to target pose (pose_to)
                 1: Fixed mode. Keep orientation constant relative to the tangent of the circular arc (starting
@@ -149,8 +157,14 @@ class CommandConnection:
 
         :return: True if successful, otherwise False.
         """
-        request = "movec([" + self.list_to_str(waypoint) + '],[' + self.list_to_str(target) +\
-            '],a=' + str(a) + ',v=' + str(v) + ',r=' + str(r) + ',mode=' + self.str(mode) + ')'
+        request = "movec([{}],[{}],a={},v={},r={},mode={})".format(
+            self.list_to_str(waypoint),
+            self.list_to_str(target),
+            acceleration,
+            velocity,
+            radius,
+            mode,
+        )
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
