@@ -178,10 +178,18 @@ class StateConnection(Thread):
     @property
     def Rz(self):
         return self.state["CartesianInfo"]["Rz"][0] if self.state is not None else None
-    
-    @property
-    def is_robot_moving(self):
-        return self.state[...]
+
+    def is_moving(self):
+        return self.state["RobotMode"]["IsProgramRunning"][0] if self.state is not None else None
+
+    def is_error_state(self):
+        is_emergency_stopped = self.state["RobotMode"]["IsEmergencyStopped"][0] if self.state is not None else None
+        is_protective_stopped = self.state["RobotMode"]["IsProtectiveStopped"][0] if self.state is not None else None
+
+        return is_emergency_stopped or is_protective_stopped
+
+    def get_pose(self):
+        return [self.X, self.Y, self.Z, self.Rx, self.Ry, self.Rz]
 
     def __repr__(self):
         if self.state is None:

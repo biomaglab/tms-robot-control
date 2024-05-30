@@ -45,15 +45,16 @@ class UniversalRobot(Robot):
 
     # Robot state
     def get_pose(self):
-        pass
+        return self.state_connection.get_pose()
 
     def is_moving(self):
-        pass
+        return self.state_connection.is_moving()
 
     def is_error_state(self):
-        pass
+        return self.state_connection.is_error_state()
 
     def read_force_sensor(self):
+        # Not implemented.
         pass
 
     # Movement
