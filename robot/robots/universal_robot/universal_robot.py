@@ -59,10 +59,36 @@ class UniversalRobot(Robot):
 
     # Movement
     def move_linear(self, target, speed):
-        return self.connection.move_linear(target, a, v, t, r)
+        # Use a default acceleration value.
+        acceleration = 1.2
+
+        # Use constant velocity for now; ignore 'speed' argument.
+        velocity = 0.05
+
+        return self.connection.move_linear(
+            target=target,
+            acceleration=acceleration,
+            velocity=velocity,
+            time=0,
+            radius=0,
+        )
 
     def move_circular(self, start_position, waypoint, target, speed):
-        return self.connection.move_circular(waypoint, target, a, v, r, mode)
+        # Use a default acceleration value.
+        acceleration = 1.2
+
+        # Use constant velocity for now; ignore 'speed' argument.
+        velocity = 0.05
+
+        return self.connection.move_circular(
+            start_position=start_position,
+            waypoint=waypoint,
+            target=target,
+            acceleration=acceleration,
+            velocity=velocity,
+            radius=0,
+            mode=0,
+        )
 
     def stop_robot(self):
         return self.connection.stop_robot()
