@@ -3,8 +3,9 @@ from socket import socket, AF_INET, SOCK_STREAM
 
 
 class CommandConnection:
-    PORT = 30002
-    ip = "192.168.5.5"
+    # Use the primary port for sending commands to the robot.
+    PORT = 30001
+
     REQUEST_ENDING_CHARS = "\n"
     RESPONSE_LENGTH = 1024
 

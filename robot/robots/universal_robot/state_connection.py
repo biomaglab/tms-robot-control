@@ -6,7 +6,7 @@ import numpy as np
 
 
 class StateConnection(Thread):
-    # Use a read-only port for reading the robot state.
+    # Use the primary *read-only* port for reading the robot state.
     PORT=30011
 
     # If the time between two consecutive state messages is greater than this threshold,
