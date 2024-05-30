@@ -2,20 +2,20 @@ from time import sleep
 
 from robot.robots.robot import Robot
 
-from robot.robots.universal.universal_connection import (
-    UniversalConnection,
+from robot.robots.universal_robot.universal_robot_connection import (
+    UniversalRobotConnection,
     MotionState,
 )
 
 
-class Universal(Robot):
+class UniversalRobot(Robot):
     """
     The class for communicating with Universal robot.
     """
     # def __init__(self, ip, config):
     def __init__(self, ip):
         # self.robot_speed = config['robot_speed']
-        self.connection = UniversalConnection(
+        self.connection = UniversalRobotConnection(
             ip=ip,
             # use_new_api=use_new_api,
             # v = config['vel']
