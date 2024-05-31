@@ -87,7 +87,7 @@ class StateConnection(Thread):
         return success
 
     def is_state_received(self):
-        return self.state is not None        
+        return self.state is not None
 
     def get_bytes_from_socket(self, num_of_bytes):
         if not self.connected:

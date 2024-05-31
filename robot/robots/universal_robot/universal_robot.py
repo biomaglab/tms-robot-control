@@ -15,6 +15,22 @@ class UniversalRobot(Robot):
     """
     The class for communicating with Universal robot.
     """
+    # The typical maximum velocity for Universal Robot is 1 m/s, as described here:
+    #
+    # https://www.universal-robots.com/media/1827367/05_2023_collective_data-sheet.pdf
+    #
+    # Velocity is defined in m/s, so the maximum velocity is 1.0.
+    MAX_VELOCITY = 1.0
+
+    # Movement commands for Universal Robot include acceleration, velocity, and time.
+    # The movement can be defined either by acceleration and velocity, or by time. In our use,
+    # it is more convenient to use acceleration and velocity, as we want to ensure that the
+    # velocity won't be too high. However, when velocity is defined, we also need to define
+    # acceleration, so that the robot can reach the desired velocity in a controlled manner.
+    #
+    # Use a default acceleration value (in m/s^2), defined here.
+    DEFAULT_ACCELERATION = 0.2
+
     def __init__(self, ip):
         self.command_connection = CommandConnection(
             ip=ip,
@@ -60,27 +76,25 @@ class UniversalRobot(Robot):
         raise NotImplementedError
 
     # Movement
-    def move_linear(self, target, speed):
-        # Use a default acceleration value.
-        acceleration = 0.2
-
-        # Use constant velocity for now; ignore 'speed' argument.
-        velocity = 0.02
+    def move_linear(self, target, speed_ratio):
+        acceleration = self.DEFAULT_ACCELERATION
+        velocity = self.MAX_VELOCITY * speed_ratio
+        time = 0  # When acceleration and velocity are defined, time is not used.
+        radius = 0  # Use a blend radius of 0.
 
         return self.command_connection.move_linear(
             target=target,
             acceleration=acceleration,
             velocity=velocity,
-            time=0,
-            radius=0,
+            time=time,
+            radius=radius,
         )
 
-    def move_circular(self, start_position, waypoint, target, speed):
-        # Use a default acceleration value.
-        acceleration = 0.2
-
-        # Use constant velocity for now; ignore 'speed' argument.
-        velocity = 0.02
+    def move_circular(self, start_position, waypoint, target, speed_ratio):
+        acceleration = self.DEFAULT_ACCELERATION
+        velocity = self.MAX_VELOCITY * speed_ratio
+        time = 0  # When acceleration and velocity are defined, time is not used.
+        radius = 0  # Use a blend radius of 0.
 
         return self.command_connection.move_circular(
             start_position=start_position,
