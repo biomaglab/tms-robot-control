@@ -1,6 +1,14 @@
 from enum import Enum
 from socket import socket, AF_INET, SOCK_STREAM
 
+# Circular motion supports two modes: unconstrained and fixed.
+#
+# Unconstrained: Interpolate orientation from current pose to target pose.
+# Fixed: Keep orientation constant relative to the tangent of the circular arc.
+class MotionMode(Enum):
+    UNCONSTRAINED = 0
+    FIXED = 1
+
 
 class CommandConnection:
     # Use the primary port for sending commands to the robot.
@@ -145,10 +153,12 @@ class CommandConnection:
             • acceleration: tool acceleration [m/s^2]
             • velocity: tool speed [m/s]
             • radius: blend radius (of target pose) [m]
-            • mode:
-                0: Unconstrained mode. Interpolate orientation from current pose to target pose (pose_to)
-                1: Fixed mode. Keep orientation constant relative to the tangent of the circular arc (starting
-                    from current pose)
+            • mode: an instance of MotionMode enum.
+                MotionMode.UNCONSTRAINED:
+                   Unconstrained mode. Interpolate orientation from current pose to target pose (pose_to)
+                MotionMode.FIXED:
+                   Fixed mode. Keep orientation constant relative to the tangent of the circular arc (starting
+                   from current pose)
 
         :return: True if successful, otherwise False.
         """
@@ -161,6 +171,6 @@ class CommandConnection:
             acceleration,
             velocity,
             radius,
-            mode,
+            mode.value,
         )
         return self._send(request, verbose=True)

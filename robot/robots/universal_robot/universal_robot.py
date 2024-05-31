@@ -4,6 +4,7 @@ from robot.robots.robot import Robot
 
 from robot.robots.universal_robot.command_connection import (
     CommandConnection,
+    MotionMode,
 )
 
 from robot.robots.universal_robot.state_connection import (
@@ -93,17 +94,16 @@ class UniversalRobot(Robot):
     def move_circular(self, start_position, waypoint, target, speed_ratio):
         acceleration = self.DEFAULT_ACCELERATION
         velocity = self.MAX_VELOCITY * speed_ratio
-        time = 0  # When acceleration and velocity are defined, time is not used.
+        mode = MotionMode.UNCONSTRAINED
         radius = 0  # Use a blend radius of 0.
 
         return self.command_connection.move_circular(
-            start_position=start_position,
             waypoint=waypoint,
             target=target,
             acceleration=acceleration,
             velocity=velocity,
-            radius=0,
-            mode=0,
+            radius=radius,
+            mode=mode,
         )
 
     def stop_robot(self):
