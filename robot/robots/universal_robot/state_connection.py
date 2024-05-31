@@ -176,27 +176,63 @@ class StateConnection(Thread):
 
     @property
     def X(self):
-        return self.state["CartesianInfo"]["X"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        x_in_meters = self.state["CartesianInfo"]["X"][0]
+        x_in_mm = x_in_meters * 1000
+
+        return x_in_mm
 
     @property
     def Y(self):
-        return self.state["CartesianInfo"]["Y"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        y_in_meters = self.state["CartesianInfo"]["Y"][0]
+        y_in_mm = y_in_meters * 1000
+        
+        return y_in_mm
 
     @property
     def Z(self):
-        return self.state["CartesianInfo"]["Z"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        z_in_meters = self.state["CartesianInfo"]["Z"][0]
+        z_in_mm = z_in_meters * 1000
+
+        return z_in_mm
 
     @property
     def Rx(self):
-        return self.state["CartesianInfo"]["Rx"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        rx_in_radians = self.state["CartesianInfo"]["Rx"][0]
+        rx_in_degrees = np.degrees(rx_in_radians) 
+
+        return rx_in_degrees
 
     @property
     def Ry(self):
-        return self.state["CartesianInfo"]["Ry"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        ry_in_radians = self.state["CartesianInfo"]["Ry"][0]
+        ry_in_degrees = np.degrees(ry_in_radians)
+
+        return ry_in_degrees
 
     @property
     def Rz(self):
-        return self.state["CartesianInfo"]["Rz"][0] if self.state is not None else None
+        if self.state is None:
+            return None
+
+        rz_in_radians = self.state["CartesianInfo"]["Rz"][0]
+        rz_in_degrees = np.degrees(rz_in_radians)
+
+        return rz_in_degrees
 
     def is_moving(self):
         return self.state["RobotMode"]["isProgramRunning"][0] if self.state is not None else None
@@ -220,8 +256,7 @@ class StateConnection(Thread):
         if self.state is None:
             return "No state message received yet"
 
-        # Print X, Y, Z, Rx, Ry, and Rz with three decimal places.
-        return "X: {:.3f}, Y: {:.3f}, Z: {:.3f}, Rx: {:.3f}, Ry: {:.3f}, Rz: {:.3f}".format(
+        return "X: {:.0f}, Y: {:.0f}, Z: {:.0f}, Rx: {:.1f}, Ry: {:.1f}, Rz: {:.1f}".format(
             self.X, self.Y, self.Z, self.Rx, self.Ry, self.Rz
         )
 

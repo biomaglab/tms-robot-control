@@ -52,7 +52,8 @@ class Robot(ABC):
         """
         Get the current pose of the robot, or None if the pose is not available.
 
-        :return: The current pose. The pose is a list of 6 values: [x, y, z, rx, ry, rz].
+        :return: The current pose. The pose is a list of 6 values: [x, y, z, rx, ry, rz],
+          where x, y, z are the coordinates in mm, and rx, ry, rz are the rotation angles in degrees.
           Return None if the pose is not available.
         """
         pass
@@ -93,7 +94,8 @@ class Robot(ABC):
 
         If the robot is already moving, this method should stop the current movement and start the new one.
 
-        :param target: The target position in a linear path.
+        :param target: The target position in a linear path, as a list of 6 values: [x, y, z, rx, ry, rz].
+            The position is in mm and the rotation angles are in degrees.
         :param speed_ratio: The speed of the movement (as a proportion of the maximum speed; 0-1).
         """
         pass
@@ -106,9 +108,12 @@ class Robot(ABC):
 
         If the robot is already moving, this method should stop the current movement and start the new one.
 
-        :param start_position: The starting position of the robot.
-        :param waypoint: The intermediate waypoint.
-        :param target: The target position.
+        :param start_position: The starting pose of the robot, as a list of 6 values: [x, y, z, rx, ry, rz].
+            The position is in mm and the rotation angles are in degrees.
+        :param waypoint: The intermediate waypoint, as a list of 6 values: [x, y, z, rx, ry, rz].
+            The position is in mm and the rotation angles are in degrees.
+        :param target: The target pose, as a list of 6 values: [x, y, z, rx, ry, rz].
+            The position is in mm and the rotation angles are in degrees.
         :param speed_ratio: The speed of the movement (as a proportion of the maximum speed; 0-1).
         """
         pass

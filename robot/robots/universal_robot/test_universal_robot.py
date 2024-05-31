@@ -31,7 +31,7 @@ for movement_direction in [-1, 1]:
     current_pose = robot.get_pose()
 
     print("")
-    print("Current pose: X = {:.2f}, Y = {:.2f}, Z = {:.2f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
+    print("Pose before movement: X = {:.3f}, Y = {:.3f}, Z = {:.3f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
         current_pose[0], current_pose[1], current_pose[2], current_pose[3], current_pose[4], current_pose[5],
     ))
 
@@ -42,7 +42,7 @@ for movement_direction in [-1, 1]:
 
     # Send the movement command to the robot.
     target = current_pose[:]
-    target[0] += 0.04 * movement_direction
+    target[2] -= 3 * movement_direction
 
     speed_ratio = 0.01
 
@@ -70,6 +70,13 @@ for movement_direction in [-1, 1]:
 
     print("Robot has stopped moving")
 
+    current_pose = robot.get_pose()
+
+    print("")
+    print("Pose after movement: X = {:.3f}, Y = {:.3f}, Z = {:.3f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
+        current_pose[0], current_pose[1], current_pose[2], current_pose[3], current_pose[4], current_pose[5],
+    ))
+
     ## Test circular movement.
     print("")
     print("Press enter to test circular movement")
@@ -79,14 +86,14 @@ for movement_direction in [-1, 1]:
     current_pose = robot.get_pose()
 
     waypoint = current_pose[:]
-    waypoint[0] += 0.02 * movement_direction
-    waypoint[1] += 0.02 * movement_direction
-    waypoint[2] += 0.02 * movement_direction
+    waypoint[0] += 2 * movement_direction
+    waypoint[1] += 2 * movement_direction
+    waypoint[2] += 2 * movement_direction
 
     target = waypoint[:]
-    target[0] += 0.02 * movement_direction
-    target[1] += 0.02 * movement_direction
-    target[2] += 0.02 * movement_direction
+    target[0] += 2 * movement_direction
+    target[1] += 2 * movement_direction
+    target[2] += 2 * movement_direction
 
     speed_ratio = 0.01
 

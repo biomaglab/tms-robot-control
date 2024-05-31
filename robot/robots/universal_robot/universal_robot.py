@@ -1,5 +1,7 @@
 from time import sleep
 
+import numpy as np
+
 from robot.robots.robot import Robot
 
 from robot.robots.universal_robot.command_connection import (
@@ -84,7 +86,7 @@ class UniversalRobot(Robot):
         radius = 0  # Use a blend radius of 0.
 
         return self.command_connection.move_linear(
-            target=target,
+            target=self.convert_to_meters_and_radians(target),
             acceleration=acceleration,
             velocity=velocity,
             time=time,
@@ -98,8 +100,8 @@ class UniversalRobot(Robot):
         radius = 0  # Use a blend radius of 0.
 
         return self.command_connection.move_circular(
-            waypoint=waypoint,
-            target=target,
+            waypoint=self.convert_to_meters_and_radians(waypoint),
+            target=self.convert_to_meters_and_radians(target),
             acceleration=acceleration,
             velocity=velocity,
             radius=radius,
@@ -115,6 +117,14 @@ class UniversalRobot(Robot):
         self.disconnect()
 
     # Other
+    def convert_to_meters_and_radians(self, pose):
+        position_in_mm = pose[:3]
+        orientation_in_degrees = pose[3:]
+
+        position_in_meters = [value / 1000 for value in position_in_mm]
+        orientation_in_radians = [np.radians(value) for value in orientation_in_degrees]
+
+        return position_in_meters + orientation_in_radians
 
     # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
     def set_target_reached(self, _):

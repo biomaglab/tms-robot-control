@@ -119,11 +119,11 @@ class CommandConnection:
         Moves the robot to the specified space coordinates using linear motion.
 
         :params:
-            • target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in [mm]
-                and rx, ry, rz are the rotation angles in [degree].
+            • target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates [m]
+                and rx, ry, rz are the rotation angles [rad].
             • acceleration: tool acceleration [m/s^2]
             • velocity: tool speed [m/s]
-            • time: time [S] to make the move. If it were specified the command would ignore the a and v values.
+            • time: time [s] to make the move. If it were specified the command would ignore the a and v values.
             • radius: blend radius [m]
         :return: True if successful, otherwise False.
         """
@@ -143,13 +143,13 @@ class CommandConnection:
         Moves the robot to the specified space coordinates using circular motion.
 
         :params:
-            • waypoint: [x, y, z, rx, ry, rz], where x, y, z are the coordinates [mm],
-                and rx, ry, rz are the rotation angles [deg].
+            • waypoint: [x, y, z, rx, ry, rz], where x, y, z are the coordinates [m],
+                and rx, ry, rz are the rotation angles [rad].
                 • Note: Rotations are not used so they can be left as zeros.
                 • Note: This position can also be represented as joint angles [j0,j1,j2,j3,j4,j5]
                     then forward kinematics is used to calculate the corresponding pose
-            • target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates [mm],
-                and rx, ry, rz are the rotation angles [deg].
+            • target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates [m],
+                and rx, ry, rz are the rotation angles [rad].
             • acceleration: tool acceleration [m/s^2]
             • velocity: tool speed [m/s]
             • radius: blend radius (of target pose) [m]
