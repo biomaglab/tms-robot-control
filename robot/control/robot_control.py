@@ -570,8 +570,8 @@ class RobotControl:
         target_pose = list(translation) + list(angles_as_deg)
 
         # Move the robot to the target pose.
-        tuning_speed = self.config['tuning_speed']
-        success = self.robot.move_linear(target_pose, tuning_speed)
+        tuning_speed_ratio = self.config['tuning_speed_ratio']
+        success = self.robot.move_linear(target_pose, tuning_speed_ratio)
 
         if not success:
             print("Error: Could not compensate the force.")

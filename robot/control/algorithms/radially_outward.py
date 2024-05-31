@@ -25,8 +25,8 @@ class RadiallyOutwardAlgorithm:
         # Unused for now.
         self.config = config
         self.safe_height = config['safe_height']
-        self.default_speed = config['default_speed']
-        self.tuning_speed = config['tuning_speed']
+        self.default_speed_ratio = config['default_speed_ratio']
+        self.tuning_speed_ratio = config['tuning_speed_ratio']
 
         # Reset the state
         self.reset_state()
@@ -140,13 +140,13 @@ class RadiallyOutwardAlgorithm:
         if self.motion_type == MotionType.NORMAL:
             success = self.robot.move_linear(
                 target=target_pose_in_robot_space_estimated_from_displacement,
-                speed=self.default_speed,
+                speed_ratio=self.default_speed_ratio,
             )
 
         elif self.motion_type == MotionType.LINEAR_OUT:
             success = self.robot.move_linear(
                 target=self.linear_out_target,
-                speed=self.default_speed,
+                speed_ratio=self.default_speed_ratio,
             )
 
         elif self.motion_type == MotionType.ARC:
@@ -164,14 +164,14 @@ class RadiallyOutwardAlgorithm:
                 start_position=robot_pose,
                 waypoint=waypoint,
                 target=self.arc_motion_target,
-                speed=self.default_speed,
+                speed_ratio=self.default_speed_ratio,
             )
 
         elif self.motion_type == MotionType.TUNING:
             print("Initiating tuning motion")
             success = self.robot.move_linear(
                 target=target_pose_in_robot_space_estimated_from_displacement,
-                speed=self.tuning_speed,
+                speed_ratio=self.tuning_speed_ratio,
             )
 
         elif self.motion_type == MotionType.FORCE_LINEAR_OUT:
@@ -196,7 +196,7 @@ class RadiallyOutwardAlgorithm:
         pose[2] = self.safe_height
         success = self.robot.move_linear(
             target=pose,
-            speed=self.default_speed,
+            speed_ratio=self.default_speed_ratio,
         )
 
         return success

@@ -102,9 +102,9 @@ class Dobot(Robot):
     #   variable (self.target) for each. After that change is implemented,
     #   the functions below will branch off.
 
-    # TODO: 'speed' parameter is currently ignored.
-    def move_linear(self, target, speed):
-        success = self.connection.set_speed_ratio(speed)
+    # TODO: 'speed_ratio' parameter is currently ignored.
+    def move_linear(self, target, speed_ratio):
+        success = self.connection.set_speed_ratio(speed_ratio)
         if not success:
             return False
 
@@ -116,8 +116,8 @@ class Dobot(Robot):
         # TODO: Properly handle errors and return the success of the movement here.
         return True
 
-    # TODO: 'speed' parameter is currently ignored.
-    def move_circular(self, start_position, waypoint, target, speed):
+    # TODO: 'speed_ratio' parameter is currently ignored.
+    def move_circular(self, start_position, waypoint, target, speed_ratio):
         # TODO: Start position, waypoint, and target should be stored in three separate
         #   variables, not in one variable (self.target).
         self.target = start_position, waypoint, target
