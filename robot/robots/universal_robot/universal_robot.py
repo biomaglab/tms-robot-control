@@ -67,6 +67,9 @@ class UniversalRobot(Robot):
 
     # Robot state
     def get_pose(self):
+        # TODO: This is currently incorrect; state_connection.get_pose() returns [x, y, z, rx, ry, rz] where
+        #   [rx, ry, rz] define a rotation vector, whereas the robot interface should return Euler angles (using 'sxyz' convention;
+        #   see robot.py). This would be the correct place to do the transformation.
         return self.state_connection.get_pose()
 
     def is_moving(self):
@@ -80,6 +83,10 @@ class UniversalRobot(Robot):
 
     # Movement
     def move_linear(self, target, speed_ratio):
+        # TODO: This is currently incorrect; target is defined as [x, y, z, rx, ry, rz] where
+        #   [rx, ry, rz] are the Euler angles, whereas the robot interface takes in rotation vectors.
+        #   This would be the correct correct place to do the transformation.
+
         acceleration = self.DEFAULT_ACCELERATION
         velocity = self.MAX_VELOCITY * speed_ratio
         time = 0  # When acceleration and velocity are defined, time is not used.
@@ -94,6 +101,10 @@ class UniversalRobot(Robot):
         )
 
     def move_circular(self, start_position, waypoint, target, speed_ratio):
+        # TODO: This is currently incorrect; start_position, waypoint, and target as defined as [x, y, z, rx, ry, rz] where
+        #   [rx, ry, rz] are the Euler angles, whereas the robot interface takes in rotation vectors. This would be the correct
+        #   correct place to do the transformation.
+
         acceleration = self.DEFAULT_ACCELERATION
         velocity = self.MAX_VELOCITY * speed_ratio
         mode = MotionMode.UNCONSTRAINED

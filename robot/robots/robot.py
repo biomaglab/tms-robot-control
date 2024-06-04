@@ -53,8 +53,10 @@ class Robot(ABC):
         Get the current pose of the robot, or None if the pose is not available.
 
         :return: The current pose. The pose is a list of 6 values: [x, y, z, rx, ry, rz],
-          where x, y, z are the coordinates in mm, and rx, ry, rz are the rotation angles in degrees.
-          Return None if the pose is not available.
+          where x, y, z are the coordinates in mm, and rx, ry, rz are the Euler angles in degrees
+          (using 'sxyz' convention, that is, a rotation of rx degrees around the x-axis, followed
+          by a rotation of ry degrees around the y-axis, and finally a rotation of rz degrees around
+          the z-axis, in a static frame). Return None if the pose is not available.
         """
         pass
 
@@ -95,7 +97,8 @@ class Robot(ABC):
         If the robot is already moving, this method should stop the current movement and start the new one.
 
         :param target: The target position in a linear path, as a list of 6 values: [x, y, z, rx, ry, rz].
-            The position is in mm and the rotation angles are in degrees.
+            [x, y, z] define the position in mm, and [rx, ry, rz] define the Euler angles in degrees,
+            using the 'sxyz' convention.
         :param speed_ratio: The speed of the movement (as a proportion of the maximum speed; 0-1).
         """
         pass
@@ -109,11 +112,11 @@ class Robot(ABC):
         If the robot is already moving, this method should stop the current movement and start the new one.
 
         :param start_position: The starting pose of the robot, as a list of 6 values: [x, y, z, rx, ry, rz].
-            The position is in mm and the rotation angles are in degrees.
+            The position [x, y, z] is in mm and the Euler angles [rx, ry, rz] are in degrees, using the 'sxyz' convention.
         :param waypoint: The intermediate waypoint, as a list of 6 values: [x, y, z, rx, ry, rz].
-            The position is in mm and the rotation angles are in degrees.
+            The position [x, y, z] is in mm and the Euler angles [rx, ry, rz] are in degrees, using the 'sxyz' convention.
         :param target: The target pose, as a list of 6 values: [x, y, z, rx, ry, rz].
-            The position is in mm and the rotation angles are in degrees.
+            The position [x, y, z] is in mm and the Euler angles [rx, ry, rz] are in degrees, using the 'sxyz' convention.
         :param speed_ratio: The speed of the movement (as a proportion of the maximum speed; 0-1).
         """
         pass
