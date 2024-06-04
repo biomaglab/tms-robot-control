@@ -209,30 +209,27 @@ class StateConnection(Thread):
         if self.state is None:
             return None
 
-        rx_in_radians = self.state["CartesianInfo"]["Rx"][0]
-        rx_in_degrees = np.degrees(rx_in_radians) 
-
-        return rx_in_degrees
+        # Note that these are _not_ Euler angles; instead, [Rx, Ry, Rz] define a rotation vector.
+        rx = self.state["CartesianInfo"]["Rx"][0]
+        return rx
 
     @property
     def Ry(self):
         if self.state is None:
             return None
 
-        ry_in_radians = self.state["CartesianInfo"]["Ry"][0]
-        ry_in_degrees = np.degrees(ry_in_radians)
-
-        return ry_in_degrees
+        # Note that these are _not_ Euler angles; instead, [Rx, Ry, Rz] define a rotation vector.
+        ry = self.state["CartesianInfo"]["Ry"][0]
+        return ry
 
     @property
     def Rz(self):
         if self.state is None:
             return None
 
-        rz_in_radians = self.state["CartesianInfo"]["Rz"][0]
-        rz_in_degrees = np.degrees(rz_in_radians)
-
-        return rz_in_degrees
+        # Note that these are _not_ Euler angles; instead, [Rx, Ry, Rz] define a rotation vector.
+        rz = self.state["CartesianInfo"]["Rz"][0]
+        return rz
 
     def is_moving(self):
         return self.state["RobotMode"]["isProgramRunning"][0] if self.state is not None else None
