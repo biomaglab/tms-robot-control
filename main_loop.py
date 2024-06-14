@@ -100,7 +100,8 @@ def get_config():
         'USE_FORCE_SENSOR',
         'DWELL_TIME',
         'SAFE_HEIGHT',
-        'DEFAULT_SPEED',
+        'DEFAULT_SPEED_RATIO',
+        'TUNING_SPEED_RATIO',
         'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
         'TUNING_INTERVAL',
         'WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT',
@@ -120,8 +121,8 @@ def get_config():
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
     safe_height = float(os.getenv('SAFE_HEIGHT'))
-    default_speed = float(os.getenv('DEFAULT_SPEED'))
-    tuning_speed = float(os.getenv('TUNING_SPEED'))
+    default_speed_ratio = float(os.getenv('DEFAULT_SPEED_RATIO'))
+    tuning_speed_ratio = float(os.getenv('TUNING_SPEED_RATIO'))
     stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
     wait_for_keypress_before_movement = os.getenv('WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT').lower() == 'true'
     translation_threshold = float(os.getenv('TRANSLATION_THRESHOLD'))
@@ -142,8 +143,8 @@ def get_config():
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
         'safe_height': safe_height,
-        'default_speed': default_speed,
-        'tuning_speed': tuning_speed,
+        'default_speed_ratio': default_speed_ratio,
+        'tuning_speed_ratio': tuning_speed_ratio,
         'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
         'tuning_interval': tuning_interval,
         'wait_for_keypress_before_movement': wait_for_keypress_before_movement,
@@ -168,12 +169,12 @@ def get_config():
         print("Invalid site configuration, exiting.")
         return None
 
-    if default_speed < 0.01 or default_speed > 1:
-        print("Default speed must be between 0.01 and 1, exiting.")
+    if default_speed_ratio < 0.01 or default_speed_ratio > 1:
+        print("Default speed ratio must be between 0.01 and 1, exiting.")
         return None
 
-    if tuning_speed < 0.01 or tuning_speed > 1:
-        print("Tuning speed must be between 0.01 and 1, exiting.")
+    if tuning_speed_ratio < 0.01 or tuning_speed_ratio > 1:
+        print("Tuning speed ratio must be between 0.01 and 1, exiting.")
         return None
 
     return config

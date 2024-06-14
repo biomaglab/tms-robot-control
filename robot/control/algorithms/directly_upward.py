@@ -38,8 +38,8 @@ class DirectlyUpwardAlgorithm:
         self.robot = robot
 
         self.safe_height = config['safe_height']
-        self.default_speed = config['default_speed']
-        self.tuning_speed = config['tuning_speed']
+        self.default_speed_ratio = config['default_speed_ratio']
+        self.tuning_speed_ratio = config['tuning_speed_ratio']
         self.translation_threshold = config['translation_threshold']
         self.rotation_threshold = config['rotation_threshold']
 
@@ -97,7 +97,7 @@ class DirectlyUpwardAlgorithm:
     def _tune(self, target_pose_in_robot_space):
         print("Initiating tuning motion")
 
-        success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed)
+        success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed_ratio)
         return success
 
     def _perform_motion(self, target_pose_in_robot_space):
@@ -112,7 +112,7 @@ class DirectlyUpwardAlgorithm:
 
             pose = target_pose_in_robot_space
             pose[2] = self.safe_height
-            success = self.robot.move_linear(pose, self.default_speed)
+            success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_PARTWAY_DOWNWARD:
             print("")
@@ -120,7 +120,7 @@ class DirectlyUpwardAlgorithm:
 
             pose = target_pose_in_robot_space
             pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.safe_height - pose[2])
-            success = self.robot.move_linear(pose, self.default_speed)
+            success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_TO_TARGET:
             print("")
@@ -129,7 +129,7 @@ class DirectlyUpwardAlgorithm:
             pose = target_pose_in_robot_space
 
             # We assume to be close to target by this stage. Hence, use tuning speed for the movement.
-            success = self.robot.move_linear(pose, self.tuning_speed)
+            success = self.robot.move_linear(pose, self.tuning_speed_ratio)
 
         # Transition to the next state if movement command was given successfully.
         if success:
@@ -150,6 +150,6 @@ class DirectlyUpwardAlgorithm:
             return False
 
         pose[2] = self.safe_height
-        success = self.robot.move_linear(pose, self.default_speed)
+        success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         return success

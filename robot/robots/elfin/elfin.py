@@ -46,8 +46,8 @@ class Elfin(Robot):
         return self.connection.read_force_sensor()
 
     # Movement
-    def move_linear(self, target, speed):
-        success = self.connection.set_speed_ratio(speed)
+    def move_linear(self, target, speed_ratio):
+        success = self.connection.set_speed_ratio(speed_ratio)
         if not success:
             return False
 
@@ -61,8 +61,8 @@ class Elfin(Robot):
 
         return self.connection.move_linear(target)
 
-    def move_circular(self, start_position, waypoint, target, speed):
-        success = self.connection.set_speed_ratio(speed)
+    def move_circular(self, start_position, waypoint, target, speed_ratio):
+        success = self.connection.set_speed_ratio(speed_ratio)
         if not success:
             return False
 
