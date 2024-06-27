@@ -32,7 +32,7 @@ class MotionSequenceState(Enum):
 
 class DirectlyUpwardAlgorithm:
     # The proportion of the remaining distance to the target to move partway downward.
-    PARTWAY_DOWNWARD_REMAINING_PROPORTION = 0.1
+    PARTWAY_DOWNWARD_REMAINING_PROPORTION = 0.4
 
     def __init__(self, robot, config, robot_config):
         self.robot = robot
@@ -127,7 +127,7 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving to target{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-
+            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION/3 * (self.safe_height - pose[2])
             # We assume to be close to target by this stage. Hence, use tuning speed for the movement.
             success = self.robot.move_linear(pose, self.tuning_speed_ratio)
 
