@@ -53,7 +53,7 @@ class RobotControl:
         self.robot_coordinates = []
         self.matrix_tracker_to_robot = []
 
-        self.new_force_sensor_data = 0
+        self.new_force_sensor_data = []
         self.target_force_sensor_data = 5
 
         # reference force and moment values
@@ -387,8 +387,15 @@ class RobotControl:
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
-    def SensorUpdateTarget(self, distance, status):
+    def CalledFromInvesaliusButton(self):
+        print("CalledFromInvesaliusButton ran")
+        self.SensorUpdateTarget(self.get_poa_distance())
+
+    def SensorUpdateTarget(self, distance):
+        print("SensorUpdateTarget was called")
         topic = 'Robot to Neuronavigation: Update target from FT values'
+        # status below determines whether the marker is updated
+        status = False
         data = {'data' : (distance, status)}
 
         self.status = False
@@ -485,7 +492,7 @@ class RobotControl:
             print('Cannot collect the coil markers, please try again')
             return False
 
-    def read_force_sensor(self):
+    def get_poa_distance(self):
         success, force_sensor_values = self.robot.read_force_sensor()
 
         # If force sensor could not be read, return early.
@@ -526,7 +533,8 @@ class RobotControl:
         # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
         # TODO: Change this entire part to compensate force properly in a feedback loop
 
-        return force_sensor_values
+        # previously had return force_sensor_values, but that's not what we want, also this function would be more aptly named something like get_poa_distance
+        return distance
 
     def compensate_force(self):
         """
@@ -714,7 +722,7 @@ class RobotControl:
         # Normalize force sensor values if needed.
         use_force_sensor = self.config['use_force_sensor']
         if use_force_sensor and normalize_force_sensor:
-            force_sensor_values = self.read_force_sensor()
+            force_sensor_success, force_sensor_values = self.robot.read_force_sensor()
             self.force_ref = force_sensor_values[0:3]
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')
@@ -806,7 +814,7 @@ class RobotControl:
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
 
         if self.config['use_force_sensor']:
-            force_sensor_values = self.read_force_sensor()
+            force_sensor_success, force_sensor_values = self.robot.read_force_sensor()
         else:
             force_sensor_values = False
 
