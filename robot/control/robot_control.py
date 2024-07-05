@@ -388,7 +388,7 @@ class RobotControl:
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
-    def CalledFromInvesaliusButton(self):
+    def CalledFromInvesaliusButton(self, data):
         print("CalledFromInvesaliusButton ran")
         self.SensorUpdateTarget(self.ft_displacement_offset)
 
