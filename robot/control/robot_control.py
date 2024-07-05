@@ -53,8 +53,8 @@ class RobotControl:
         self.robot_coordinates = []
         self.matrix_tracker_to_robot = []
 
-        self.new_force_sensor_data = []
-        self.target_force_sensor_data = 5
+        self.current_z_force = 0
+        self.target_z_force = 5
 
         # reference force and moment values
         self.force_ref = np.array([0.0, 0.0, 0.0])
@@ -116,7 +116,8 @@ class RobotControl:
         target = np.array(target).reshape(4, 4)
 
         self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
-        self.target_force_sensor_data = self.new_force_sensor_data
+        # Why
+        self.target_z_force = self.current_z_force
 
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
@@ -131,7 +132,7 @@ class RobotControl:
         self.SendObjectiveToNeuronavigation()
 
         self.m_target_to_head = None
-        self.target_force_sensor_data = 5
+        self.target_z_force = 5
 
         print("Target unset")
 
@@ -389,7 +390,7 @@ class RobotControl:
 
     def CalledFromInvesaliusButton(self):
         print("CalledFromInvesaliusButton ran")
-        self.SensorUpdateTarget(self.get_poa_distance())
+        self.SensorUpdateTarget(self.ft_displacement_offset)
 
     def SensorUpdateTarget(self, distance):
         print("SensorUpdateTarget was called")
@@ -492,15 +493,16 @@ class RobotControl:
             print('Cannot collect the coil markers, please try again')
             return False
 
-    def get_poa_distance(self):
+    def update_force_sensor_values(self):
+        if not self.config['use_force_sensor']:
+            print("Error: use_force_sensor in environment variables not set to 'true' when running robot_control.read_force_sensor")
+        
         success, force_sensor_values = self.robot.read_force_sensor()
 
         # If force sensor could not be read, return early.
         if not success:
             print("Error: Could not read the force sensor.")
             return
-
-        # TODO: condition for self.config['use_force_sensor']
 
         # true f-t value
         current_F = force_sensor_values[0:3]
@@ -527,14 +529,10 @@ class RobotControl:
             with open(const.TEMP_FILE, 'a') as tmpfile:
                 tmpfile.write(f'{point_of_application}\n')
 
-        self.new_force_sensor_data = -F_normalised[2]
-        # Calculate vector of point of application vs centre
-        distance = [point_of_application[0], point_of_application[1]]
-        # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
-        # TODO: Change this entire part to compensate force properly in a feedback loop
-
-        # previously had return force_sensor_values, but that's not what we want, also this function would be more aptly named something like get_poa_distance
-        return distance
+        self.current_z_force = -F_normalised[2]
+        self.ft_displacement_offset = [point_of_application[0], point_of_application[1]]
+        
+        return force_sensor_values
 
     def compensate_force(self):
         """
@@ -722,10 +720,10 @@ class RobotControl:
         # Normalize force sensor values if needed.
         use_force_sensor = self.config['use_force_sensor']
         if use_force_sensor and normalize_force_sensor:
-            force_sensor_success, force_sensor_values = self.robot.read_force_sensor()
+            force_sensor_values = self.update_force_sensor_values()
             self.force_ref = force_sensor_values[0:3]
             self.moment_ref = force_sensor_values[3:6]
-            print('Normalised!')
+            print('Normalized!')
 
         # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
@@ -814,7 +812,7 @@ class RobotControl:
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
 
         if self.config['use_force_sensor']:
-            force_sensor_success, force_sensor_values = self.robot.read_force_sensor()
+            force_sensor_values = self.update_force_sensor_values()
         else:
             force_sensor_values = False
 
@@ -850,8 +848,8 @@ class RobotControl:
     def check_force_sensor(self):
         force_sensor_threshold = self.robot_config['force_sensor_threshold']
         force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
-        if self.new_force_sensor_data > force_sensor_threshold and \
-            self.new_force_sensor_data > (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
+        if self.current_z_force > force_sensor_threshold and \
+            self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
 
             self.compensate_force()
 
