@@ -389,15 +389,12 @@ class RobotControl:
         self.remote_control.send_message(topic, data)
 
     def CalledFromInvesaliusButton(self, data):
-        print("CalledFromInvesaliusButton ran")
-        self.SensorUpdateTarget(self.ft_displacement_offset)
-
-    def SensorUpdateTarget(self, distance):
-        print("SensorUpdateTarget was called")
+        print("force button in invesalius pressed, self.ft_displacement_offset = ")
+        print(self.ft_displacement_offset)
         topic = 'Robot to Neuronavigation: Update target from FT values'
         # status below determines whether the marker is updated
         status = False
-        data = {'data' : (distance, status)}
+        data = {'data' : (self.ft_displacement_offset, status)}
 
         self.status = False
 
