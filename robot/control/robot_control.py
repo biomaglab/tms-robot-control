@@ -63,7 +63,7 @@ class RobotControl:
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
 
-        self.REF_FLAG = False
+        self.FT_NORMALIZE_FLAG = False
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
         #self.status = True
@@ -426,7 +426,7 @@ class RobotControl:
             print("")
             print("{}Key 'f1' pressed:{} Normalising...".format(Color.BOLD, Color.END))
             print("")
-            self.REF_FLAG = True
+            self.FT_NORMALIZE_FLAG = True
             return
 
         elif key_str == 'f2' and self.robot_state_controller is not None and self.config['wait_for_keypress_before_movement']:
@@ -496,7 +496,6 @@ class RobotControl:
         
         success, force_sensor_values = self.robot.read_force_sensor()
 
-        # If force sensor could not be read, return early.
         if not success:
             print("Error: Could not read the force sensor.")
             return
@@ -505,15 +504,15 @@ class RobotControl:
         current_F = force_sensor_values[0:3]
         current_M = force_sensor_values[3:6]
         # normalised f-t value
-        F_normalised = current_F - self.force_ref
-        M_normalised = current_M - self.moment_ref
+        F_normalised = np.array(current_F) - self.force_ref
+        M_normalised = np.array(current_M) - self.moment_ref
         self.F_dq.append(F_normalised)
         self.M_dq.append(M_normalised)
 
-        if self.REF_FLAG:
+        if self.FT_NORMALIZE_FLAG:
             self.force_ref = current_F
             self.moment_ref = current_M
-            self.REF_FLAG = False
+            self.FT_NORMALIZE_FLAG = False
 
         # smoothed f-t value, to increase size of filter increase deque size
         F_avg = np.mean(self.F_dq, axis=0)
@@ -713,7 +712,7 @@ class RobotControl:
                 print("Error: Robot is in error state")
 
             return False
-
+        print("NORMALIZE_FORCE_SENSOR IN HANDLE_OBJECTIVE_TRACK_TARGET", normalize_force_sensor)
         # Normalize force sensor values if needed.
         use_force_sensor = self.config['use_force_sensor']
         if use_force_sensor and normalize_force_sensor:
@@ -809,6 +808,7 @@ class RobotControl:
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
 
         if self.config['use_force_sensor']:
+            print("if this prints update_force_sensor_values should be running")
             force_sensor_values = self.update_force_sensor_values()
         else:
             force_sensor_values = False
