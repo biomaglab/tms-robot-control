@@ -298,6 +298,10 @@ class RobotControl:
         displacement[0] = -displacement[0]
         displacement[3] = -displacement[3]
 
+
+        if self.ft_displacement_offset[0] > 0 |  self.ft_displacement_offset[1] > 0:
+            print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
+
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
