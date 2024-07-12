@@ -513,6 +513,7 @@ class RobotControl:
             self.force_ref = current_F
             self.moment_ref = current_M
             self.FT_NORMALIZE_FLAG = False
+            print("Normalized")
 
         # smoothed f-t value, to increase size of filter increase deque size
         F_avg = np.mean(self.F_dq, axis=0)
@@ -531,6 +532,7 @@ class RobotControl:
         return force_sensor_values
 
     def compensate_force(self):
+        print("compensate_force is being ran")
         """
         Compensate the force by moving the robot in the negative z-direction by 2 mm.
         """
@@ -808,7 +810,6 @@ class RobotControl:
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
 
         if self.config['use_force_sensor']:
-            print("if this prints update_force_sensor_values should be running")
             force_sensor_values = self.update_force_sensor_values()
         else:
             force_sensor_values = False
