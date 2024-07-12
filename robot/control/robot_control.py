@@ -299,7 +299,7 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
 
-        if self.ft_displacement_offset[0] > 0 |  self.ft_displacement_offset[1] > 0:
+        if self.ft_displacement_offset[0] > 0 or self.ft_displacement_offset[1] > 0:
             print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
@@ -850,9 +850,24 @@ class RobotControl:
     def check_force_sensor(self):
         force_sensor_threshold = self.robot_config['force_sensor_threshold']
         force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
-        if self.current_z_force > force_sensor_threshold and \
-            self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
+        # print("force sensor threshold:")
+        # print(force_sensor_threshold)
+        # print("force_sensor_scale_threshold:")
+        # print(force_sensor_scale_threshold)
+        # print("target_z_force")
+        # print(self.target_z_force)
+        # print("some quantity and reasoning I don't understand")
+        # print(self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100)))
+        print("z_force: ")
+        print(self.current_z_force)
+        print("force_sensor_threshold: ")
+        print(force_sensor_threshold)
 
+        if self.current_z_force > force_sensor_threshold: # and \
+            # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
+            print("RUNNING COMPENSATE FORCE")
+            print("RUNNING COMPENSATE FORCE")
+            print("RUNNING COMPENSATE FORCE")
             self.compensate_force()
 
             return False
