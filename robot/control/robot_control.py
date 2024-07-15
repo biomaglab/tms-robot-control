@@ -525,13 +525,12 @@ class RobotControl:
         point_of_application = ft.find_r(F_avg, M_avg)
 
         point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
+        self.current_z_force = -F_normalised[2]
+        self.ft_displacement_offset = [point_of_application[0], point_of_application[1]]
 
         if const.DISPLAY_POA and len(point_of_application) == 3:
             with open(const.TEMP_FILE, 'a') as tmpfile:
-                tmpfile.write(f'{point_of_application}\n')
-
-        self.current_z_force = -F_normalised[2]
-        self.ft_displacement_offset = [point_of_application[0], point_of_application[1]]
+                tmpfile.write(f'{point_of_application}({self.current_z_force})\n')
         
         return force_sensor_values
 
