@@ -857,10 +857,10 @@ class RobotControl:
         # print(self.target_z_force)
         # print("some quantity and reasoning I don't understand")
         # print(self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100)))
-        print("z_force: ")
-        print(self.current_z_force)
-        print("force_sensor_threshold: ")
-        print(force_sensor_threshold)
+        # print("z_force: ")
+        # print(self.current_z_force)
+        # print("force_sensor_threshold: ")
+        # print(force_sensor_threshold)
 
         if self.current_z_force > force_sensor_threshold: # and \
             # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
