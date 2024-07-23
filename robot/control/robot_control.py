@@ -62,6 +62,7 @@ class RobotControl:
         self.tuning_ongoing = False
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
+        self.force_transform = 0 # How much the position of the target is tranformed due to encountered force
 
         self.FT_NORMALIZE_FLAG = False
         listener = keyboard.Listener(on_press=self.on_keypress)
@@ -221,6 +222,8 @@ class RobotControl:
         objective = data['objective']
         self.objective = RobotObjective(objective)
 
+        print("Test to see when OnSetObjective runs and what values it can have, now objective = ", objective)
+
         print("")
         print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
         print("")
@@ -306,7 +309,9 @@ class RobotControl:
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
         self.displacement_to_target = list(translation) + list(angles_as_deg)
-
+        translation[2] += self.force_transform
+        if self.force_transform != 0:
+            print(self.force_transform, " is being added to translation[2] from self.force_transform")
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
                 ", ".join(["{:.2f}".format(x) for x in self.displacement_to_target]),
@@ -535,12 +540,15 @@ class RobotControl:
         return force_sensor_values
 
     def compensate_force(self):
-        print("compensate_force is being ran")
+        self.force_transform = 200
+        print("\ncompensate_force is being ran")
         """
         Compensate the force by moving the robot in the negative z-direction by 2 mm.
+        Compensate the force by moving the target in the negative z-direction by 2mm until track target turned off. 
         """
         # TODO: Are these checks actually needed?
         if self.robot.is_moving() or self.robot.is_error_state():
+            print("is moving or is error state")
             return
 
         print("Compensating force")
@@ -559,7 +567,7 @@ class RobotControl:
         )
 
         # Create the compensation vector that points 2 mm to the negative z-direction.
-        compensation = [0, 0, -2, 0, 0, 0]
+        compensation = [0, 0, 2, 0, 0, 0]
 
         # Create the transformation matrix for the compensation.
         m_compensation = robot_process.coordinates_to_transformation_matrix(
@@ -864,9 +872,6 @@ class RobotControl:
 
         if self.current_z_force > force_sensor_threshold: # and \
             # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
-            print("RUNNING COMPENSATE FORCE")
-            print("RUNNING COMPENSATE FORCE")
-            print("RUNNING COMPENSATE FORCE")
             self.compensate_force()
 
             return False
@@ -890,6 +895,8 @@ class RobotControl:
 
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
+            print("tracking target has ceased and self.force_transform is set to 0")
+            self.force_transform = 0
 
         elif self.objective == RobotObjective.TRACK_TARGET:
             self.check_force_sensor()
