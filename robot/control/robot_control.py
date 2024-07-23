@@ -314,9 +314,6 @@ class RobotControl:
         
         self.displacement_to_target = list(translation) + list(angles_as_deg)
         
-        if self.force_transform != 0:
-            print(self.force_transform, " is being added to translation[2] from self.force_transform")
-            print("this is what translation looks like as a variable", translation)
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
                 ", ".join(["{:.2f}".format(x) for x in self.displacement_to_target]),
@@ -545,13 +542,12 @@ class RobotControl:
         return force_sensor_values
 
     def compensate_force(self):
-        print("\ncompensate_force is being ran")
-        self.force_transform = 20
+        self.force_transform = -4
         """
         Compensate the force by moving the target in the negative z-direction by 2mm until track target turned off. 
         """
 
-        print("Compensating force")
+        print("\nCompensating force")
 
         # # TODO: Are these checks actually needed?
         # if self.robot.is_moving() or self.robot.is_error_state():
