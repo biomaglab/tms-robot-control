@@ -222,7 +222,9 @@ class RobotControl:
         objective = data['objective']
         self.objective = RobotObjective(objective)
 
-        print("Test to see when OnSetObjective runs and what values it can have, now objective = ", objective)
+        # When stopping tracking target set the force transform to 0
+        if objective == 0:
+            self.force_transform = 0
 
         print("")
         print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
