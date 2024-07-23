@@ -895,7 +895,6 @@ class RobotControl:
 
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
-            print("tracking target has ceased and self.force_transform is set to 0")
             self.force_transform = 0
 
         elif self.objective == RobotObjective.TRACK_TARGET:
