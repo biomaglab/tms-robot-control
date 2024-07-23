@@ -310,8 +310,10 @@ class RobotControl:
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
-        self.displacement_to_target = list(translation) + list(angles_as_deg)
         translation[2] += self.force_transform
+        
+        self.displacement_to_target = list(translation) + list(angles_as_deg)
+        
         if self.force_transform != 0:
             print(self.force_transform, " is being added to translation[2] from self.force_transform")
             print("this is what translation looks like as a variable", translation)
