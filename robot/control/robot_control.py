@@ -314,6 +314,7 @@ class RobotControl:
         translation[2] += self.force_transform
         if self.force_transform != 0:
             print(self.force_transform, " is being added to translation[2] from self.force_transform")
+            print("this is what translation looks like as a variable", translation)
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
                 ", ".join(["{:.2f}".format(x) for x in self.displacement_to_target]),
@@ -542,60 +543,63 @@ class RobotControl:
         return force_sensor_values
 
     def compensate_force(self):
-        self.force_transform = 200
         print("\ncompensate_force is being ran")
+        self.force_transform = 20
         """
-        Compensate the force by moving the robot in the negative z-direction by 2 mm.
         Compensate the force by moving the target in the negative z-direction by 2mm until track target turned off. 
         """
-        # TODO: Are these checks actually needed?
-        if self.robot.is_moving() or self.robot.is_error_state():
-            print("is moving or is error state")
-            return
 
         print("Compensating force")
 
-        # Get the current robot pose.
-        success, robot_pose = self.robot.get_pose()
-        if not success:
-            print("Error: Could not read the robot pose.")
-            return
+        # # TODO: Are these checks actually needed?
+        # if self.robot.is_moving() or self.robot.is_error_state():
+        #     print("is moving or is error state")
+        #     return
 
-        # Create the transformation matrix for the robot pose.
-        m_robot = robot_process.coordinates_to_transformation_matrix(
-            position=robot_pose[:3],
-            orientation=robot_pose[3:],
-            axes='sxyz',
-        )
+        """
+        Compensate the force by moving the robot in the negative z-direction by 2 mm.
+        """
+        # # Get the current robot pose.
+        # success, robot_pose = self.robot.get_pose()
+        # if not success:
+        #     print("Error: Could not read the robot pose.")
+        #     return
 
-        # Create the compensation vector that points 2 mm to the negative z-direction.
-        compensation = [0, 0, 2, 0, 0, 0]
+        # # Create the transformation matrix for the robot pose.
+        # m_robot = robot_process.coordinates_to_transformation_matrix(
+        #     position=robot_pose[:3],
+        #     orientation=robot_pose[3:],
+        #     axes='sxyz',
+        # )
 
-        # Create the transformation matrix for the compensation.
-        m_compensation = robot_process.coordinates_to_transformation_matrix(
-            position=compensation[:3],
-            orientation=compensation[3:],
-            axes='sxyz',
-        )
+        # # Create the compensation vector that points 2 mm to the negative z-direction.
+        # compensation = [0, 0, 2, 0, 0, 0]
 
-        # Compute the final transformation matrix.
-        m_final = m_robot @ m_compensation
+        # # Create the transformation matrix for the compensation.
+        # m_compensation = robot_process.coordinates_to_transformation_matrix(
+        #     position=compensation[:3],
+        #     orientation=compensation[3:],
+        #     axes='sxyz',
+        # )
 
-        # Convert the transformation matrix to coordinates.
-        translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
+        # # Compute the final transformation matrix.
+        # m_final = m_robot @ m_compensation
 
-        target_pose = list(translation) + list(angles_as_deg)
+        # # Convert the transformation matrix to coordinates.
+        # translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
 
-        # Move the robot to the target pose.
-        tuning_speed_ratio = self.config['tuning_speed_ratio']
-        success = self.robot.move_linear(target_pose, tuning_speed_ratio)
+        # target_pose = list(translation) + list(angles_as_deg)
 
-        if not success:
-            print("Error: Could not compensate the force.")
-            return
+        # # Move the robot to the target pose.
+        # tuning_speed_ratio = self.config['tuning_speed_ratio']
+        # success = self.robot.move_linear(target_pose, tuning_speed_ratio)
 
-        # Wait for the compensation to finish.
-        time.sleep(0.5)
+        # if not success:
+        #     print("Error: Could not compensate the force.")
+        #     return
+
+        # # Wait for the compensation to finish.
+        # time.sleep(0.5)
         return
 
     def reconnect_to_robot(self):
