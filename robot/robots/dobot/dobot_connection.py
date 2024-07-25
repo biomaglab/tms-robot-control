@@ -28,19 +28,22 @@ class DobotConnection:
             self.dashboard_socket = socket.socket()
             self.dashboard_socket.connect((self.ip, self.DASHBOARD_PORT))
         except socket.error:
-            raise Exception(f"Unable to connect using port {self.DASHBOARD_PORT}", socket.error)
+            Exception(f"Unable to connect using port {self.DASHBOARD_PORT}", socket.error)
+            return False
 
         try:
             self.movement_socket = socket.socket()
             self.movement_socket.connect((self.ip, self.MOVEMENT_PORT))
         except socket.error:
-            raise Exception(f"Unable to connect using port {self.MOVEMENT_PORT}", socket.error)
+            Exception(f"Unable to connect using port {self.MOVEMENT_PORT}", socket.error)
+            return False
 
         try:
             self.feedback_socket = socket.socket()
             self.feedback_socket.connect((self.ip, self.FEEDBACK_PORT))
         except socket.error:
-            raise Exception(f"Unable to connect using port {self.FEEDBACK_PORT}", socket.error)
+            Exception(f"Unable to connect using port {self.FEEDBACK_PORT}", socket.error)
+            return False
 
         self.connected = True
         return self.connected

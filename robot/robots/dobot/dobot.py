@@ -151,12 +151,12 @@ class Dobot(Robot):
         return True, self.force_torque_data
 
     def stop_robot(self):
-        success = self.connection.reset_robot()
+        if self.connection.reset_robot():
+            # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
+            time.sleep(0.05)
+            return True
 
-        # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
-        time.sleep(0.05)
-
-        return success
+        return False
 
     def close(self):
         self.stop_robot()
