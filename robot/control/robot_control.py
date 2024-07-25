@@ -27,12 +27,12 @@ class RobotObjective(Enum):
 
 
 class RobotControl:
-    def __init__(self, remote_control, config, site_config, robot_config):
+    def __init__(self, remote_control, config, site_config, robot_config, connection):
         self.remote_control = remote_control
-
         self.config = config
         self.site_config = site_config
         self.robot_config = robot_config
+        self.connection = connection
 
         self.verbose = config['verbose']
 
@@ -143,9 +143,12 @@ class RobotControl:
 
     def OnCreatePoint(self, data):
         if self.create_calibration_point():
-            topic = 'Robot to Neuronavigation: Coordinates for the robot transformation matrix collected'
-            data = {}
-            self.remote_control.send_message(topic, data)
+            if self.connection:
+                self.connection.robot_pose_collected(success=True)
+            if self.remote_control:
+                topic = 'Robot to Neuronavigation: Coordinates for the robot transformation matrix collected'
+                data = {}
+                self.remote_control.send_message(topic, data)
 
     def OnResetRobotMatrix(self, data):
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -173,9 +176,12 @@ class RobotControl:
             self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
             self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-            topic = 'Robot to Neuronavigation: Update robot transformation matrix'
-            data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
-            self.remote_control.send_message(topic, data)
+            if self.connection:
+                self.connection.update_robot_transformation_matrix(np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist())
+            if self.remote_control:
+                topic = 'Robot to Neuronavigation: Update robot transformation matrix'
+                data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
+                self.remote_control.send_message(topic, data)
 
         except np.linalg.LinAlgError:
             print("numpy.linalg.LinAlgError")
@@ -374,18 +380,24 @@ class RobotControl:
                 assert False, "Unknown movement algorithm"
 
         else:
-            # Send message to neuronavigation to close the robot dialog.
-            topic = 'Robot to Neuronavigation: Close robot dialog'
-            data = {}
-            self.remote_control.send_message(topic, data)
+            # Send message to tms_robot_control to close the robot dialog.
+            if self.remote_control:
+                topic = 'Robot to Neuronavigation: Close robot dialog'
+                data = {}
+                self.remote_control.send_message(topic, data)
+            if self.connection:
+                self.connection.close_robot_dialog(True)
 
             self.robot = None
             print('Error: Unable to connect to robot.')
 
-        # Send message to neuronavigation indicating the state of connection.
-        topic = 'Robot to Neuronavigation: Robot connection status'
-        data = {'data': success}
-        self.remote_control.send_message(topic, data)
+        # Send message to tms_robot_control indicating the state of connection.
+        if self.connection:
+            self.connection.robot_connection_status(success)
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Robot connection status'
+            data = {'data': success}
+            self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
         topic = 'Robot to Neuronavigation: Update target from FT values'
@@ -393,13 +405,16 @@ class RobotControl:
 
         self.status = False
 
-        self.remote_control.send_message(topic, data)
+        #self.remote_control.send_message(topic, data)
 
     def SendObjectiveToNeuronavigation(self):
-        # Send message to neuronavigation indicating the current objective.
-        topic = 'Robot to Neuronavigation: Set objective'
-        data = {'objective': self.objective.value}
-        self.remote_control.send_message(topic, data)
+        # Send message to tms_robot_control indicating the current objective.
+        if self.connection:
+            self.connection.set_objective(self.objective.value)
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Set objective'
+            data = {'objective': self.objective.value}
+            self.remote_control.send_message(topic, data)
 
     def on_keypress(self, key):
         """
@@ -494,37 +509,37 @@ class RobotControl:
             return
 
         # TODO: condition for self.config['use_force_sensor']
-
-        # true f-t value
-        current_F = force_sensor_values[0:3]
-        current_M = force_sensor_values[3:6]
-        # normalised f-t value
-        F_normalised = current_F - self.force_ref
-        M_normalised = current_M - self.moment_ref
-        self.F_dq.append(F_normalised)
-        self.M_dq.append(M_normalised)
-
-        if self.REF_FLAG:
-            self.force_ref = current_F
-            self.moment_ref = current_M
-            self.REF_FLAG = False
-
-        # smoothed f-t value, to increase size of filter increase deque size
-        F_avg = np.mean(self.F_dq, axis=0)
-        M_avg = np.mean(self.M_dq, axis=0)
-        point_of_application = ft.find_r(F_avg, M_avg)
-
-        point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
-
-        if const.DISPLAY_POA and len(point_of_application) == 3:
-            with open(const.TEMP_FILE, 'a') as tmpfile:
-                tmpfile.write(f'{point_of_application}\n')
-
-        self.new_force_sensor_data = -F_normalised[2]
-        # Calculate vector of point of application vs centre
-        distance = [point_of_application[0], point_of_application[1]]
-        # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
-        # TODO: Change this entire part to compensate force properly in a feedback loop
+        #
+        # # true f-t value
+        # current_F = force_sensor_values[0:3]
+        # current_M = force_sensor_values[3:6]
+        # # normalised f-t value
+        # F_normalised = current_F - self.force_ref
+        # M_normalised = current_M - self.moment_ref
+        # self.F_dq.append(F_normalised)
+        # self.M_dq.append(M_normalised)
+        #
+        # if self.REF_FLAG:
+        #     self.force_ref = current_F
+        #     self.moment_ref = current_M
+        #     self.REF_FLAG = False
+        #
+        # # smoothed f-t value, to increase size of filter increase deque size
+        # F_avg = np.mean(self.F_dq, axis=0)
+        # M_avg = np.mean(self.M_dq, axis=0)
+        # point_of_application = ft.find_r(F_avg, M_avg)
+        #
+        # point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
+        #
+        # if const.DISPLAY_POA and len(point_of_application) == 3:
+        #     with open(const.TEMP_FILE, 'a') as tmpfile:
+        #         tmpfile.write(f'{point_of_application}\n')
+        #
+        # self.new_force_sensor_data = -F_normalised[2]
+        # # Calculate vector of point of application vs centre
+        # distance = [point_of_application[0], point_of_application[1]]
+        # # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
+        # # TODO: Change this entire part to compensate force properly in a feedback loop
 
         return force_sensor_values
 

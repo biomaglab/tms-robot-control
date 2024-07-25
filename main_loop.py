@@ -179,22 +179,13 @@ def get_config():
 
     return config
 
-
-if __name__ == '__main__':
-    host, port = get_command_line_arguments()
-
+def main(connection=None):
     config = get_config()
     if config is None:
         exit(1)
 
     # Configure logging.
     np.set_printoptions(formatter={'float': '{:0.1f}'.format})
-
-    # Connect to neuronavigation
-    url = 'http://{}:{}'.format(host, port)
-
-    remote_control = RemoteControl(url)
-    remote_control.connect()
 
     # Initialize robot controller
 
@@ -206,39 +197,60 @@ if __name__ == '__main__':
     # If robot is set to elfin_new_api, use elfin config instead.
     robot_config = const.ROBOT_CONFIG[robot if robot != "elfin_new_api" else "elfin"]
 
-    robot_control = RobotControl(
-        remote_control=remote_control,
-        config=config,
-        site_config=site_config,
-        robot_config=robot_config,
-    )
+    try:
+        from .robot_api import RobotApi
+        robot_control = RobotControl(
+            remote_control=None,
+            config=config,
+            site_config=site_config,
+            robot_config=robot_config,
+            connection=connection,
+        )
+        RobotApi(connection, robot_control)
+        connection_type = "ros"
+
+    except:
+        host, port = get_command_line_arguments()
+        # Connect to server
+        url = 'http://{}:{}'.format(host, port)
+        remote_control = RemoteControl(url)
+        remote_control.connect()
+        robot_control = RobotControl(
+            remote_control=remote_control,
+            config=config,
+            site_config=site_config,
+            robot_config=robot_config,
+            connection=None,
+        )
+        connection_type = "server"
 
     previous_success = False
     while True:
-        buf = remote_control.get_buffer()
-        if len(buf) == 0:
-            pass
+        if connection_type == "server":
+            buf = remote_control.get_buffer()
+            if len(buf) == 0:
+                pass
 
-        elif any(item in [d['topic'] for d in buf] for item in const.PUB_MESSAGES):
-            topic = [d['topic'] for d in buf]
+            elif any(item in [d['topic'] for d in buf] for item in const.PUB_MESSAGES):
+                topic = [d['topic'] for d in buf]
 
-            for i in range(len(buf)):
-                if topic[i] in const.PUB_MESSAGES:
-                    get_function = {
-                        const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
-                        const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
-                        const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
-                        const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
-                        const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.OnUpdateTrackerPoses,
-                        const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
-                        const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
-                        const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
-                        const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.OnSetRobotTransformationMatrix,
-                        const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
-                        const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
-                        const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
-                    }
-                    get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
+                for i in range(len(buf)):
+                    if topic[i] in const.PUB_MESSAGES:
+                        get_function = {
+                            const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
+                            const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
+                            const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
+                            const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
+                            const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.OnUpdateTrackerPoses,
+                            const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
+                            const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
+                            const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
+                            const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.OnSetRobotTransformationMatrix,
+                            const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
+                            const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
+                            const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
+                        }
+                        get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot_control.robot:
             success = robot_control.update()
@@ -248,11 +260,19 @@ if __name__ == '__main__':
                 robot_control.objective = RobotObjective.NONE
                 robot_control.SendObjectiveToNeuronavigation()
 
-                # Send robot status to neuronavigation via remote control.
-                topic = 'Robot to Neuronavigation: Update robot status'
-                data = {'robot_status': success}
-                remote_control.send_message(topic, data)
+                if connection_type == "ros":
+                    connection.update_robot_status(success)
+
+                elif connection_type == "server":
+                    # Send robot status to tms_robot_control via remote control.
+                    topic = 'Robot to Neuronavigation: Update robot status'
+                    data = {'robot_status': success}
+                    remote_control.send_message(topic, data)
 
             previous_success = success
 
         time.sleep(robot_config['sleep'])
+
+
+if __name__ == '__main__':
+    main()
