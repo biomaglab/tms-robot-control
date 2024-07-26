@@ -400,8 +400,12 @@ class RobotControl:
         self.remote_control.send_message(topic, data)
 
     def UpdateExcessiveForceVar(self, data):
-        print("UPDATE EXCESSIVE FORCE VAR RAN")
         print(data)
+        print(data['data'])
+        if data['data'] == 1:
+            print("excessive force var set to no")
+        elif data['data'] == 0:
+            print("excessive force set to yes")
         # print("force button in invesalius pressed, self.ft_displacement_offset = ")
         # print(self.ft_displacement_offset)
         # topic = 'Robot to Neuronavigation: Update target from FT values'
