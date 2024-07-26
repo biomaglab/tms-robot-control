@@ -30,8 +30,8 @@ class Dobot(Robot):
     The class for communicating with Dobot robot.
     """
     TOOL_ID = 0
-    TIMEOUT_START_MOTION = 10
-    TIMEOUT_MOTION = 45
+    TIMEOUT_START_MOTION = 1
+    TIMEOUT_MOTION = 15
 
     def __init__(self, ip, robot_config):
         self.robot_config = robot_config
@@ -191,7 +191,7 @@ class Dobot(Robot):
         timeout_start = time.time()
         while self.running_status != 1:
             if time.time() > timeout_start + self.TIMEOUT_START_MOTION:
-                print("break")
+                print("break: TIMEOUT_START_MOTION")
                 self.stop_robot()
                 break
             time.sleep(0.001)
@@ -202,6 +202,6 @@ class Dobot(Robot):
                 self.stop_robot()
             if time.time() > timeout_start + self.TIMEOUT_MOTION:
                 self.stop_robot()
-                print("break")
+                print("break: TIMEOUT_MOTION")
                 break
             time.sleep(0.001)

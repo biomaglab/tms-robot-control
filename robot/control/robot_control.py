@@ -11,7 +11,7 @@ import robot.transformations as tr
 import robot.robots.elfin.elfin as elfin
 import robot.robots.dobot.dobot as dobot
 import robot.control.coordinates as coordinates
-import robot.control.ft as ft
+#import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
 from robot.control.color import Color
 
