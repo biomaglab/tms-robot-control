@@ -139,7 +139,7 @@ PUB_MESSAGES = [
     'From Neuronavigation: Coil at target',
     'Neuronavigation to Robot: Update displacement to target',
     'Neuronavigation to Robot: Set objective',
-    'Neuronavigation to Robot: Run force sensor update',
+    'Neuronavigation to Robot: Update excessive force adjustment',
 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0

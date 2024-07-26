@@ -399,17 +399,19 @@ class RobotControl:
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
-    def CalledFromInvesaliusButton(self, data):
-        print("force button in invesalius pressed, self.ft_displacement_offset = ")
-        print(self.ft_displacement_offset)
-        topic = 'Robot to Neuronavigation: Update target from FT values'
-        # status below determines whether the marker is updated
-        status = False
-        data = {'data' : (self.ft_displacement_offset, status)}
+    def UpdateExcessiveForceVar(self, data):
+        print("UPDATE EXCESSIVE FORCE VAR RAN")
+        print(data)
+        # print("force button in invesalius pressed, self.ft_displacement_offset = ")
+        # print(self.ft_displacement_offset)
+        # topic = 'Robot to Neuronavigation: Update target from FT values'
+        # # status below determines whether the marker is updated
+        # status = False
+        # data = {'data' : (self.ft_displacement_offset, status)}
 
-        self.status = False
+        # self.status = False
 
-        self.remote_control.send_message(topic, data)
+        # self.remote_control.send_message(topic, data)
 
     def SendObjectiveToNeuronavigation(self):
         # Send message to neuronavigation indicating the current objective.
