@@ -65,6 +65,7 @@ class RobotControl:
         self.force_transform = 0 # How much the position of the target is tranformed due to encountered force
 
         self.FT_NORMALIZE_FLAG = False
+        self.EXCESSIVE_FORCE_FLAG = True
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
         #self.status = True
@@ -403,9 +404,9 @@ class RobotControl:
         print(data)
         print(data['data'])
         if data['data'] == 1:
-            print("excessive force var set to no")
+            self.EXCESSIVE_FORCE_FLAG = False
         elif data['data'] == 0:
-            print("excessive force set to yes")
+            self.EXCESSIVE_FORCE_FLAG = True
         # print("force button in invesalius pressed, self.ft_displacement_offset = ")
         # print(self.ft_displacement_offset)
         # topic = 'Robot to Neuronavigation: Update target from FT values'
@@ -880,7 +881,7 @@ class RobotControl:
         # print("force_sensor_threshold: ")
         # print(force_sensor_threshold)
 
-        if self.current_z_force > force_sensor_threshold: # and \
+        if self.current_z_force > force_sensor_threshold and self.EXCESSIVE_FORCE_FLAG: # and \
             # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
             self.compensate_force()
 
