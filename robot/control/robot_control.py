@@ -355,6 +355,7 @@ class RobotControl:
 
         if success:
             print('Connected to robot.')
+            self.FT_NORMALIZE_FLAG = True
 
             # Initialize the robot.
             robot.initialize()
@@ -737,13 +738,14 @@ class RobotControl:
 
             return False
         print("NORMALIZE_FORCE_SENSOR IN HANDLE_OBJECTIVE_TRACK_TARGET", normalize_force_sensor)
+        self.FT_NORMALIZE_FLAG = True
         # Normalize force sensor values if needed.
-        use_force_sensor = self.config['use_force_sensor']
-        if use_force_sensor and normalize_force_sensor:
-            force_sensor_values = self.update_force_sensor_values()
-            self.force_ref = force_sensor_values[0:3]
-            self.moment_ref = force_sensor_values[3:6]
-            print('Normalized!')
+        # use_force_sensor = self.config['use_force_sensor']
+        # if use_force_sensor and normalize_force_sensor:
+        #     force_sensor_values = self.update_force_sensor_values()
+        #     self.force_ref = force_sensor_values[0:3]
+        #     self.moment_ref = force_sensor_values[3:6]
+        #     print('Normalized!')
 
         # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
@@ -868,18 +870,6 @@ class RobotControl:
     def check_force_sensor(self):
         force_sensor_threshold = self.robot_config['force_sensor_threshold']
         force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
-        # print("force sensor threshold:")
-        # print(force_sensor_threshold)
-        # print("force_sensor_scale_threshold:")
-        # print(force_sensor_scale_threshold)
-        # print("target_z_force")
-        # print(self.target_z_force)
-        # print("some quantity and reasoning I don't understand")
-        # print(self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100)))
-        # print("z_force: ")
-        # print(self.current_z_force)
-        # print("force_sensor_threshold: ")
-        # print(force_sensor_threshold)
 
         if self.current_z_force > force_sensor_threshold and self.EXCESSIVE_FORCE_FLAG: # and \
             # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
