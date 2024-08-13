@@ -62,8 +62,10 @@ class RobotControl:
         self.tuning_ongoing = False
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
-        self.force_transform = 0 # How much the position of the target is tranformed due to encountered force
-
+        self.force_transform = 0 
+        self.force_compensate_amount = 4
+        
+        self.LATERAL_SHIFTING_FLAG = False
         self.FT_NORMALIZE_FLAG = False
         self.EXCESSIVE_FORCE_FLAG = True
         listener = keyboard.Listener(on_press=self.on_keypress)
@@ -79,7 +81,9 @@ class RobotControl:
 
         self.target_reached = False
         self.displacement_to_target = 6 * [0]
+        self.poa = [0, 0]
         self.ft_displacement_offset = [0, 0]
+        self.doLateralShifting = False
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -305,8 +309,8 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
 
-        if self.ft_displacement_offset[0] > 0 or self.ft_displacement_offset[1] > 0:
-            print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
+        # if self.ft_displacement_offset[0] > 0 or self.ft_displacement_offset[1] > 0:
+        #     print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
         translation[0] += self.ft_displacement_offset[0]
@@ -324,7 +328,17 @@ class RobotControl:
         self.last_displacement_update_time = time.time()
 
     def OnCoilAtTarget(self, data):
+        print("Coil at target (TESTING WHEN RUNS)")
         self.target_reached = data["state"]
+        self.updateFTDisplacement()
+
+    def updateFTDisplacement(self):
+        if self.LATERAL_SHIFTING_FLAG:
+            self.doLateralShifting = True
+
+        while self.doLateralShifting:
+            self.ft_displacement_offset = self.poa
+            time.sleep(1)
 
     def ConnectToRobot(self, robot_IP):
         robot_type = self.config['robot']
@@ -402,12 +416,16 @@ class RobotControl:
         self.remote_control.send_message(topic, data)
 
     def UpdateExcessiveForceVar(self, data):
-        print(data)
+        print('for testing UpdateExcessiveForceVar data = ')
         print(data['data'])
-        if data['data'] == 1:
+        if data['data'][0] == 1:
             self.EXCESSIVE_FORCE_FLAG = False
-        elif data['data'] == 0:
-            self.EXCESSIVE_FORCE_FLAG = True
+        elif data['data'][0] == 0:
+             self.EXCESSIVE_FORCE_FLAG = True
+             print('force_compensate amount before', self.force_compensate_amount)
+             self.force_compensate_amount = -data['data'][1]
+             print('after', self.force_compensate_amount)
+
         # print("force button in invesalius pressed, self.ft_displacement_offset = ")
         # print(self.ft_displacement_offset)
         # topic = 'Robot to Neuronavigation: Update target from FT values'
@@ -537,20 +555,19 @@ class RobotControl:
         # smoothed f-t value, to increase size of filter increase deque size
         F_avg = np.mean(self.F_dq, axis=0)
         M_avg = np.mean(self.M_dq, axis=0)
-        point_of_application = ft.find_r(F_avg, M_avg)
+        self.poa = ft.find_r(F_avg, M_avg)
 
-        point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
+        self.poa[0], self.poa[1] = self.poa[1], self.poa[0] #change in axis, relevant for only aalto robot
         self.current_z_force = F_normalised[2]
-        self.ft_displacement_offset = [0,0] #[point_of_application[0], point_of_application[1]]
 
-        if const.DISPLAY_POA and len(point_of_application) == 3:
+        if const.DISPLAY_POA and len(self.poa) == 3:
             with open(const.TEMP_FILE, 'a') as tmpfile:
-                tmpfile.write(f'{point_of_application}({self.current_z_force})\n')
+                tmpfile.write(f'{self.poa}({self.current_z_force})\n')
         
         return force_sensor_values
 
     def compensate_force(self):
-        self.force_transform = -4
+        self.force_transform = -self.force_compensate_amount
         """
         Compensate the force by moving the target in the negative z-direction by 2mm until track target turned off. 
         """
@@ -897,6 +914,7 @@ class RobotControl:
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
             self.force_transform = 0
+            self.ft_displacement_offset = [0, 0]                
 
         elif self.objective == RobotObjective.TRACK_TARGET:
             self.check_force_sensor()
