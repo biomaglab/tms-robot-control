@@ -413,9 +413,9 @@ class RobotControl:
             self.EXCESSIVE_FORCE_FLAG = False
         elif data['data'][0] == 0:
              self.EXCESSIVE_FORCE_FLAG = True
-             print('force_compensate amount before', self.force_compensate_amount)
-             self.force_compensate_amount = -data['data'][1]
-             print('after', self.force_compensate_amount)
+             # print('force_compensate amount before', self.force_compensate_amount)
+             # self.force_compensate_amount = data['data'][1]
+             #print('after', self.force_compensate_amount)
 
         # print("force button in invesalius pressed, self.ft_displacement_offset = ")
         # print(self.ft_displacement_offset)
