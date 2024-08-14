@@ -65,9 +65,9 @@ class RobotControl:
         self.force_transform = 0 
         self.force_compensate_amount = 4
         
-        self.LATERAL_SHIFTING_FLAG = False
         self.FT_NORMALIZE_FLAG = False
         self.EXCESSIVE_FORCE_FLAG = True
+        self.LATERAL_SHIFTING_FLAG = False
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
         #self.status = True
@@ -330,15 +330,6 @@ class RobotControl:
     def OnCoilAtTarget(self, data):
         print("Coil at target (TESTING WHEN RUNS)")
         self.target_reached = data["state"]
-        self.updateFTDisplacement()
-
-    def updateFTDisplacement(self):
-        if self.LATERAL_SHIFTING_FLAG:
-            self.doLateralShifting = True
-
-        while self.doLateralShifting:
-            self.ft_displacement_offset = self.poa
-            time.sleep(1)
 
     def ConnectToRobot(self, robot_IP):
         robot_type = self.config['robot']
@@ -567,7 +558,48 @@ class RobotControl:
         return force_sensor_values
 
     def compensate_force(self):
-        self.force_transform = -self.force_compensate_amount
+        
+        self.FORCE_COMPENSATE_FLAG = True
+        #### Check what value you used here
+        force_sensor_upper_threshold = self.robot_config['force_sensor_threshold']
+        print("force sensor upper threshold in compensate force is ", force_sensor_upper_threshold)
+        force_sensor_lower_threshold = 3
+        self.force_transform = -4
+        self.shift_threshold = 2
+
+
+        while self.FORCE_COMPENSATE_FLAG:
+            if self.current_z_force > force_sensor_lower_threshold:
+                self.FORCE_COMPENSATE_FLAG = False
+                break
+            else:
+                time.sleep(1)
+                self.force_transform += 1
+
+        #### Code for continuous adjustment of force
+        
+
+
+        ### Centering of the coil for now not running cause testing force compensation
+        self.LATERAL_SHIFTING_FLAG = False
+        if self.LATERAL_SHIFTING_FLAG:
+            print("doing a lateral shift")
+            self.ft_displacement_offset = self.poa
+
+        # Below is code for multiple shifts till centred, but test out first with one shift and how that goes
+
+        # if self.LATERAL_SHIFTING_FLAG:
+        #     self.doLateralShifting = True
+
+        #     while self.doLateralShifting:
+        #         if self.poa[0]**2 + self.poa[1]**2 < self.shift_threshold**2:
+        #             self.doLateralShifting = False
+        #             break
+        #         else:
+        #             self.ft_displacement_offset = self.poa
+        #             time.sleep(1)
+
+        
         """
         Compensate the force by moving the target in the negative z-direction by 2mm until track target turned off. 
         """
@@ -754,7 +786,7 @@ class RobotControl:
                 print("Error: Robot is in error state")
 
             return False
-        print("NORMALIZE_FORCE_SENSOR IN HANDLE_OBJECTIVE_TRACK_TARGET", normalize_force_sensor)
+        # print("NORMALIZE_FORCE_SENSOR IN HANDLE_OBJECTIVE_TRACK_TARGET", normalize_force_sensor)
         self.FT_NORMALIZE_FLAG = True
         # Normalize force sensor values if needed.
         # use_force_sensor = self.config['use_force_sensor']
