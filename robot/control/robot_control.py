@@ -328,7 +328,7 @@ class RobotControl:
         self.last_displacement_update_time = time.time()
 
     def OnCoilAtTarget(self, data):
-        print("Coil at target (TESTING WHEN RUNS)")
+        # print("Coil at target (TESTING WHEN RUNS)")
         self.target_reached = data["state"]
 
     def ConnectToRobot(self, robot_IP):
