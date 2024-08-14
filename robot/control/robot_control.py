@@ -566,7 +566,9 @@ class RobotControl:
         force_sensor_upper_threshold = 20
         force_sensor_lower_threshold = 5
         
-        self.force_transform = -4
+        print("COMPENSATE_FORCE BEING RAN")
+        self.force_transform = -2
+        print("COMPENSATE_FORCE_BEING RAN")
 
         self.shift_threshold = 2
         # while self.FORCE_COMPENSATE_FLAG:
@@ -940,7 +942,7 @@ class RobotControl:
                 return False
 
         # Update the robot pose.
-        self.update_robot_pose()
+        self.update_robot_pose() 
 
         # Update the robot state.
         self.robot_state_controller.update()
