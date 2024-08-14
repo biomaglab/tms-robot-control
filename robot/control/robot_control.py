@@ -565,20 +565,19 @@ class RobotControl:
         #### 
         force_sensor_upper_threshold = 20
         force_sensor_lower_threshold = 5
+        
         self.force_transform = -4
 
         self.shift_threshold = 2
-
-        self.force_transform = self.force_transform
-        while self.FORCE_COMPENSATE_FLAG:
-            if self.current_z_force > force_sensor_lower_threshold:
-                print("sufficient force")
-                self.FORCE_COMPENSATE_FLAG = False
-                break
-            else:
-                time.sleep(1)
-                print("moving inward because no force")
-                self.force_transform += 1
+        # while self.FORCE_COMPENSATE_FLAG:
+        #     if self.current_z_force > force_sensor_lower_threshold:
+        #         print("sufficient force")
+        #         self.FORCE_COMPENSATE_FLAG = False
+        #         break
+        #     else:
+        #         time.sleep(1)
+        #         print("moving inward because no force")
+        #         self.force_transform += 1
 
         #### Code for continuous adjustment of force
         
