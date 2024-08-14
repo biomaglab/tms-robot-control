@@ -68,6 +68,8 @@ class RobotControl:
         self.FT_NORMALIZE_FLAG = False
         self.EXCESSIVE_FORCE_FLAG = True
         self.LATERAL_SHIFTING_FLAG = False
+        self.FORCE_COMPENSATE_FLAG = False
+
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
         #self.status = True
@@ -560,20 +562,22 @@ class RobotControl:
     def compensate_force(self):
         
         self.FORCE_COMPENSATE_FLAG = True
-        #### Check what value you used here
-        force_sensor_upper_threshold = self.robot_config['force_sensor_threshold']
-        print("force sensor upper threshold in compensate force is ", force_sensor_upper_threshold)
-        force_sensor_lower_threshold = 3
+        #### 
+        force_sensor_upper_threshold = 20
+        force_sensor_lower_threshold = 5
         self.force_transform = -4
+
         self.shift_threshold = 2
 
-
+        self.force_transform = self.force_transform
         while self.FORCE_COMPENSATE_FLAG:
             if self.current_z_force > force_sensor_lower_threshold:
+                print("sufficient force")
                 self.FORCE_COMPENSATE_FLAG = False
                 break
             else:
                 time.sleep(1)
+                print("moving inward because no force")
                 self.force_transform += 1
 
         #### Code for continuous adjustment of force
@@ -922,7 +926,8 @@ class RobotControl:
 
         if self.current_z_force > force_sensor_threshold and self.EXCESSIVE_FORCE_FLAG: # and \
             # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
-            self.compensate_force()
+            if not self.FORCE_COMPENSATE_FLAG:
+                self.compensate_force()
 
             return False
 
