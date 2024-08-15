@@ -64,11 +64,15 @@ class RobotControl:
         self.M_dq = deque(maxlen=6)
         self.force_transform = 0 
         self.force_compensate_amount = 4
+        self.force_sensor_lower_threshold = 7
         
+        # A bunch of flag variables for 
         self.FT_NORMALIZE_FLAG = False
         self.EXCESSIVE_FORCE_FLAG = True
         self.LATERAL_SHIFTING_FLAG = False
         self.FORCE_COMPENSATE_FLAG = False
+        self.above_min_force_detected = False
+        self.checking_above_min_force = False
 
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
@@ -408,8 +412,9 @@ class RobotControl:
         data = {'data': success}
         self.remote_control.send_message(topic, data)
 
-    def UpdateExcessiveForceVar(self, data):
-        print('for testing UpdateExcessiveForceVar data = ')
+    def UpdateForceVars(self, data):
+        print("self.EXCESSIVE_FORCE_FLAG before ", self.EXCESSIVE_FORCE_FLAG)
+        print('UpdateExcessiveForceVar data = ')
         print(data['data'])
         if data['data'][0] == 1:
             self.EXCESSIVE_FORCE_FLAG = False
@@ -418,6 +423,12 @@ class RobotControl:
              # print('force_compensate amount before', self.force_compensate_amount)
              # self.force_compensate_amount = data['data'][1]
              #print('after', self.force_compensate_amount)
+        if data['data'][2] == 1:
+            self.LATERAL_SHIFTING_FLAG = True
+        elif data['data'][2] == 0:
+            self.LATERAL_SHIFTING_FLAG = False
+
+
 
         # print("force button in invesalius pressed, self.ft_displacement_offset = ")
         # print(self.ft_displacement_offset)
@@ -523,7 +534,7 @@ class RobotControl:
     def update_force_sensor_values(self):
         if not self.config['use_force_sensor']:
             print("Error: use_force_sensor in environment variables not set to 'true' when running robot_control.read_force_sensor")
-        
+
         success, force_sensor_values = self.robot.read_force_sensor()
 
         if not success:
@@ -556,6 +567,12 @@ class RobotControl:
         if const.DISPLAY_POA and len(self.poa) == 3:
             with open(const.TEMP_FILE, 'a') as tmpfile:
                 tmpfile.write(f'{self.poa}({self.current_z_force})\n')
+
+        if self.checking_above_min_force:
+            if self.force_sensor_lower_threshold < self.current_z_force:
+                print("\nabove minimum force detected\n")
+                
+                self.above_min_force_detected = True
         
         return force_sensor_values
 
@@ -564,23 +581,26 @@ class RobotControl:
         self.FORCE_COMPENSATE_FLAG = True
         #### 
         force_sensor_upper_threshold = 20
-        force_sensor_lower_threshold = 5
+        self.force_sensor_lower_threshold = 7
         
-        print("COMPENSATE_FORCE BEING RAN")
-        self.force_transform = -2
-        print("COMPENSATE_FORCE_BEING RAN")
+        print("\nCOMPENSATE_FORCE BEING RAN\n")
+        self.force_transform = -4
 
         self.shift_threshold = 2
-        # while self.FORCE_COMPENSATE_FLAG:
-        #     if self.current_z_force > force_sensor_lower_threshold:
-        #         print("sufficient force")
-        #         self.FORCE_COMPENSATE_FLAG = False
-        #         break
-        #     else:
-        #         time.sleep(1)
-        #         print("moving inward because no force")
-        #         self.force_transform += 1
-
+        while self.FORCE_COMPENSATE_FLAG:
+            if self.above_min_force_detected:# self.current_z_force > force_sensor_lower_threshold:
+                print("\nno longer compensating force\n")
+                self.FORCE_COMPENSATE_FLAG = False
+                break
+            else:
+                print("\nmoving inward because no force\n")
+                self.force_transform += 1
+                self.above_min_force_detected = False
+                self.checking_above_min_force = True
+                time.sleep(1)
+                self.checking_above_min_force = False
+                
+                
         #### Code for continuous adjustment of force
         
 

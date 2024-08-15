@@ -237,7 +237,7 @@ if __name__ == '__main__':
                         const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
                         const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
                         const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
-                        const.FUNCTION_RUN_FORCE_UPDATE: robot_control.UpdateExcessiveForceVar,
+                        const.FUNCTION_RUN_FORCE_UPDATE: robot_control.UpdateForceVars,
                     }
                     get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
