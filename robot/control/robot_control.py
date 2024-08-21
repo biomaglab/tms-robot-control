@@ -962,8 +962,9 @@ class RobotControl:
         self.update_state_variables()
 
         if self.objective == RobotObjective.NONE:
+            # TODO: Make that setting to zero occur only on change of objective, seems more efficient rather than constantly defining all those as zero
             self.times_comp_force_ran_per_track = 0
-            print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
+            # print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
             success = self.handle_objective_none()
             self.force_transform = 0
             self.ft_displacement_offset = [0, 0]                
