@@ -22,7 +22,9 @@ class PointOfApp:
     def __init__(self):
         # create plots for point of application
         self.fig = plt.figure()
-        self.text = self.fig.text(0.01, 0.01, 'Z-force: No data')
+        self.text = self.fig.text(0.01, 0.01, 'Z-force: No data', fontsize=24)
+
+
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.square = FancyBboxPatch((-5, -5), 10, 10, alpha=0.5, boxstyle="round,pad=3")
         self.ax.add_patch(self.square) 
