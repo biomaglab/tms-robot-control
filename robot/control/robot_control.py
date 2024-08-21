@@ -77,7 +77,10 @@ class RobotControl:
         self.FORCE_COMPENSATE_FLAG = False
         self.force_compensate_counter = 0
         self.above_min_force_detected = False
-        self.checking_above_min_force = False
+        self.arrived_at_target = False
+        self.insufficient_compensate_ready = False
+        self.arrived_at_target_counter = 0
+    
 
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
@@ -250,6 +253,7 @@ class RobotControl:
         if self.target_reached and self.objective == RobotObjective.TRACK_TARGET:
             print("Target already reached, not initiating movement.")
             print("")
+            self.arrived_at_target = True
 
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
@@ -572,7 +576,7 @@ class RobotControl:
             with open(const.TEMP_FILE, 'a') as tmpfile:
                 tmpfile.write(f'{self.poa}({self.current_z_force})\n')
 
-        ## For now this is not a great way to implement this, look for some better way to track time
+        ## MOVING INWARD TILL MIN FORCE PROCEDURE
         if self.FORCE_COMPENSATE_FLAG and not self.compensation_completed:
             self.force_compensate_counter += 1
             if self.force_compensate_counter % 500 == 0:
@@ -591,14 +595,27 @@ class RobotControl:
                 self.compensation_completed = True
                 self.force_compensate_counter = 0
 
+        ## Code for when enough at target to move in if insufficient force
+        if self.arrived_at_target and not self.insufficient_compensate_ready:
+            self.arrived_at_target_counter += 1
+            if self.arrived_at_target_counter >= 400:
+                self.insufficient_compensate_ready = True
+                print("Checking for if min force detected")
+
+
+
         return force_sensor_values
 
-    def compensate_force(self):
+    def compensate_excessive_force(self):
         print("\nCOMPENSATE_FORCE BEING RAN\n")
         self.force_transform = -4
-
         self.FORCE_COMPENSATE_FLAG = True
 
+    def compensate_insufficient_force(self):
+        print("\nCompensating insufficient force\n")
+        self.FORCE_COMPENSATE_FLAG = True
+
+    def compensate_force(self):
         ### Centering of the coil for now not running cause testing force compensation
         self.LATERAL_SHIFTING_FLAG = False
         self.shift_threshold = 2
@@ -937,12 +954,16 @@ class RobotControl:
     def check_force_sensor(self):
         # force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
 
+        if self.current_z_force < self.force_sensor_lower_threshold:
+            self.above_min_force_detected = True
+
+        if not self.above_min_force_detected and self.insufficient_compensate_ready:
+            self.compensate_insufficient_force()
+
         if self.current_z_force > self.force_sensor_upper_threshold and self.EXCESSIVE_FORCE_FLAG: # and \
             # self.current_z_force > (self.target_z_force + np.abs(self.target_z_force * (force_sensor_scale_threshold / 100))):
             if not self.FORCE_COMPENSATE_FLAG:
-                self.compensate_force()
-
-            return False
+                self.compensate_excessive_force()
 
     def update(self):
         # Check if the robot is connected.
@@ -964,6 +985,8 @@ class RobotControl:
         if self.objective == RobotObjective.NONE:
             # TODO: Make that setting to zero occur only on change of objective, seems more efficient rather than constantly defining all those as zero
             self.compensation_completed = False
+            self.above_min_force_detected = False
+            self.arrived_at_target = False
             # print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
             success = self.handle_objective_none()
             self.force_transform = 0
