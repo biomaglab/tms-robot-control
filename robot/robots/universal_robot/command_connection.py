@@ -70,8 +70,8 @@ class CommandConnection:
         return success
 
     def _send(self, request, verbose=False):
-        # if verbose:
-        #     print("Sending request: {}".format(request))
+        if verbose:
+            print("Sending request: {}".format(request))
 
         full_request = request + self.REQUEST_ENDING_CHARS
         try:
