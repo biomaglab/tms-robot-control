@@ -68,7 +68,7 @@ class RobotControl:
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
         self.force_sensor_lower_threshold = 9
         self.force_sensor_upper_threshold = 20
-        self.times_comp_force_ran_per_track = 0
+        self.compensation_completed = False
         
         # A bunch of flag variables for 
         self.FT_NORMALIZE_FLAG = False
@@ -573,7 +573,7 @@ class RobotControl:
                 tmpfile.write(f'{self.poa}({self.current_z_force})\n')
 
         ## For now this is not a great way to implement this, look for some better way to track time
-        if self.FORCE_COMPENSATE_FLAG and self.times_comp_force_ran_per_track < 2:
+        if self.FORCE_COMPENSATE_FLAG and not self.compensation_completed:
             self.force_compensate_counter += 1
             if self.force_compensate_counter % 500 == 0:
                 print("\nMOVING INWARD\n")
@@ -581,19 +581,19 @@ class RobotControl:
             else:
                 if self.current_z_force > self.force_sensor_lower_threshold and self.force_compensate_counter > 400:
                     print("\nAbove min force detected, no longer moving inward\n")
+                    self.compensation_completed = True
                     self.FORCE_COMPENSATE_FLAG = False
                     self.force_compensate_counter = 0
 
-            if self.force_compensate_counter >= 2500:
+            if self.force_compensate_counter >= 4000:
                 print("\nCompensation procedure timeout\n")
                 self.FORCE_COMPENSATE_FLAG = False
+                self.compensation_completed = True
                 self.force_compensate_counter = 0
 
         return force_sensor_values
 
     def compensate_force(self):
-        
-        self.times_comp_force_ran_per_track += 1
         print("\nCOMPENSATE_FORCE BEING RAN\n")
         self.force_transform = -4
 
@@ -963,7 +963,7 @@ class RobotControl:
 
         if self.objective == RobotObjective.NONE:
             # TODO: Make that setting to zero occur only on change of objective, seems more efficient rather than constantly defining all those as zero
-            self.times_comp_force_ran_per_track = 0
+            self.compensation_completed = False
             # print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
             success = self.handle_objective_none()
             self.force_transform = 0
