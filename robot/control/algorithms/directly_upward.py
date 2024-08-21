@@ -93,7 +93,7 @@ class DirectlyUpwardAlgorithm:
         return success, normalize_force_sensor
 
     def _tune(self, target_pose_in_robot_space):
-        print("Initiating tuning motion")
+        #print("Initiating tuning motion")
 
         success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed_ratio)
         return success
