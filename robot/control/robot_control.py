@@ -63,6 +63,11 @@ class RobotControl:
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
         self.force_transform = 0 
+
+        # topic = 'Robot to Neuronavigation: Update force compensation displacement'
+        # data = self.force_transform
+        # self.remote_control.send_message(topic, data)
+
         self.force_compensate_amount = 4
         # self.force_sensor_threshold = self.robot_config['force_sensor_threshold']
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
@@ -582,6 +587,10 @@ class RobotControl:
             if self.force_compensate_counter % 500 == 0:
                 print("\nMOVING INWARD\n")
                 self.force_transform += 1
+                topic = 'Robot to Neuronavigation: Update force compensation displacement'
+                data = self.force_transform
+                self.remote_control.send_message(topic, data)
+                
             else:
                 if self.current_z_force > self.force_sensor_lower_threshold and self.force_compensate_counter > 400:
                     print("\nAbove min force detected, no longer moving inward\n")
@@ -609,6 +618,9 @@ class RobotControl:
     def compensate_excessive_force(self):
         print("\nCOMPENSATE_FORCE BEING RAN\n")
         self.force_transform = -4
+        topic = 'Robot to Neuronavigation: Update force compensation displacement'
+        data = self.force_transform
+        self.remote_control.send_message(topic, data)
         self.FORCE_COMPENSATE_FLAG = True
 
     def compensate_insufficient_force(self):
@@ -990,7 +1002,15 @@ class RobotControl:
             self.arrived_at_target = False
             # print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
             success = self.handle_objective_none()
+
+
+            ### Is any of this needed? (because we have the same in the onsetobjective function)
             self.force_transform = 0
+
+            # topic = 'Robot to Neuronavigation: Update force compensation displacement'
+            # data = self.force_transform
+            # self.remote_control.send_message(topic, data)
+
             self.ft_displacement_offset = [0, 0]                
 
         elif self.objective == RobotObjective.TRACK_TARGET:

@@ -56,7 +56,8 @@ class PointOfApp:
             data = np.array(data.split(", "), dtype = 'float64')
             z_force = read_data[read_data.find("(")+1:read_data.find(")")]
             self.point.set_data(data[0], data[1])
-            self.text.set_text('Z-force: ' + z_force)
+            z_output = round(float(z_force), 2)
+            self.text.set_text('Z-force: ' + z_output)
 
             self.point.set_data(data[0], data[1])
 
