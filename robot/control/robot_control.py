@@ -598,9 +598,9 @@ class RobotControl:
         ## Code for when enough at target to move in if insufficient force
         if self.arrived_at_target and not self.insufficient_compensate_ready:
             self.arrived_at_target_counter += 1
-            if self.arrived_at_target_counter >= 400:
+            if self.arrived_at_target_counter >= 1000:
                 self.insufficient_compensate_ready = True
-                print("Checking for if min force detected")
+                print("Ready to compensate min force")
 
 
 
@@ -955,6 +955,7 @@ class RobotControl:
         # force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
 
         if self.current_z_force < self.force_sensor_lower_threshold:
+            print("\nabove min force detected, will not run insufficient compensate\n")
             self.above_min_force_detected = True
 
         if not self.above_min_force_detected and self.insufficient_compensate_ready:
