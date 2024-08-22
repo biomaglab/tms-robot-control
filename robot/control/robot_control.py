@@ -966,7 +966,7 @@ class RobotControl:
     def check_force_sensor(self):
         # force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
 
-        if self.current_z_force < self.force_sensor_lower_threshold:
+        if self.current_z_force > self.force_sensor_lower_threshold and not self.above_min_force_detected:
             print("\nabove min force detected, will not run insufficient compensate\n")
             self.above_min_force_detected = True
 
