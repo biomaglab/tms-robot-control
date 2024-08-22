@@ -970,7 +970,7 @@ class RobotControl:
             print("\nabove min force detected, will not run insufficient compensate\n")
             self.above_min_force_detected = True
 
-        if not self.above_min_force_detected and self.insufficient_compensate_ready:
+        if not self.above_min_force_detected and self.insufficient_compensate_ready and not self.FORCE_COMPENSATE_FLAG and False:
             self.compensate_insufficient_force()
 
         if self.current_z_force > self.force_sensor_upper_threshold and self.EXCESSIVE_FORCE_FLAG: # and \
