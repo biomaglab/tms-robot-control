@@ -845,7 +845,8 @@ class RobotControl:
 
             return False
         # print("NORMALIZE_FORCE_SENSOR IN HANDLE_OBJECTIVE_TRACK_TARGET", normalize_force_sensor)
-        self.FT_NORMALIZE_FLAG = True
+        if not self.FORCE_COMPENSATE_FLAG:
+            self.FT_NORMALIZE_FLAG = True
         # Normalize force sensor values if needed.
         # use_force_sensor = self.config['use_force_sensor']
         # if use_force_sensor and normalize_force_sensor:
