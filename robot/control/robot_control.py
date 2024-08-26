@@ -618,7 +618,7 @@ class RobotControl:
         ## Code for when enough at target to move in if insufficient force
         if self.arrived_at_target and not self.insufficient_compensate_ready and self.INSUFFICIENT_FORCE_FLAG:
             self.arrived_at_target_counter += 1
-            if self.arrived_at_target_counter >= 400:
+            if self.arrived_at_target_counter >= 800:
                 self.insufficient_compensate_ready = True
                 print("Ready to compensate min force")
 
