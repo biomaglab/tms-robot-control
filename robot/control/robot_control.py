@@ -259,6 +259,7 @@ class RobotControl:
             self.arrived_at_target = False
             self.insufficient_compensate_ready = False
             self.force_compensate_counter = 0
+            self.arrived_at_target_counter = 0
 
         print("")
         print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
@@ -627,7 +628,7 @@ class RobotControl:
 
     def compensate_excessive_force(self):
         print("\nCOMPENSATE_FORCE BEING RAN\n")
-        self.force_transform = -20
+        self.force_transform = -10
         topic = 'Robot to Neuronavigation: Update force compensation displacement'
         data = {'displacement': self.force_transform}
         self.remote_control.send_message(topic, data)
