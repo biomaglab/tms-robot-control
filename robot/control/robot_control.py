@@ -595,7 +595,7 @@ class RobotControl:
             self.force_compensate_counter += 1
             if self.force_compensate_counter % 250 == 0:
                 print("\nMOVING INWARD\n")
-                self.force_transform += 0.5
+                self.force_transform += 1
                 topic = 'Robot to Neuronavigation: Update force compensation displacement'
                 data = {'displacement': self.force_transform}
                 self.remote_control.send_message(topic, data)
@@ -626,7 +626,7 @@ class RobotControl:
 
     def compensate_excessive_force(self):
         print("\nCOMPENSATE_FORCE BEING RAN\n")
-        self.force_transform = -4
+        self.force_transform = -20
         topic = 'Robot to Neuronavigation: Update force compensation displacement'
         data = {'displacement': self.force_transform}
         self.remote_control.send_message(topic, data)
