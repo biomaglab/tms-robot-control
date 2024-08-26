@@ -71,13 +71,14 @@ class RobotControl:
         self.force_compensate_amount = 4
         # self.force_sensor_threshold = self.robot_config['force_sensor_threshold']
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
-        self.force_sensor_lower_threshold = 15
-        self.force_sensor_upper_threshold = 30
+        self.force_sensor_lower_threshold = 10
+        self.force_sensor_upper_threshold = 25
         self.compensation_completed = False
         
         # A bunch of flag variables for 
         self.FT_NORMALIZE_FLAG = False
-        self.EXCESSIVE_FORCE_FLAG = False
+        self.EXCESSIVE_FORCE_FLAG = True
+        self.INSUFFICIENT_FORCE_FLAG = False
         self.LATERAL_SHIFTING_FLAG = False
         self.FORCE_COMPENSATE_FLAG = False
         self.force_compensate_counter = 0
@@ -246,9 +247,17 @@ class RobotControl:
         objective = data['objective']
         self.objective = RobotObjective(objective)
 
-        # When stopping tracking target set the force transform to 0
+        # When stopping tracking target set the force transform variables to initial state
         if objective == 0:
+            self.FORCE_COMPENSATE_FLAG = False
             self.force_transform = 0
+            topic = 'Robot to Neuronavigation: Update force compensation displacement'
+            data = {'displacement': self.force_transform}
+            self.remote_control.send_message(topic, data)
+            self.compensation_completed = False
+            self.above_min_force_detected = False
+            self.arrived_at_target = False
+            self.force_compensate_counter = 0
 
         print("")
         print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
@@ -584,11 +593,11 @@ class RobotControl:
         ## MOVING INWARD TILL MIN FORCE PROCEDURE
         if self.FORCE_COMPENSATE_FLAG and not self.compensation_completed:
             self.force_compensate_counter += 1
-            if self.force_compensate_counter % 500 == 0:
+            if self.force_compensate_counter % 250 == 0:
                 print("\nMOVING INWARD\n")
-                self.force_transform += 1
+                self.force_transform += 0.5
                 topic = 'Robot to Neuronavigation: Update force compensation displacement'
-                data = self.force_transform
+                data = {'displacement': self.force_transform}
                 self.remote_control.send_message(topic, data)
                 
             else:
@@ -605,7 +614,7 @@ class RobotControl:
                 self.force_compensate_counter = 0
 
         ## Code for when enough at target to move in if insufficient force
-        if self.arrived_at_target and not self.insufficient_compensate_ready:
+        if self.arrived_at_target and not self.insufficient_compensate_ready and self.INSUFFICIENT_FORCE_FLAG:
             self.arrived_at_target_counter += 1
             if self.arrived_at_target_counter >= 1000:
                 self.insufficient_compensate_ready = True
@@ -619,7 +628,7 @@ class RobotControl:
         print("\nCOMPENSATE_FORCE BEING RAN\n")
         self.force_transform = -4
         topic = 'Robot to Neuronavigation: Update force compensation displacement'
-        data = self.force_transform
+        data = {'displacement': self.force_transform}
         self.remote_control.send_message(topic, data)
         self.FORCE_COMPENSATE_FLAG = True
 
@@ -966,11 +975,11 @@ class RobotControl:
     def check_force_sensor(self):
         # force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
 
-        if self.current_z_force > self.force_sensor_lower_threshold and not self.above_min_force_detected:
+        if self.current_z_force > self.force_sensor_lower_threshold and not self.above_min_force_detected and self.INSUFFICIENT_FORCE_FLAG:
             print("\nabove min force detected, will not run insufficient compensate\n")
             self.above_min_force_detected = True
 
-        if not self.above_min_force_detected and self.insufficient_compensate_ready and not self.FORCE_COMPENSATE_FLAG and False:
+        if not self.above_min_force_detected and self.insufficient_compensate_ready and not self.FORCE_COMPENSATE_FLAG and self.INSUFFICIENT_FORCE_FLAG:
             self.compensate_insufficient_force()
 
         if self.current_z_force > self.force_sensor_upper_threshold and self.EXCESSIVE_FORCE_FLAG: # and \
@@ -996,22 +1005,9 @@ class RobotControl:
         self.update_state_variables()
 
         if self.objective == RobotObjective.NONE:
-            # TODO: Make that setting to zero occur only on change of objective, seems more efficient rather than constantly defining all those as zero
-            self.compensation_completed = False
-            self.above_min_force_detected = False
-            self.arrived_at_target = False
             # print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
             success = self.handle_objective_none()
-
-
-            ### Is any of this needed? (because we have the same in the onsetobjective function)
-            self.force_transform = 0
-
-            # topic = 'Robot to Neuronavigation: Update force compensation displacement'
-            # data = self.force_transform
-            # self.remote_control.send_message(topic, data)
-
-            self.ft_displacement_offset = [0, 0]                
+            # self.ft_displacement_offset = [0, 0]                
 
         elif self.objective == RobotObjective.TRACK_TARGET:
             self.check_force_sensor()
