@@ -257,6 +257,7 @@ class RobotControl:
             self.compensation_completed = False
             self.above_min_force_detected = False
             self.arrived_at_target = False
+            self.insufficient_compensate_ready = False
             self.force_compensate_counter = 0
 
         print("")
