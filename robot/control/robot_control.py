@@ -72,13 +72,13 @@ class RobotControl:
         # self.force_sensor_threshold = self.robot_config['force_sensor_threshold']
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
         self.force_sensor_lower_threshold = 10
-        self.force_sensor_upper_threshold = 25
+        self.force_sensor_upper_threshold = 22
         self.compensation_completed = False
         
         # A bunch of flag variables for 
         self.FT_NORMALIZE_FLAG = False
         self.EXCESSIVE_FORCE_FLAG = True
-        self.INSUFFICIENT_FORCE_FLAG = False
+        self.INSUFFICIENT_FORCE_FLAG = True
         self.LATERAL_SHIFTING_FLAG = False
         self.FORCE_COMPENSATE_FLAG = False
         self.force_compensate_counter = 0
@@ -633,7 +633,7 @@ class RobotControl:
         self.FORCE_COMPENSATE_FLAG = True
 
     def compensate_insufficient_force(self):
-        print("\nCompensating insufficient force\n")
+        print("\nCompensating lack of force\n")
         self.FORCE_COMPENSATE_FLAG = True
 
     def compensate_force(self):
@@ -976,7 +976,7 @@ class RobotControl:
         # force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
 
         if self.current_z_force > self.force_sensor_lower_threshold and not self.above_min_force_detected and self.INSUFFICIENT_FORCE_FLAG:
-            print("\nabove min force detected, will not run insufficient compensate\n")
+            print("\nabove min force detected, will not run lack of force compensate\n")
             self.above_min_force_detected = True
 
         if not self.above_min_force_detected and self.insufficient_compensate_ready and not self.FORCE_COMPENSATE_FLAG and self.INSUFFICIENT_FORCE_FLAG:
