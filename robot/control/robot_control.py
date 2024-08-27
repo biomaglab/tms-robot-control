@@ -351,7 +351,7 @@ class RobotControl:
         
         self.ndisplacement_to_target = list(translation) + list(angles_as_deg)
         print("self.displacement_to_target: ", self.displacement_to_target)
-        print("distance: ", p.sqrt(np.sum(np.square(self.displacement_to_target[:3]))))
+        print("distance: ", np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))))
         
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
