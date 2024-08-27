@@ -101,6 +101,7 @@ class RobotControl:
 
         self.target_reached = False
         self.displacement_to_target = 6 * [0]
+        self.distance = 0
         self.poa = [0, 0]
         self.ft_displacement_offset = [0, 0]
         self.doLateralShifting = False
@@ -342,16 +343,16 @@ class RobotControl:
 
         # if self.ft_displacement_offset[0] > 0 or self.ft_displacement_offset[1] > 0:
         #     print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
-        print("Displacement received: ", displacement)
+        
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
-        print("Displacement after alignment: ", translation, angles_as_deg)
+
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
         translation[2] += self.force_transform
         
         self.displacement_to_target = list(translation) + list(angles_as_deg)
-        print("self.displacement_to_target: ", self.displacement_to_target)
-        print("distance: ", np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))))
+
+        self.distance = np.sqrt(np.sum(np.square(self.displacement_to_target[:3])))
         
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
@@ -848,7 +849,7 @@ class RobotControl:
 
             return False
         # print("NORMALIZE_FORCE_SENSOR IN HANDLE_OBJECTIVE_TRACK_TARGET", normalize_force_sensor)
-        if not self.FORCE_COMPENSATE_FLAG:
+        if not self.FORCE_COMPENSATE_FLAG and not self.distance < 30:
             self.FT_NORMALIZE_FLAG = True
         # Normalize force sensor values if needed.
         # use_force_sensor = self.config['use_force_sensor']
