@@ -349,7 +349,7 @@ class RobotControl:
         translation[1] += self.ft_displacement_offset[1]
         translation[2] += self.force_transform
         
-        self.ndisplacement_to_target = list(translation) + list(angles_as_deg)
+        self.displacement_to_target = list(translation) + list(angles_as_deg)
         print("self.displacement_to_target: ", self.displacement_to_target)
         print("distance: ", np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))))
         
