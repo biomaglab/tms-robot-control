@@ -342,13 +342,16 @@ class RobotControl:
 
         # if self.ft_displacement_offset[0] > 0 or self.ft_displacement_offset[1] > 0:
         #     print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
-
+        print("Displacement received: ", displacement)
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
+        print("Displacement after alignment: ", translation, angles_as_deg)
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
         translation[2] += self.force_transform
         
-        self.displacement_to_target = list(translation) + list(angles_as_deg)
+        self.ndisplacement_to_target = list(translation) + list(angles_as_deg)
+        print("self.displacement_to_target: ", self.displacement_to_target)
+        print("distance: ", p.sqrt(np.sum(np.square(self.displacement_to_target[:3]))))
         
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
@@ -595,7 +598,7 @@ class RobotControl:
         ## MOVING INWARD TILL MIN FORCE PROCEDURE
         if self.FORCE_COMPENSATE_FLAG and not self.compensation_completed:
             self.force_compensate_counter += 1
-            if self.force_compensate_counter % 250 == 0:
+            if self.force_compensate_counter % 100 == 0:
                 print("\nMOVING INWARD\n")
                 self.force_transform += 1
                 topic = 'Robot to Neuronavigation: Update force compensation displacement'
@@ -628,7 +631,7 @@ class RobotControl:
 
     def compensate_excessive_force(self):
         print("\nCOMPENSATE_FORCE BEING RAN\n")
-        self.force_transform = -10
+        self.force_transform = -150
         topic = 'Robot to Neuronavigation: Update force compensation displacement'
         data = {'displacement': self.force_transform}
         self.remote_control.send_message(topic, data)
