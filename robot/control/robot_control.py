@@ -73,8 +73,8 @@ class RobotControl:
         self.force_compensate_amount = 4
         # self.force_sensor_threshold = self.robot_config['force_sensor_threshold']
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
-        self.force_sensor_lower_threshold = 4
-        self.force_sensor_upper_threshold = 11
+        self.force_sensor_lower_threshold = 2
+        self.force_sensor_upper_threshold = 9
         self.max_force_compensate_displacement = 10
         
         # A bunch of flag variables for force compensation
@@ -595,7 +595,7 @@ class RobotControl:
         F_avg = np.mean(self.F_dq, axis=0)
         M_avg = np.mean(self.M_dq, axis=0)
         Z_avg = np.mean(self.Z_dq, axis=0)
-        print("Z_avg: ", Z_avg)
+        
         self.poa = ft.find_r(F_avg, M_avg)
 
         self.poa[0], self.poa[1] = self.poa[1], self.poa[0] #change in axis, relevant for only aalto robot
