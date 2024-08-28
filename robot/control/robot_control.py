@@ -73,8 +73,8 @@ class RobotControl:
         self.force_compensate_amount = 4
         # self.force_sensor_threshold = self.robot_config['force_sensor_threshold']
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
-        self.force_sensor_lower_threshold = 2
-        self.force_sensor_upper_threshold = 9
+        self.force_sensor_lower_threshold = 4
+        self.force_sensor_upper_threshold = 10
         self.max_force_compensate_displacement = 25
         
         # A bunch of flag variables for force compensation
@@ -83,13 +83,12 @@ class RobotControl:
         self.FORCE_COMPENSATE_OPTION = True
         self.MOVE_OUT_FLAG = False
         self.MOVE_IN_FLAG = False
-        self.force_compensate_counter = 0
         self.compensation_ended = False
         self.arrived_at_target = False
-        self.insufficient_compensate_ready = False
+        
+        # counters used for force compensation (Change this logic later)
         self.arrived_at_target_counter = 0
-
-        self.LATERAL_SHIFTING_FLAG = False
+        self.force_compensate_counter = 0
     
 
         listener = keyboard.Listener(on_press=self.on_keypress)
@@ -262,7 +261,6 @@ class RobotControl:
             self.compensation_running = False
             self.compensation_ended = False
             self.arrived_at_target = False
-            self.insufficient_compensate_ready = False
             self.force_compensate_counter = 0
             self.arrived_at_target_counter = 0
 
@@ -957,7 +955,7 @@ class RobotControl:
             print("Excessive force: Compensation running")
 
         ## Check whether to move in or out
-        if self.compensation_running and self.force_compensate_counter % 500 == 0:
+        if self.compensation_running and self.force_compensate_counter % 200 == 0:
             if self.averaged_z_force > self.force_sensor_upper_threshold:
                 self.MOVE_OUT_FLAG = True
                 self.MOVE_IN_FLAG = False
