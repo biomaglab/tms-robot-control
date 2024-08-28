@@ -949,7 +949,7 @@ class RobotControl:
             print("Excessive force: Compensation running")
 
         ## Check whether to move in or out
-        if self.compensation_running and self.force_compensate_counter % 100 == 0:
+        if self.compensation_running and self.force_compensate_counter % 300 == 0:
             if self.current_z_force > self.force_sensor_upper_threshold:
                 self.MOVE_OUT_FLAG = True
                 self.MOVE_IN_FLAG = False
