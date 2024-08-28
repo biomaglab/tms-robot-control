@@ -54,6 +54,7 @@ class RobotControl:
         self.matrix_tracker_to_robot = []
 
         self.current_z_force = 0
+        self.averaged_z_force = 0
         self.target_z_force = 5
 
         # reference force and moment values
@@ -62,6 +63,7 @@ class RobotControl:
         self.tuning_ongoing = False
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
+        self.Z_dq = deque(maxlen=30)
         self.force_transform = 0 
 
         # topic = 'Robot to Neuronavigation: Update force compensation displacement'
@@ -263,6 +265,7 @@ class RobotControl:
             self.insufficient_compensate_ready = False
             self.force_compensate_counter = 0
             self.arrived_at_target_counter = 0
+
 
         print("")
         print("{}Objective: {}{}".format(Color.BOLD, self.objective.name, Color.END))
@@ -579,6 +582,7 @@ class RobotControl:
         M_normalised = np.array(current_M) - self.moment_ref
         self.F_dq.append(F_normalised)
         self.M_dq.append(M_normalised)
+        self.Z_dq.append(F_normalised[2])
 
         if self.FT_NORMALIZE_FLAG:
             if not self.robot.is_moving():
@@ -590,10 +594,13 @@ class RobotControl:
         # smoothed f-t value, to increase size of filter increase deque size
         F_avg = np.mean(self.F_dq, axis=0)
         M_avg = np.mean(self.M_dq, axis=0)
+        Z_avg = np.mean(self.Z_dq, axis=0)
+        print("Z_avg: ", Z_avg)
         self.poa = ft.find_r(F_avg, M_avg)
 
         self.poa[0], self.poa[1] = self.poa[1], self.poa[0] #change in axis, relevant for only aalto robot
         self.current_z_force = F_normalised[2]
+        self.averaged_z_force = Z_avg
 
         if const.DISPLAY_POA and len(self.poa) == 3:
             with open(const.TEMP_FILE, 'a') as tmpfile:
@@ -936,6 +943,7 @@ class RobotControl:
         ##### FIRST STEP IN LOGIC WHEN TO START THE COMPENSATION PROCEDURE
 
         ## WAITS A LITTLE AFTER ARRIVING AT TARGET BEFORE STARTING TO COMPENSATE FOR INSUFFICIENT FORCE (MAYBE UNNECESSARY, COULD JUST BE THE MOMENT IT ARRIVES AT TARGET)
+        ## More or less acts immediately anyway
         if self.arrived_at_target and not self.compensation_running and not self.compensation_ended:
             self.arrived_at_target_counter += 1
             if self.arrived_at_target_counter >= 100 and self.FORCE_COMPENSATE_OPTION:
@@ -943,17 +951,17 @@ class RobotControl:
                 print("Insufficient force: Compensation running")
 
         ## IF THE FORCE EXCEEDS THE FORCE_SENSOR_THRESHOLD WHEN WITHIN (STOP NORMALIZING THRESHOLD / MAX COMPENSATE PROCEDURE THRESHOLD)
-        if (self.current_z_force > self.force_sensor_upper_threshold and self.FORCE_COMPENSATE_OPTION and self.distance < self.max_force_compensate_displacement and
+        if (self.averaged_z_force > self.force_sensor_upper_threshold and self.FORCE_COMPENSATE_OPTION and self.distance < self.max_force_compensate_displacement and
             not self.compensation_running and not self.compensation_ended):
             self.compensation_running = True
             print("Excessive force: Compensation running")
 
         ## Check whether to move in or out
         if self.compensation_running and self.force_compensate_counter % 500 == 0:
-            if self.current_z_force > self.force_sensor_upper_threshold:
+            if self.averaged_z_force > self.force_sensor_upper_threshold:
                 self.MOVE_OUT_FLAG = True
                 self.MOVE_IN_FLAG = False
-            elif self.current_z_force < self.force_sensor_lower_threshold:
+            elif self.averaged_z_force < self.force_sensor_lower_threshold:
                 self.MOVE_IN_FLAG = True
                 self.MOVE_OUT_FLAG = False
             else:
@@ -967,7 +975,7 @@ class RobotControl:
         if self.MOVE_OUT_FLAG and self.compensation_running:
             self.force_compensate_counter += 1
             print("\nMOVING OUTWARD\n")
-            self.force_transform -= 1
+            self.force_transform -= 0.5
             topic = 'Robot to Neuronavigation: Update force compensation displacement'
             data = {'displacement': self.force_transform}
             self.remote_control.send_message(topic, data)
@@ -977,7 +985,7 @@ class RobotControl:
         if self.MOVE_IN_FLAG and self.compensation_running:
             self.force_compensate_counter += 1
             print("\nMOVING INWARD\n")
-            self.force_transform += 1
+            self.force_transform += 0.5
             topic = 'Robot to Neuronavigation: Update force compensation displacement'
             data = {'displacement': self.force_transform}
             self.remote_control.send_message(topic, data)
