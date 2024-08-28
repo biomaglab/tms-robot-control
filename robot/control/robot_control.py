@@ -71,8 +71,8 @@ class RobotControl:
         self.force_compensate_amount = 4
         # self.force_sensor_threshold = self.robot_config['force_sensor_threshold']
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
-        self.force_sensor_lower_threshold = 5
-        self.force_sensor_upper_threshold = 15
+        self.force_sensor_lower_threshold = 4
+        self.force_sensor_upper_threshold = 11
         self.max_force_compensate_displacement = 10
         
         # A bunch of flag variables for force compensation
