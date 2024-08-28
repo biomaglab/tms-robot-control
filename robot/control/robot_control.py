@@ -940,12 +940,13 @@ class RobotControl:
             self.arrived_at_target_counter += 1
             if self.arrived_at_target_counter >= 100 and self.FORCE_COMPENSATE_OPTION:
                 self.compensation_running = True
-                print("Insufficient force: Compensation running!")
+                print("Insufficient force: Compensation running")
 
         ## IF THE FORCE EXCEEDS THE FORCE_SENSOR_THRESHOLD WHEN WITHIN (STOP NORMALIZING THRESHOLD / MAX COMPENSATE PROCEDURE THRESHOLD)
-        if self.current_z_force > self.force_sensor_upper_threshold and self.FORCE_COMPENSATE_OPTION and self.distance < self.max_force_compensate_displacement:
+        if (self.current_z_force > self.force_sensor_upper_threshold and self.FORCE_COMPENSATE_OPTION and self.distance < self.max_force_compensate_displacement and
+            not self.compensation_running and not self.compensation_ended):
             self.compensation_running = True
-            print("Excessive force: Compensation running!")
+            print("Excessive force: Compensation running")
 
         ## Check whether to move in or out
         if self.compensation_running and self.force_compensate_counter % 100 == 0:
