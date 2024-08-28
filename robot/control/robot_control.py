@@ -73,7 +73,7 @@ class RobotControl:
         ##### UPDATE THE BELOW TO BE PULLED FROM THE MENU
         self.force_sensor_lower_threshold = 5
         self.force_sensor_upper_threshold = 15
-        self.max_force_compensate_displacement = 50
+        self.max_force_compensate_displacement = 10
         
         # A bunch of flag variables for force compensation
         self.compensation_running = False
@@ -949,7 +949,7 @@ class RobotControl:
             print("Excessive force: Compensation running")
 
         ## Check whether to move in or out
-        if self.compensation_running and self.force_compensate_counter % 300 == 0:
+        if self.compensation_running and self.force_compensate_counter % 500 == 0:
             if self.current_z_force > self.force_sensor_upper_threshold:
                 self.MOVE_OUT_FLAG = True
                 self.MOVE_IN_FLAG = False
