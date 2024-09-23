@@ -219,6 +219,20 @@ class DobotConnection:
         speed = speed * 100
         request = "SpeedFactor(" + str(int(speed)) + ")"
         return self._send_and_receive(self.movement_socket, request)
+    
+    def enable_free_drive(self):
+        """
+        Start Drag Mode
+        """
+        request = "StartDrag()"
+        return self._send_and_receive(self.dashboard_socket, request)
+    
+    def disable_free_drive(self):
+        """
+        Stop Drag Mode
+        """
+        request = "StopDrag()"
+        return self._send_and_receive(self.dashboard_socket, request)
 
 FeedbackType = np.dtype([(
     'len',
