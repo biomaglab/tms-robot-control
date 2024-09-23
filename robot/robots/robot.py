@@ -131,6 +131,14 @@ class Robot(ABC):
         pass
 
     @abstractmethod
+    def enable_free_drive(self):
+        pass
+
+    @abstractmethod
+    def disable_free_drive(self):
+        pass
+
+    @abstractmethod
     def close(self):
         """
         Perform necessary cleanup and disconnection procedures for the robot.
