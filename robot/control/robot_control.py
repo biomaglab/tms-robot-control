@@ -93,6 +93,13 @@ class RobotControl:
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
 
+    def OnSetFreeDrive(self, data):
+        set = data["set"]
+        if set == True:
+            self.robot.enable_free_drive()
+        else:
+            self.robot.disable_free_drive()
+
     def OnSetTrackerFiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
         self.process_tracker.__init__(
