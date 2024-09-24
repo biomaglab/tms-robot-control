@@ -83,6 +83,14 @@ class Elfin(Robot):
         sleep(0.05)
 
         return success
+    
+    def enable_free_drive(self):
+        success = self.connection.enable_assistive_robot()
+        return success
+    
+    def disable_free_drive(self):
+        success = self.connection.disable_assistive_robot()
+        return success
 
     # Destruction and cleanup
     def close(self):

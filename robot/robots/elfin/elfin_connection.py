@@ -142,6 +142,26 @@ class ElfinConnection:
         request = "GrpStop," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
+    
+    def enable_assistive_robot(self):
+        """
+        Enable assistive mode.
+
+        :return: True if successful, otherwise False.
+        """
+        request = "StartAssistiveMode," + str(self.ROBOT_ID)
+        success, _ = self._send_and_receive(request, verbose=True)
+        return success
+    
+    def disable_assistive_robot(self):
+        """
+        Disable assistive mode.
+
+        :return: True if successful, otherwise False.
+        """
+        request = "CloseAssistiveMode," + str(self.ROBOT_ID)
+        success, _ = self._send_and_receive(request, verbose=True)
+        return success
 
     def set_speed_ratio(self, speed_ratio):
         """
