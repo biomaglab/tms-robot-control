@@ -92,6 +92,12 @@ class Dobot(Robot):
     def get_pose(self):
         # Always successfully return coordinates.
         return True, self.coordinates
+    
+    def enable_free_drive(self):
+        return self.connection.enable_free_drive()
+    
+    def disable_free_drive(self):
+        return self.connection.disable_free_drive()
 
     # TODO: Note that move_linear, move_circular, and
     #   tune_robot functions are almost identical at this stage.

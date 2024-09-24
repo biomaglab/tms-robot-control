@@ -249,6 +249,7 @@ def main(connection=None):
                             const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
                             const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
                             const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
+                            const.FUNCTION_SET_FREE_DRIVE: robot_control.OnSetFreeDrive,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 

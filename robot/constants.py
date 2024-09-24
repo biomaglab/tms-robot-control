@@ -139,6 +139,7 @@ PUB_MESSAGES = [
     'From Neuronavigation: Coil at target',
     'Neuronavigation to Robot: Update displacement to target',
     'Neuronavigation to Robot: Set objective',
+    'Neuronavigation to Robot: Set free drive',
 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
@@ -153,3 +154,4 @@ FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX = 8
 FUNCTION_COIL_AT_TARGET = 9
 FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET = 10
 FUNCTION_SET_OBJECTIVE = 11
+FUNCTION_SET_FREE_DRIVE = 12
