@@ -82,7 +82,7 @@ class RobotControl:
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
-        self.last_displacement_update_time = None
+        self.last_displacement_update_time = time.time()
         self.last_robot_status_logging_time = time.time()
         self.last_tuning_time = time.time()
 
@@ -619,13 +619,6 @@ class RobotControl:
             print("Target has not been set")
             return False
 
-        # Check if the robot is ready to move.
-        if self.robot_state_controller.get_state() != RobotState.READY:
-
-            # Return True even if the robot is not ready to move; the return value is used to indicate
-            # that the robot is generally in a good state.
-            return True
-
         # Check that the state variables are available.
         if self.head_center is None:
             print("Error: Could not compute the head center")
@@ -671,6 +664,22 @@ class RobotControl:
             self.movement_algorithm.reset_state()
 
             return True
+ 
+        # Check if the target is outside the working space. If so, return early.
+        if not self.target_pose_in_robot_space_estimated_from_displacement:
+            return True
+        working_space_radius = self.robot_config['working_space_radius']
+        normalized_distance_to_target = np.linalg.norm(self.target_pose_in_robot_space_estimated_from_displacement[:3]) 
+        if normalized_distance_to_target >= working_space_radius:
+            print("Error: Head is too far from the robot basis. Distance: ", normalized_distance_to_target)
+            return True
+
+        # Check if the robot is ready to move.
+        if self.robot_state_controller.get_state() != RobotState.READY:
+
+            # Return True even if the robot is not ready to move; the return value is used to indicate
+            # that the robot is generally in a good state.
+            return True
 
         # Check if enough time has passed since the last tuning.
         tuning_interval = self.config['tuning_interval']
@@ -700,12 +709,6 @@ class RobotControl:
             print("Error: No displacement update received for 0.3 seconds")
             self.displacement_to_target = None
             return True
-
-        # Check if the target is outside the working space. If so, return early.
-        working_space_radius = self.robot_config['working_space_radius']
-        if np.linalg.norm(self.target_pose_in_robot_space_estimated_from_displacement[:3]) >= working_space_radius:
-            print("Error: Head is too far from the robot basis")
-            return False
 
         # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:

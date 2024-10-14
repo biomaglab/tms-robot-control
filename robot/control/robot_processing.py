@@ -404,7 +404,7 @@ class TrackerProcessing:
                 del self.velocity_vector[0]
 
             head_velocity_threshold = self.robot_config['head_velocity_threshold']
-            if self.velocity_std > head_velocity_threshold:
+            if self.velocity_std > head_velocity_threshold or any(np.abs(head_velocity)>head_velocity_threshold):
                 self.coord_vel = []
                 self.timestamps = []
                 return True
