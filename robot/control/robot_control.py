@@ -89,6 +89,8 @@ class RobotControl:
         self.objective = RobotObjective.NONE
         self.moving_away_from_head = False
 
+        self.last_warning = ""
+
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
@@ -616,26 +618,26 @@ class RobotControl:
     def handle_objective_track_target(self):
         # If target has not been received, return early.
         if not self.target_set:
-            print("Target has not been set")
-            return False
+            return False, ""
 
         # Check that the state variables are available.
         if self.head_center is None:
             print("Error: Could not compute the head center")
-            return False
+            return False, ""
 
         if self.head_pose_in_robot_space is None:
             print("Error: Could not compute the head pose in robot space")
-            return False
+            return False, ""
 
         if self.tracker.m_tracker_to_robot is None:
             print("Error: Transformation matrix from tracker to robot is not available")
-            return False
+            return False, ""
 
         # Check if head is visible.
         if self.head_pose_in_robot_space is None or not self.tracker.head_visible or not self.tracker.coil_visible:
             if self.config['stop_robot_if_head_not_visible']:
-                print("Warning: Head marker is not visible, stopping the robot")
+                warning = "Warning: Head or coil marker is not visible"
+                print(warning)
 
                 # Stop the robot. This is done because if the head marker is not visible, we cannot trust that the ongoing
                 # movement does not collide with the head.
@@ -646,14 +648,14 @@ class RobotControl:
                 # it's better to continue from a known, well-defined state.
                 self.movement_algorithm.reset_state()
 
-                return True
+                return True, warning
 
             print("Warning: Head marker is not visible")
 
         # Check that the head is not moving too fast.
         if self.process_tracker.is_head_moving_too_fast(self.head_pose_in_robot_space):
-            print("Warning: Head is moving too fast, stopping the robot")
-
+            warning = "Warning: Head is moving too fast"
+            print(warning)
             # Stop the robot. This is done because if the head is moving too fast, we cannot trust that the ongoing
             # movement does not collide with the head.
             self.stop_robot()
@@ -663,23 +665,24 @@ class RobotControl:
             # it's better to continue from a known, well-defined state.
             self.movement_algorithm.reset_state()
 
-            return True
+            return True, warning
  
         # Check if the target is outside the working space. If so, return early.
         if not self.target_pose_in_robot_space_estimated_from_displacement:
-            return True
+            return True, ""
         working_space_radius = self.robot_config['working_space_radius']
         normalized_distance_to_target = np.linalg.norm(self.target_pose_in_robot_space_estimated_from_displacement[:3]) 
         if normalized_distance_to_target >= working_space_radius:
-            print("Error: Head is too far from the robot basis. Distance: ", normalized_distance_to_target)
-            return True
+            warning = f"Warning: Head is too far from the robot basis. Distance: {normalized_distance_to_target:.2f}"
+            print(warning)
+            return True, warning
 
         # Check if the robot is ready to move.
         if self.robot_state_controller.get_state() != RobotState.READY:
 
             # Return True even if the robot is not ready to move; the return value is used to indicate
             # that the robot is generally in a good state.
-            return True
+            return True, ""
 
         # Check if enough time has passed since the last tuning.
         tuning_interval = self.config['tuning_interval']
@@ -692,7 +695,7 @@ class RobotControl:
         if self.target_reached and not is_time_to_tune:
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
-            return True
+            return True, ""
 
         self.last_tuning_time = time.time()
 
@@ -702,13 +705,13 @@ class RobotControl:
 
             # Even though a recent displacement should be always available, it turns out that the 0.3 second time limit
             # is quite strict. Hence, interpret the lack of displacement as a "good state".
-            return True
+            return True, ""
 
         # Ensure that the displacement to target has been updated recently.
         if time.time() > self.last_displacement_update_time + 0.3:
             print("Error: No displacement update received for 0.3 seconds")
             self.displacement_to_target = None
-            return True
+            return True, ""
 
         # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
@@ -729,12 +732,13 @@ class RobotControl:
         )
 
         if not success:
-            print("Error: Could not move the robot")
+            warning = "Error: Could not move the robot"
+            print(warning)
 
             if self.robot.is_error_state():
                 print("Error: Robot is in error state")
 
-            return False
+            return False, warning
 
         # Normalize force sensor values if needed.
         use_force_sensor = self.config['use_force_sensor']
@@ -748,7 +752,7 @@ class RobotControl:
         if success:
             self.robot_state_controller.set_state_to_start_moving()
 
-        return success
+        return success, ""
 
     # Handle the movement away from the head.
 
@@ -874,6 +878,17 @@ class RobotControl:
 
             return False
 
+    def SendWarningToNeuronavigation(self, warning):
+        # Send warning message to invesalius.
+        # TODO self.connection
+        # if self.connection:
+        #     self.connection.set_warning(warning)
+        if self.remote_control and self.last_warning  != "":
+            topic = 'Robot to Neuronavigation: Update robot warning'
+            data = {'robot_warning': warning}
+            self.remote_control.send_message(topic, data)
+        self.last_warning = warning
+
     def update(self):
         # Check if the robot is connected.
         if not self.robot.is_connected():
@@ -896,7 +911,8 @@ class RobotControl:
 
         elif self.objective == RobotObjective.TRACK_TARGET:
             self.check_force_sensor()
-            success = self.handle_objective_track_target()
+            success, warning = self.handle_objective_track_target()
+            self.SendWarningToNeuronavigation(warning)
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
             success = self.handle_objective_move_away_from_head()

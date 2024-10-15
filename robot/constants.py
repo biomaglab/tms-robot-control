@@ -98,7 +98,7 @@ ROBOT_CONFIG = {
 
     # Robot working space is defined as 800 mm in Elfin 5 manual. For safety, the value is
     # reduced by 5%. For debugging, feel free to use 1000 mm.
-    'working_space_radius': 700,
+    'working_space_radius': 760,
     'sleep': 0.0,
 
     # Head motion
