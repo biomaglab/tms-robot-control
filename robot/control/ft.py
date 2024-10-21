@@ -49,8 +49,8 @@ def find_r(F, M):
         r_tran[0], r_tran[1] = 0, 0
 
     else:
-        if F[2] < 1:
-            #print(r_tran)
+        # This checks that there is force in the z direction, such that the POA is only calculated when there is pressure
+        if F[2] > 1:
             pass
         else:
             r_tran[0], r_tran[1] = 0, 0
