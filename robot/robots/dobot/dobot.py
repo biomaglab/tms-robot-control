@@ -30,8 +30,8 @@ class Dobot(Robot):
     The class for communicating with Dobot robot.
     """
     TOOL_ID = 0
-    TIMEOUT_START_MOTION = 10
-    TIMEOUT_MOTION = 45
+    TIMEOUT_START_MOTION = 1
+    TIMEOUT_MOTION = 15
 
     def __init__(self, ip, robot_config):
         self.robot_config = robot_config
@@ -92,6 +92,12 @@ class Dobot(Robot):
     def get_pose(self):
         # Always successfully return coordinates.
         return True, self.coordinates
+    
+    def enable_free_drive(self):
+        return self.connection.enable_free_drive()
+    
+    def disable_free_drive(self):
+        return self.connection.disable_free_drive()
 
     # TODO: Note that move_linear, move_circular, and
     #   tune_robot functions are almost identical at this stage.
@@ -151,12 +157,12 @@ class Dobot(Robot):
         return True, self.force_torque_data
 
     def stop_robot(self):
-        success = self.connection.reset_robot()
+        if self.connection.reset_robot():
+            # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
+            time.sleep(0.05)
+            return True
 
-        # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.
-        time.sleep(0.05)
-
-        return success
+        return False
 
     def close(self):
         self.stop_robot()
@@ -191,7 +197,7 @@ class Dobot(Robot):
         timeout_start = time.time()
         while self.running_status != 1:
             if time.time() > timeout_start + self.TIMEOUT_START_MOTION:
-                print("break")
+                print("break: TIMEOUT_START_MOTION")
                 self.stop_robot()
                 break
             time.sleep(0.001)
@@ -202,6 +208,6 @@ class Dobot(Robot):
                 self.stop_robot()
             if time.time() > timeout_start + self.TIMEOUT_MOTION:
                 self.stop_robot()
-                print("break")
+                print("break: TIMEOUT_MOTION")
                 break
             time.sleep(0.001)

@@ -27,12 +27,12 @@ class RobotObjective(Enum):
 
 
 class RobotControl:
-    def __init__(self, remote_control, config, site_config, robot_config):
+    def __init__(self, remote_control, config, site_config, robot_config, connection):
         self.remote_control = remote_control
-
         self.config = config
         self.site_config = site_config
         self.robot_config = robot_config
+        self.connection = connection
 
         self.verbose = config['verbose']
 
@@ -64,7 +64,7 @@ class RobotControl:
         self.F_dq = deque(maxlen=6)
         self.M_dq = deque(maxlen=6)
         self.Z_dq = deque(maxlen=30)
-        self.force_transform = 0 
+        self.force_transform = 0
 
         # topic = 'Robot to Neuronavigation: Update force compensation displacement'
         # data = self.force_transform
@@ -76,7 +76,7 @@ class RobotControl:
         self.force_sensor_lower_threshold = 4
         self.force_sensor_upper_threshold = 10
         self.max_force_compensate_displacement = 25
-        
+
         # A bunch of flag variables for force compensation
         self.compensation_running = False
         self.FT_NORMALIZE_FLAG = False
@@ -85,11 +85,11 @@ class RobotControl:
         self.MOVE_IN_FLAG = False
         self.compensation_ended = False
         self.arrived_at_target = False
-        
+
         # counters used for force compensation (Change this logic later)
         self.arrived_at_target_counter = 0
         self.force_compensate_counter = 0
-    
+
 
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
@@ -112,16 +112,25 @@ class RobotControl:
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
-        self.last_displacement_update_time = None
+        self.last_displacement_update_time = time.time()
         self.last_robot_status_logging_time = time.time()
         self.last_tuning_time = time.time()
 
         self.objective = RobotObjective.NONE
         self.moving_away_from_head = False
 
+        self.last_warning = ""
+
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
         self.ConnectToRobot(robot_IP)
+
+    def OnSetFreeDrive(self, data):
+        set = data["set"]
+        if set == True:
+            self.robot.enable_free_drive()
+        else:
+            self.robot.disable_free_drive()
 
     def OnSetTrackerFiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
@@ -174,9 +183,12 @@ class RobotControl:
 
     def OnCreatePoint(self, data):
         if self.create_calibration_point():
-            topic = 'Robot to Neuronavigation: Coordinates for the robot transformation matrix collected'
-            data = {}
-            self.remote_control.send_message(topic, data)
+            if self.connection:
+                self.connection.robot_pose_collected(success=True)
+            if self.remote_control:
+                topic = 'Robot to Neuronavigation: Coordinates for the robot transformation matrix collected'
+                data = {}
+                self.remote_control.send_message(topic, data)
 
     def OnResetRobotMatrix(self, data):
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -204,9 +216,12 @@ class RobotControl:
             self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
             self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-            topic = 'Robot to Neuronavigation: Update robot transformation matrix'
-            data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
-            self.remote_control.send_message(topic, data)
+            if self.connection:
+                self.connection.update_robot_transformation_matrix(np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist())
+            if self.remote_control:
+                topic = 'Robot to Neuronavigation: Update robot transformation matrix'
+                data = {'data': np.hstack(np.concatenate((X_est, Y_est, affine_matrix_tracker_to_robot))).tolist()}
+                self.remote_control.send_message(topic, data)
 
         except np.linalg.LinAlgError:
             print("numpy.linalg.LinAlgError")
@@ -346,17 +361,17 @@ class RobotControl:
 
         # if self.ft_displacement_offset[0] > 0 or self.ft_displacement_offset[1] > 0:
         #     print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
-        
+
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
 
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
         translation[2] += self.force_transform
-        
+
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
         self.distance = np.sqrt(np.sum(np.square(self.displacement_to_target[:3])))
-        
+
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
                 ", ".join(["{:.2f}".format(x) for x in self.displacement_to_target]),
@@ -431,18 +446,24 @@ class RobotControl:
                 assert False, "Unknown movement algorithm"
 
         else:
-            # Send message to neuronavigation to close the robot dialog.
-            topic = 'Robot to Neuronavigation: Close robot dialog'
-            data = {}
-            self.remote_control.send_message(topic, data)
+            # Send message to tms_robot_control to close the robot dialog.
+            if self.remote_control:
+                topic = 'Robot to Neuronavigation: Close robot dialog'
+                data = {}
+                self.remote_control.send_message(topic, data)
+            if self.connection:
+                self.connection.close_robot_dialog(True)
 
             self.robot = None
             print('Error: Unable to connect to robot.')
 
-        # Send message to neuronavigation indicating the state of connection.
-        topic = 'Robot to Neuronavigation: Robot connection status'
-        data = {'data': success}
-        self.remote_control.send_message(topic, data)
+        # Send message to tms_robot_control indicating the state of connection.
+        if self.connection:
+            self.connection.robot_connection_status(success)
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Robot connection status'
+            data = {'data': success}
+            self.remote_control.send_message(topic, data)
 
     def UpdateForceVars(self, data):
         print("self.EXCESSIVE_FORCE_FLAG before ", self.FORCE_COMPENSATE_OPTION)
@@ -468,15 +489,16 @@ class RobotControl:
         # status = False
         # data = {'data' : (self.ft_displacement_offset, status)}
 
-        # self.status = False
-
-        # self.remote_control.send_message(topic, data)
+        #self.remote_control.send_message(topic, data)
 
     def SendObjectiveToNeuronavigation(self):
-        # Send message to neuronavigation indicating the current objective.
-        topic = 'Robot to Neuronavigation: Set objective'
-        data = {'objective': self.objective.value}
-        self.remote_control.send_message(topic, data)
+        # Send message to tms_robot_control indicating the current objective.
+        if self.connection:
+            self.connection.set_objective(self.objective.value)
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Set objective'
+            data = {'objective': self.objective.value}
+            self.remote_control.send_message(topic, data)
 
     def on_keypress(self, key):
         """
@@ -568,6 +590,7 @@ class RobotControl:
 
         success, force_sensor_values = self.robot.read_force_sensor()
 
+        # If force sensor could not be read, return early.
         if not success:
             print("Error: Could not read the force sensor.")
             return
@@ -593,7 +616,7 @@ class RobotControl:
         F_avg = np.mean(self.F_dq, axis=0)
         M_avg = np.mean(self.M_dq, axis=0)
         Z_avg = np.mean(self.Z_dq, axis=0)
-        
+
         self.poa = ft.find_r(F_avg, M_avg)
 
         self.poa[0], self.poa[1] = self.poa[1], self.poa[0] #change in axis, relevant for only aalto robot
@@ -604,7 +627,7 @@ class RobotControl:
             with open(const.TEMP_FILE, 'a') as tmpfile:
                 tmpfile.write(f'{self.poa}({self.current_z_force})\n')
 
-        return force_sensor_values        
+        return force_sensor_values
 
     def compensate_force(self):
         ### Centering of the coil for now not running cause testing force compensation
@@ -627,7 +650,7 @@ class RobotControl:
         #             self.ft_displacement_offset = self.poa
         #             time.sleep(1)
 
-        
+
         """
         Compensate the force by moving the target in the negative z-direction by 2mm until track target turned off. 
         """
@@ -696,33 +719,26 @@ class RobotControl:
     def handle_objective_track_target(self):
         # If target has not been received, return early.
         if not self.target_set:
-            print("Target has not been set")
-            return False
-
-        # Check if the robot is ready to move.
-        if self.robot_state_controller.get_state() != RobotState.READY:
-
-            # Return True even if the robot is not ready to move; the return value is used to indicate
-            # that the robot is generally in a good state.
-            return True
+            return False, ""
 
         # Check that the state variables are available.
         if self.head_center is None:
             print("Error: Could not compute the head center")
-            return False
+            return False, ""
 
         if self.head_pose_in_robot_space is None:
             print("Error: Could not compute the head pose in robot space")
-            return False
+            return False, ""
 
         if self.tracker.m_tracker_to_robot is None:
             print("Error: Transformation matrix from tracker to robot is not available")
-            return False
+            return False, ""
 
         # Check if head is visible.
         if self.head_pose_in_robot_space is None or not self.tracker.head_visible or not self.tracker.coil_visible:
             if self.config['stop_robot_if_head_not_visible']:
-                print("Warning: Head marker is not visible, stopping the robot")
+                warning = "Warning: Head or coil marker is not visible"
+                print(warning)
 
                 # Stop the robot. This is done because if the head marker is not visible, we cannot trust that the ongoing
                 # movement does not collide with the head.
@@ -733,14 +749,14 @@ class RobotControl:
                 # it's better to continue from a known, well-defined state.
                 self.movement_algorithm.reset_state()
 
-                return True
+                return True, warning
 
             print("Warning: Head marker is not visible")
 
         # Check that the head is not moving too fast.
         if self.process_tracker.is_head_moving_too_fast(self.head_pose_in_robot_space):
-            print("Warning: Head is moving too fast, stopping the robot")
-
+            warning = "Warning: Head is moving too fast"
+            print(warning)
             # Stop the robot. This is done because if the head is moving too fast, we cannot trust that the ongoing
             # movement does not collide with the head.
             self.stop_robot()
@@ -750,7 +766,24 @@ class RobotControl:
             # it's better to continue from a known, well-defined state.
             self.movement_algorithm.reset_state()
 
-            return True
+            return True, warning
+
+        # Check if the target is outside the working space. If so, return early.
+        if not self.target_pose_in_robot_space_estimated_from_displacement:
+            return True, ""
+        working_space_radius = self.robot_config['working_space_radius']
+        normalized_distance_to_target = np.linalg.norm(self.target_pose_in_robot_space_estimated_from_displacement[:3])
+        if normalized_distance_to_target >= working_space_radius:
+            warning = f"Warning: Head is too far from the robot basis. Distance: {normalized_distance_to_target:.2f}"
+            print(warning)
+            return True, warning
+
+        # Check if the robot is ready to move.
+        if self.robot_state_controller.get_state() != RobotState.READY:
+
+            # Return True even if the robot is not ready to move; the return value is used to indicate
+            # that the robot is generally in a good state.
+            return True, ""
 
         # Check if enough time has passed since the last tuning.
         tuning_interval = self.config['tuning_interval']
@@ -763,7 +796,7 @@ class RobotControl:
         if self.target_reached and not is_time_to_tune:
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
-            return True
+            return True, ""
 
         self.last_tuning_time = time.time()
 
@@ -773,19 +806,13 @@ class RobotControl:
 
             # Even though a recent displacement should be always available, it turns out that the 0.3 second time limit
             # is quite strict. Hence, interpret the lack of displacement as a "good state".
-            return True
+            return True, ""
 
         # Ensure that the displacement to target has been updated recently.
         if time.time() > self.last_displacement_update_time + 0.3:
             print("Error: No displacement update received for 0.3 seconds")
             self.displacement_to_target = None
-            return True
-
-        # Check if the target is outside the working space. If so, return early.
-        working_space_radius = self.robot_config['working_space_radius']
-        if np.linalg.norm(self.target_pose_in_robot_space_estimated_from_displacement[:3]) >= working_space_radius:
-            print("Error: Head is too far from the robot basis")
-            return False
+            return True, ""
 
         # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
         #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
@@ -796,7 +823,7 @@ class RobotControl:
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
         # Move the robot.
-        # print("Moving the robot based on the displacement:", np.array(self.displacement_to_target))
+        print("Moving the robot based on the displacement:", np.array(self.displacement_to_target))
         success, normalize_force_sensor = self.movement_algorithm.move_decision(
             displacement_to_target=self.displacement_to_target,
             target_pose_in_robot_space_estimated_from_head_pose=self.target_pose_in_robot_space_estimated_from_head_pose,
@@ -806,13 +833,14 @@ class RobotControl:
         )
 
         if not success:
-            print("Error: Could not move the robot")
+            warning = "Error: Could not move the robot"
+            print(warning)
 
             if self.robot.is_error_state():
                 print("Error: Robot is in error state")
 
-            return False
-        
+            return False, warning
+
         if not self.compensation_running and not self.distance < self.max_force_compensate_displacement:
             self.FT_NORMALIZE_FLAG = True
 
@@ -820,7 +848,7 @@ class RobotControl:
         if success:
             self.robot_state_controller.set_state_to_start_moving()
 
-        return success
+        return success, ""
 
     # Handle the movement away from the head.
 
@@ -977,7 +1005,7 @@ class RobotControl:
             topic = 'Robot to Neuronavigation: Update force compensation displacement'
             data = {'displacement': self.force_transform}
             self.remote_control.send_message(topic, data)
-            self.MOVE_OUT_FLAG = False            
+            self.MOVE_OUT_FLAG = False
 
         ## MOVING INWARD PROCEDURE
         if self.MOVE_IN_FLAG and self.compensation_running:
@@ -988,7 +1016,7 @@ class RobotControl:
             data = {'displacement': self.force_transform}
             self.remote_control.send_message(topic, data)
             self.MOVE_IN_FLAG = False
-        
+
 
         ## Increment force counter
         if self.compensation_running:
@@ -1008,6 +1036,17 @@ class RobotControl:
             self.compensation_running = False
             self.force_compensate_counter = 0
 
+    def SendWarningToNeuronavigation(self, warning):
+        # Send warning message to invesalius.
+        # TODO self.connection
+        # if self.connection:
+        #     self.connection.set_warning(warning)
+        if self.remote_control and self.last_warning  != "":
+            topic = 'Robot to Neuronavigation: Update robot warning'
+            data = {'robot_warning': warning}
+            self.remote_control.send_message(topic, data)
+        self.last_warning = warning
+
     def update(self):
         # Check if the robot is connected.
         if not self.robot.is_connected():
@@ -1018,7 +1057,7 @@ class RobotControl:
                 return False
 
         # Update the robot pose.
-        self.update_robot_pose() 
+        self.update_robot_pose()
 
         # Update the robot state.
         self.robot_state_controller.update()
@@ -1026,13 +1065,12 @@ class RobotControl:
         self.update_state_variables()
 
         if self.objective == RobotObjective.NONE:
-            # print("self.times_comp_force_ran_per_track", self.times_comp_force_ran_per_track)
             success = self.handle_objective_none()
-            # self.ft_displacement_offset = [0, 0]                
 
         elif self.objective == RobotObjective.TRACK_TARGET:
             self.continuous_force_compensation()
-            success = self.handle_objective_track_target()
+            success, warning = self.handle_objective_track_target()
+            self.SendWarningToNeuronavigation(warning)
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
             success = self.handle_objective_move_away_from_head()

@@ -98,11 +98,11 @@ ROBOT_CONFIG = {
 
     # Robot working space is defined as 800 mm in Elfin 5 manual. For safety, the value is
     # reduced by 5%. For debugging, feel free to use 1000 mm.
-    'working_space_radius': 1000,
+    'working_space_radius': 760,
     'sleep': 0.0,
 
     # Head motion
-    'head_velocity_threshold': 20,
+    'head_velocity_threshold': 15,
 
     # Tuning motion
     'distance_threshold_for_tuning': 30,
@@ -139,6 +139,7 @@ PUB_MESSAGES = [
     'From Neuronavigation: Coil at target',
     'Neuronavigation to Robot: Update displacement to target',
     'Neuronavigation to Robot: Set objective',
+    'Neuronavigation to Robot: Set free drive',
     'Neuronavigation to Robot: Update excessive force adjustment',
 ]
 
@@ -154,4 +155,5 @@ FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX = 8
 FUNCTION_COIL_AT_TARGET = 9
 FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET = 10
 FUNCTION_SET_OBJECTIVE = 11
-FUNCTION_RUN_FORCE_UPDATE = 12
+FUNCTION_SET_FREE_DRIVE = 12
+FUNCTION_RUN_FORCE_UPDATE = 13
