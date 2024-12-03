@@ -10,6 +10,7 @@ import robot.transformations as tr
 
 import robot.robots.elfin.elfin as elfin
 import robot.robots.dobot.dobot as dobot
+import robot.robots.universal_robot.universal_robot as ur
 import robot.control.coordinates as coordinates
 #import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
@@ -357,8 +358,8 @@ class RobotControl:
             success = robot.connect()
 
         elif robot_type == "ur":
-            # TODO: Add Universal Robots robot here.
-            pass
+            robot = ur.UniversalRobot(robot_IP)
+            success = robot.connect()
 
         elif robot_type == "test":
             # TODO: Add 'test' robot here.
