@@ -250,6 +250,7 @@ def main(connection=None):
                             const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
                             const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
                             const.FUNCTION_SET_FREE_DRIVE: robot_control.OnSetFreeDrive,
+                            const.FUNCTION_CHECK_CONNECTION: robot_control.OnCheckConnectionRobot,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
