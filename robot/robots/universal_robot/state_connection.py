@@ -245,9 +245,9 @@ class StateConnection(Thread):
 
     def get_pose(self):
         if self.state is None:
-            return None
+            return False, None
 
-        return [self.X, self.Y, self.Z, self.Rx, self.Ry, self.Rz]
+        return True, [self.X, self.Y, self.Z, self.Rx, self.Ry, self.Rz]
 
     def __repr__(self):
         if self.state is None:

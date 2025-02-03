@@ -36,8 +36,8 @@ class DirectlyUpwardAlgorithm:
 
     def __init__(self, robot, config, robot_config):
         self.robot = robot
+        self.config = config
 
-        self.safe_height = config['safe_height']
         self.default_speed_ratio = config['default_speed_ratio']
         self.tuning_speed_ratio = config['tuning_speed_ratio']
         self.translation_threshold = config['translation_threshold']
@@ -110,7 +110,7 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving and rotating in XY plane{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = self.safe_height
+            pose[2] = self.config['safe_height']
             success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_PARTWAY_DOWNWARD:
@@ -118,7 +118,7 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving partway downward{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.safe_height - pose[2])
+            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.config['safe_height'] - pose[2])
             success = self.robot.move_linear(pose, self.default_speed_ratio)
             normalize_force_sensor = True
 
@@ -127,7 +127,7 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving to target{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION/3 * (self.safe_height - pose[2])
+            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION/3 * (self.config['safe_height'] - pose[2])
             # We assume to be close to target by this stage. Hence, use tuning speed for the movement.
             success = self.robot.move_linear(pose, self.tuning_speed_ratio)
 
@@ -149,7 +149,7 @@ class DirectlyUpwardAlgorithm:
         if not success:
             return False
 
-        pose[2] = self.safe_height
+        pose[2] = self.config['safe_height']
         success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         return success

@@ -13,7 +13,7 @@ sys.path.insert(0, root_dir)
 
 from robot.robots.universal_robot.universal_robot import UniversalRobot
 
-ip = "192.168.5.5"
+ip = "169.254.128.103"
 
 robot = UniversalRobot(
     ip=ip,

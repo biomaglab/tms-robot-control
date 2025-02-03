@@ -10,6 +10,7 @@ import robot.transformations as tr
 
 import robot.robots.elfin.elfin as elfin
 import robot.robots.dobot.dobot as dobot
+import robot.robots.universal_robot.universal_robot as ur
 import robot.control.coordinates as coordinates
 import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
@@ -104,6 +105,7 @@ class RobotControl:
 
         self.target_reached = False
         self.displacement_to_target = 6 * [0]
+        self.displacement_to_target_history = []
         self.distance = 0
         self.poa = [0, 0]
         self.ft_displacement_offset = [0, 0]
@@ -120,6 +122,8 @@ class RobotControl:
         self.moving_away_from_head = False
 
         self.last_warning = ""
+
+        self.safe_height_defined_by_user = self.config['safe_height']
 
     def OnRobotConnection(self, data):
         robot_IP = data["robot_IP"]
@@ -363,7 +367,6 @@ class RobotControl:
         #     print("ADDING DISPLACEMENT BY FORCE SENSOR: ", self.ft_displacement_offset)
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
-
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
         translation[2] += self.force_transform
@@ -380,8 +383,16 @@ class RobotControl:
 
         self.last_displacement_update_time = time.time()
 
+        self.displacement_to_target_history.append(displacement.copy())
+        if len(self.displacement_to_target_history) >= 10:
+            if all(x == self.displacement_to_target_history[0] for x in self.displacement_to_target_history):
+                self.stop_robot()
+                self.objective = RobotObjective.NONE
+                self.SendObjectiveToNeuronavigation()
+                print("ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected.")
+            del self.displacement_to_target_history[0]
+
     def OnCoilAtTarget(self, data):
-        # print("Coil at target (TESTING WHEN RUNS)")
         self.target_reached = data["state"]
 
     def ConnectToRobot(self, robot_IP):
@@ -401,8 +412,8 @@ class RobotControl:
             success = robot.connect()
 
         elif robot_type == "ur":
-            # TODO: Add Universal Robots robot here.
-            pass
+            robot = ur.UniversalRobot(robot_IP)
+            success = robot.connect()
 
         elif robot_type == "test":
             # TODO: Add 'test' robot here.
@@ -716,6 +727,24 @@ class RobotControl:
 
         return success
 
+    def set_safe_height(self, head_pose_in_robot_space):
+        # Define safe heights
+        safe_height_based_on_head = head_pose_in_robot_space[2] + 150 # 15 cm above the head
+
+        # Determine the maximum safe height
+        max_safe_height = max(safe_height_based_on_head, self.safe_height_defined_by_user)
+
+        # Get current robot height
+        robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
+
+        # Determine the height to move to
+        if robot_pose_z < max_safe_height:
+            move_to_height = max_safe_height  # Move to the safe height
+        else:
+            move_to_height = robot_pose_z  # Stay at current height
+
+        return move_to_height
+
     def handle_objective_track_target(self):
         # If target has not been received, return early.
         if not self.target_set:
@@ -767,7 +796,7 @@ class RobotControl:
             self.movement_algorithm.reset_state()
 
             return True, warning
-
+ 
         # Check if the target is outside the working space. If so, return early.
         if not self.target_pose_in_robot_space_estimated_from_displacement:
             return True, ""
@@ -937,6 +966,7 @@ class RobotControl:
 
         if self.tracker.m_tracker_to_robot is not None:
             head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_in_tracker_space_filtered)
+            self.config['safe_height'] = self.set_safe_height(head_pose_in_robot_space)
         else:
             # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
             #   claim that the head pose in tracker space is in robot space and use it as such.

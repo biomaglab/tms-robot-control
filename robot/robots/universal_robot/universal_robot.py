@@ -13,6 +13,7 @@ from robot.robots.universal_robot.state_connection import (
     StateConnection,
 )
 
+from scipy.spatial.transform import Rotation as R
 
 class UniversalRobot(Robot):
     """
@@ -32,7 +33,7 @@ class UniversalRobot(Robot):
     # acceleration, so that the robot can reach the desired velocity in a controlled manner.
     #
     # Use a default acceleration value (in m/s^2), defined here.
-    DEFAULT_ACCELERATION = 0.2
+    DEFAULT_ACCELERATION = 0.05
 
     def __init__(self, ip):
         self.command_connection = CommandConnection(
@@ -65,12 +66,37 @@ class UniversalRobot(Robot):
             print("Waiting for the robot state...")
             sleep(0.2)
 
+    # Function to convert a rotation vector to RPY
+    def rotvec_to_rpy(self, rotvec):
+        # Convert the rotation vector to a Rotation object
+        rot = R.from_rotvec(rotvec)
+
+        # Convert the rotation matrix to roll, pitch, yaw (in radians)
+        rpy = rot.as_euler('xyz', degrees=True)  # or 'zyx' depending on your convention
+
+        return rpy
+
+    # Function to convert RPY to a rotation vector
+    def rpy_to_rotvec(self, rpy):
+        # Convert RPY angles (in degrees) to a Rotation object
+        rot = R.from_euler('xyz', rpy, degrees=True)  # or 'zyx' depending on your convention
+
+        # Convert the Rotation object to a rotation vector
+        rotvec = rot.as_rotvec()
+
+        return rotvec
+
     # Robot state
     def get_pose(self):
         # TODO: This is currently incorrect; state_connection.get_pose() returns [x, y, z, rx, ry, rz] where
         #   [rx, ry, rz] define a rotation vector, whereas the robot interface should return Euler angles (using 'sxyz' convention;
         #   see robot.py). This would be the correct place to do the transformation.
-        return self.state_connection.get_pose()
+        success, pose = self.state_connection.get_pose()
+        if not success:
+            return success, None
+        euler_angles = self.rotvec_to_rpy(pose[3:])
+        return success, [pose[0], pose[1], pose[2], euler_angles[0], euler_angles[1], euler_angles[2]]
+        #return self.state_connection.get_pose()
 
     def is_moving(self):
         return self.state_connection.is_moving()
@@ -120,7 +146,7 @@ class UniversalRobot(Robot):
         )
 
     def stop_robot(self):
-        return self.command_connection.stop_robot()
+        return self.command_connection.stop_robot(0.5)
 
     # Destruction and cleanup
     def close(self):
@@ -133,10 +159,16 @@ class UniversalRobot(Robot):
         orientation_in_degrees = pose[3:]
 
         position_in_meters = [value / 1000 for value in position_in_mm]
-        orientation_in_radians = [np.radians(value) for value in orientation_in_degrees]
+        rotations_in_radians = self.rpy_to_rotvec(orientation_in_degrees)
 
-        return position_in_meters + orientation_in_radians
+        return position_in_meters + list(rotations_in_radians)
 
     # TODO: A dummy function, can be removed once the corresponding function from Dobot class is removed.
     def set_target_reached(self, _):
+        pass
+
+    def enable_free_drive(self):
+        pass
+
+    def disable_free_drive(self):
         pass

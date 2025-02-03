@@ -65,6 +65,37 @@ SITE_CONFIG = {
 #   Sensor scale threshold: TODO (as percentage of initial force)
 
 ROBOT_CONFIG = {
+  "ur": {
+    # General
+
+    # Robot working space is defined as 800 mm in Elfin 5 manual. For safety, the value is
+    # reduced by 5%. For debugging, feel free to use 1000 mm.
+    'working_space_radius': 1000,
+    'sleep': 0.0,
+
+    # Head motion
+    'head_velocity_threshold': 15,
+
+    # Tuning motion
+    'distance_threshold_for_tuning': 30,
+    'angular_distance_threshold_for_tuning': 5,
+
+    # Arc motion
+    'distance_threshold_for_arc_motion': 80,
+    'angular_distance_threshold_for_arc_motion': 30,
+    'arc_bezier_curve_step': None,
+    'threshold_to_update_arc_motion_target': 40,
+    'versor_scale_factor': 50,
+    'middle_arc_scale_factor': 1.5,
+
+    # Robot tracker registration
+    'transformation_matrix_threshold': 1,
+
+    # Force and torque sensor
+    'force_sensor_threshold': 10,
+    'force_sensor_scale_threshold': 30,
+  },
+
   'dobot': {
     # General
     'working_space_radius': 1500,
