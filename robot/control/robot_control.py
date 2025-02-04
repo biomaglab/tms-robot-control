@@ -19,6 +19,7 @@ from robot.control.color import Color
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
+from robot.control.PID import PID
 
 
 class RobotObjective(Enum):
@@ -80,6 +81,13 @@ class RobotControl:
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
         self.ft_displacement_offset = [0, 0]
+        # Initialize PID controllers
+        self.pid_x = PID()
+        self.pid_y = PID()
+        self.pid_z = PID()
+        self.pid_rx = PID()
+        self.pid_ry = PID()
+        self.pid_rz = PID()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -133,6 +141,13 @@ class RobotControl:
 
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
+
+        self.pid_x.clear()
+        self.pid_y.clear()
+        self.pid_z.clear()
+        self.pid_rx.clear()
+        self.pid_ry.clear()
+        self.pid_rz.clear()
 
         print("Target set")
 
@@ -317,9 +332,33 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
-        translation[0] += self.ft_displacement_offset[0]
-        translation[1] += self.ft_displacement_offset[1]
-        self.displacement_to_target = list(translation) + list(angles_as_deg)
+        self.pid_x.update(translation[0])
+        self.pid_y.update(translation[1])
+        self.pid_z.update(translation[2])
+        self.pid_rx.update(angles_as_deg[0])
+        self.pid_ry.update(angles_as_deg[1])
+        self.pid_rz.update(angles_as_deg[2])
+
+        # def compute_angular_error(setpoint, measured):
+        #     error = setpoint - measured
+        #     while error > 180:   # assumes angles are expressed in degrees
+        #         error -= 360
+        #     while error < -180:
+        #         error += 360
+        #     return error
+
+        translation_correction_x = self.pid_x.output
+        translation_correction_y = self.pid_y.output
+        translation_correction_z = self.pid_z.output
+        translation_correction_rx = self.pid_rx.output
+        translation_correction_ry = self.pid_ry.output
+        translation_correction_rz = self.pid_rz.output
+
+        translation_correction_x += self.ft_displacement_offset[0]
+        translation_correction_y += self.ft_displacement_offset[1]
+
+        self.displacement_to_target = list([translation_correction_x, translation_correction_y, translation_correction_z,
+                                            translation_correction_rx, translation_correction_ry, translation_correction_rz])
 
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
