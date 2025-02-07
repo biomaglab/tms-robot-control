@@ -55,15 +55,17 @@ class DirectlyPIDAlgorithm:
 
         if round(robot_pose[2]) < round(self.config['safe_height']):
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence. If motion sequence is not initiated, check if it should be.
-            if max_translation > self.translation_threshold or max_rotation > self.rotation_threshold or self.motion_sequence_state == MotionSequenceState.NOT_INITIATED:
+            if max_translation > self.translation_threshold or max_rotation > self.rotation_threshold:
                 if max_translation > self.translation_threshold:
                     print("Translation ({:.2f} mm) exceeds the threshold ({:.2f} mm)".format(max_translation, self.translation_threshold))
                 if max_rotation > self.rotation_threshold:
                     print("Rotation ({:.2f} deg) exceeds the threshold ({:.2f} deg)".format(max_rotation, self.rotation_threshold))
-
-                print("Initiating motion sequence")
-                # Start the motion sequence by moving upward.
-                self.motion_sequence_state = MotionSequenceState.MOVE_UPWARD
+                if self.motion_sequence_state == MotionSequenceState.NOT_INITIATED:
+                    print("Initiating motion sequence")
+                    # Start the motion sequence by moving upward.
+                    self.motion_sequence_state = MotionSequenceState.MOVE_UPWARD
+        else:
+            self.motion_sequence_state = MotionSequenceState.MOVE_TO_TARGET
 
         # If motion sequence is initiated, continue the sequence, otherwise perform tuning motion.
         if self.motion_sequence_state == MotionSequenceState.MOVE_UPWARD:
@@ -82,7 +84,7 @@ class DirectlyPIDAlgorithm:
         success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed_ratio)
         return success
 
-    def _move_to_safe_height(self, target_pose_in_robot_space):
+    def _move_to_safe_height(self, target_pose_in_robot_space=None):
         print("")
         print("{}Moving upward to a safe height{}".format(Color.BOLD, Color.END))
 
@@ -90,14 +92,22 @@ class DirectlyPIDAlgorithm:
         if not success:
             return False
 
+        # Set the safe height
+        actual_pose_z = pose[2] 
         pose[2] = self.config['safe_height']
-        pose[3] = target_pose_in_robot_space[3]
-        pose[4] = target_pose_in_robot_space[4]
-        pose[5] = target_pose_in_robot_space[5]
+        # If a target pose is provided, modify Z pose for orientation
+        if target_pose_in_robot_space:
+            pose[3] = target_pose_in_robot_space[3]
+            pose[4] = target_pose_in_robot_space[4]
+            pose[5] = target_pose_in_robot_space[5]
         success = self.robot.move_linear(pose, self.default_speed_ratio)
 
-        # Transition to the next state if movement command was given successfully.
-        if success and round(pose[2]) < round(self.config['safe_height']):
+        # Transition to the next state if needed
+        if target_pose_in_robot_space and success and (round(actual_pose_z) >= round(self.config['safe_height'])):
             self.motion_sequence_state = self.motion_sequence_state.next()
 
+        return success
+
+    def move_away_from_head(self):
+        success = self._move_to_safe_height()
         return success
