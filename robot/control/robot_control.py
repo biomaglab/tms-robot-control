@@ -19,6 +19,7 @@ from robot.control.color import Color
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
+from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
 from robot.control.PID import PID
 
 
@@ -361,7 +362,7 @@ class RobotControl:
         self.last_displacement_update_time = time.time()
 
         self.displacement_to_target_history.append(displacement.copy())
-        if len(self.displacement_to_target_history) >= 10:
+        if len(self.displacement_to_target_history) >= 20:
             if all(x == self.displacement_to_target_history[0] for x in self.displacement_to_target_history):
                 self.stop_robot()
                 self.objective = RobotObjective.NONE
@@ -424,6 +425,13 @@ class RobotControl:
 
             elif movement_algorithm_name == 'directly_upward':
                 self.movement_algorithm = DirectlyUpwardAlgorithm(
+                    robot=robot,
+                    config=self.config,
+                    robot_config=self.robot_config,
+                )
+
+            elif movement_algorithm_name == 'directly_PID':
+                self.movement_algorithm = DirectlyPIDAlgorithm(
                     robot=robot,
                     config=self.config,
                     robot_config=self.robot_config,
