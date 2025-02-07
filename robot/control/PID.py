@@ -5,7 +5,7 @@ class PID:
     A PID controller with anti-windup, output clamping, and sample time support.
     """
 
-    def __init__(self, P=0.2, I=0.0, D=0.0):
+    def __init__(self, P=0.3, I=0.01, D=0.0):
         self.Kp = P
         self.Ki = I
         self.Kd = D

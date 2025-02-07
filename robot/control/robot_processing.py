@@ -407,6 +407,7 @@ class TrackerProcessing:
             if self.velocity_std > head_velocity_threshold or any(np.abs(head_velocity)>head_velocity_threshold):
                 self.coord_vel = []
                 self.timestamps = []
+                self.velocity_vector = []
                 return True
             else:
                 self.coord_vel = []

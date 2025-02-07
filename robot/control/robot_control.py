@@ -332,33 +332,25 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
-        self.pid_x.update(translation[0])
-        self.pid_y.update(translation[1])
-        self.pid_z.update(translation[2])
-        self.pid_rx.update(angles_as_deg[0])
-        self.pid_ry.update(angles_as_deg[1])
-        self.pid_rz.update(angles_as_deg[2])
+        if self.config['movement_algorithm'] == 'directly_PID':
+            # Update PID controllers
+            self.pid_x.update(translation[0])
+            self.pid_y.update(translation[1])
+            self.pid_z.update(translation[2])
+            self.pid_rx.update(angles_as_deg[0])
+            self.pid_ry.update(angles_as_deg[1])
+            self.pid_rz.update(angles_as_deg[2])
+            # Set translation and rotation based on PID output
+            translation[0] = -self.pid_x.output
+            translation[1] = -self.pid_y.output
+            translation[2] = -self.pid_z.output
+            angles_as_deg[0] = -self.pid_rx.output
+            angles_as_deg[1] = -self.pid_ry.output
+            angles_as_deg[2] = -self.pid_rz.output
 
-        # def compute_angular_error(setpoint, measured):
-        #     error = setpoint - measured
-        #     while error > 180:   # assumes angles are expressed in degrees
-        #         error -= 360
-        #     while error < -180:
-        #         error += 360
-        #     return error
-
-        translation_correction_x = self.pid_x.output
-        translation_correction_y = self.pid_y.output
-        translation_correction_z = self.pid_z.output
-        translation_correction_rx = self.pid_rx.output
-        translation_correction_ry = self.pid_ry.output
-        translation_correction_rz = self.pid_rz.output
-
-        translation_correction_x += self.ft_displacement_offset[0]
-        translation_correction_y += self.ft_displacement_offset[1]
-
-        self.displacement_to_target = list([translation_correction_x, translation_correction_y, translation_correction_z,
-                                            translation_correction_rx, translation_correction_ry, translation_correction_rz])
+        translation[0] += self.ft_displacement_offset[0]
+        translation[1] += self.ft_displacement_offset[1]
+        self.displacement_to_target = list(translation) + list(angles_as_deg)
 
         if self.verbose and self.last_displacement_update_time is not None:
             print("Displacement received: {} (time since last: {:.2f} s)".format(
@@ -672,7 +664,7 @@ class RobotControl:
         safe_height_based_on_head = head_pose_in_robot_space[2] + 150 # 15 cm above the head
 
         # Determine the maximum safe height
-        max_safe_height = max(safe_height_based_on_head, self.safe_height_defined_by_user)
+        max_safe_height = self.safe_height_defined_by_user
 
         # Get current robot height
         robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
