@@ -109,5 +109,6 @@ class DirectlyPIDAlgorithm:
         return success
 
     def move_away_from_head(self):
+        self.robot.stop_robot()
         success = self._move_to_safe_height()
         return success
