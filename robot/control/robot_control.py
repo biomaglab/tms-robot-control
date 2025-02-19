@@ -37,6 +37,9 @@ class RobotControl:
         self.robot_config = robot_config
         self.connection = connection
 
+        # connection status variable, with the statuses: "Connected", "Not Connected", "Trying to connect", "Unable to connect"
+        self.status_connection = "Not Connected"
+
         self.verbose = config['verbose']
 
         self.process_tracker = robot_process.TrackerProcessing(
@@ -374,6 +377,14 @@ class RobotControl:
         self.target_reached = data["state"]
 
     def ConnectToRobot(self, robot_IP):
+
+        self.status_connection = "Trying to connect"
+
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Robot connection status'
+            data = {'data': self.status_connection}
+            self.remote_control.send_message(topic, data)
+
         robot_type = self.config['robot']
         print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
 
@@ -402,6 +413,7 @@ class RobotControl:
 
         if success:
             print('Connected to robot.')
+            self.status_connection = "Connected"
 
             # Initialize the robot.
             robot.initialize()
@@ -441,11 +453,15 @@ class RobotControl:
                 assert False, "Unknown movement algorithm"
 
         else:
+
+            self.status_connection = "Unable to connect"
+
             # Send message to tms_robot_control to close the robot dialog.
             if self.remote_control:
                 topic = 'Robot to Neuronavigation: Close robot dialog'
                 data = {}
                 self.remote_control.send_message(topic, data)
+
             if self.connection:
                 self.connection.close_robot_dialog(True)
 
@@ -457,7 +473,7 @@ class RobotControl:
             self.connection.robot_connection_status(success)
         if self.remote_control:
             topic = 'Robot to Neuronavigation: Robot connection status'
-            data = {'data': success}
+            data = {'data': self.status_connection}
             self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
@@ -666,6 +682,12 @@ class RobotControl:
             print("Error: Could not reconnect to robot")
 
         return success
+
+    def OnCheckConnectionRobot(self, data):
+
+        topic = 'Robot to Neuronavigation: Robot connection status'
+        data = {'data': self.status_connection}
+        self.remote_control.send_message(topic, data)
 
     def set_safe_height(self, head_pose_in_robot_space):
         # Define safe heights
