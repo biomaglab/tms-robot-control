@@ -29,7 +29,7 @@ class RobotStateController:
     def __init__(self, robot, config):
         self.robot = robot
 
-        self.dwell_time = config['dwell_time']
+        self.dwell_time = 0 if (config['movement_algorithm'] == 'directly_PID' or config['robot'] == 'dobot') else config['dwell_time']
         self.wait_for_keypress_before_movement = config['wait_for_keypress_before_movement']
 
         self.state = RobotState.READY if not self.wait_for_keypress_before_movement else RobotState.WAITING_FOR_KEYPRESS

@@ -399,7 +399,7 @@ class TrackerProcessing:
             del self.coord_vel[0]
             del self.timestamps[0]
 
-            if len(self.velocity_vector) >= 15:
+            if len(self.velocity_vector) >= 5:
                 self.velocity_std = np.std(self.velocity_vector)
                 del self.velocity_vector[0]
 
