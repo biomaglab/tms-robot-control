@@ -36,7 +36,6 @@ class RobotControl:
         self.connection = connection
 
         # connection status variable, with the statuses: "Connected", "Not Connected", "Trying to connect", "Unable to connect"
-        # TODO verificar como é feito a reconexao para nem sempre iniciar como nao conectado
         self.status_connection = "Not Connected"
 
         self.verbose = config['verbose']
