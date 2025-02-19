@@ -133,7 +133,7 @@ ROBOT_CONFIG = {
     'sleep': 0.0,
 
     # Head motion
-    'head_velocity_threshold': 15,
+    'head_velocity_threshold': 60,
 
     # Tuning motion
     'distance_threshold_for_tuning': 30,
