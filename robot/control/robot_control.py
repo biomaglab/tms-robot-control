@@ -20,7 +20,7 @@ from robot.control.robot_state_controller import RobotStateController, RobotStat
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
 from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
-from robot.control.PID import PID
+from robot.control.PID import PID, PIDImpedanceDualFeedback
 
 
 class RobotObjective(Enum):
@@ -115,7 +115,7 @@ class RobotControl:
         # Initialize PID controllers
         self.pid_x = PID()
         self.pid_y = PID()
-        self.pid_z = PID()
+        self.pid_z = PIDImpedanceDualFeedback()
         self.pid_rx = PID()
         self.pid_ry = PID()
         self.pid_rz = PID()
@@ -387,7 +387,7 @@ class RobotControl:
             # Update PID controllers
             self.pid_x.update(translation[0])
             self.pid_y.update(translation[1])
-            self.pid_z.update(translation[2])
+            self.pid_z.update(translation[2], self.current_z_force)
             self.pid_rx.update(angles_as_deg[0])
             self.pid_ry.update(angles_as_deg[1])
             self.pid_rz.update(angles_as_deg[2])
@@ -1137,7 +1137,7 @@ class RobotControl:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
-            self.continuous_force_compensation()
+            #self.continuous_force_compensation()
             success, warning = self.handle_objective_track_target()
             self.SendWarningToNeuronavigation(warning)
 
