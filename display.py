@@ -22,6 +22,9 @@ class PointOfApp:
     def __init__(self):
         # create plots for point of application
         self.fig = plt.figure()
+        self.text = self.fig.text(0.01, 0.01, 'Z-force: No data', fontsize=24)
+
+
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.square = FancyBboxPatch((-5, -5), 10, 10, alpha=0.5, boxstyle="round,pad=3")
         self.ax.add_patch(self.square) 
@@ -47,10 +50,14 @@ class PointOfApp:
                         file.seek(-2, os.SEEK_CUR)
                 except OSError:
                     file.seek(0)
-                data = file.readline().decode()
+                read_data = file.readline().decode()
 
-            data = data[data.find("[")+1:data.find("]")]
-            data  = np.array(data.split(", "), dtype = 'float64')
+            data = read_data[read_data.find("[")+1:read_data.find("]")]
+            data = np.array(data.split(", "), dtype = 'float64')
+            z_force = read_data[read_data.find("(")+1:read_data.find(")")]
+            self.point.set_data(data[0], data[1])
+            z_output = round(float(z_force), 2)
+            self.text.set_text('Z-force: ' + str(z_output))
 
             self.point.set_data(data[0], data[1])
 
