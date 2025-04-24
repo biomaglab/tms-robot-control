@@ -19,6 +19,8 @@ from robot.control.color import Color
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
+from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
+from robot.control.PID import PID
 
 
 class RobotObjective(Enum):
@@ -83,6 +85,13 @@ class RobotControl:
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
         self.ft_displacement_offset = [0, 0]
+        # Initialize PID controllers
+        self.pid_x = PID()
+        self.pid_y = PID()
+        self.pid_z = PID()
+        self.pid_rx = PID()
+        self.pid_ry = PID()
+        self.pid_rz = PID()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -136,6 +145,13 @@ class RobotControl:
 
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
+
+        self.pid_x.clear()
+        self.pid_y.clear()
+        self.pid_z.clear()
+        self.pid_rx.clear()
+        self.pid_ry.clear()
+        self.pid_rz.clear()
 
         print("Target set")
 
@@ -320,6 +336,22 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
+        if self.config['movement_algorithm'] == 'directly_PID':
+            # Update PID controllers
+            self.pid_x.update(translation[0])
+            self.pid_y.update(translation[1])
+            self.pid_z.update(translation[2])
+            self.pid_rx.update(angles_as_deg[0])
+            self.pid_ry.update(angles_as_deg[1])
+            self.pid_rz.update(angles_as_deg[2])
+            # Set translation and rotation based on PID output
+            translation[0] = -self.pid_x.output
+            translation[1] = -self.pid_y.output
+            translation[2] = -self.pid_z.output
+            angles_as_deg[0] = -self.pid_rx.output
+            angles_as_deg[1] = -self.pid_ry.output
+            angles_as_deg[2] = -self.pid_rz.output
+
         translation[0] += self.ft_displacement_offset[0]
         translation[1] += self.ft_displacement_offset[1]
         self.displacement_to_target = list(translation) + list(angles_as_deg)
@@ -333,7 +365,7 @@ class RobotControl:
         self.last_displacement_update_time = time.time()
 
         self.displacement_to_target_history.append(displacement.copy())
-        if len(self.displacement_to_target_history) >= 10:
+        if len(self.displacement_to_target_history) >= 20:
             if all(x == self.displacement_to_target_history[0] for x in self.displacement_to_target_history):
                 self.stop_robot()
                 self.objective = RobotObjective.NONE
@@ -405,6 +437,13 @@ class RobotControl:
 
             elif movement_algorithm_name == 'directly_upward':
                 self.movement_algorithm = DirectlyUpwardAlgorithm(
+                    robot=robot,
+                    config=self.config,
+                    robot_config=self.robot_config,
+                )
+
+            elif movement_algorithm_name == 'directly_PID':
+                self.movement_algorithm = DirectlyPIDAlgorithm(
                     robot=robot,
                     config=self.config,
                     robot_config=self.robot_config,
@@ -655,7 +694,7 @@ class RobotControl:
         safe_height_based_on_head = head_pose_in_robot_space[2] + 150 # 15 cm above the head
 
         # Determine the maximum safe height
-        max_safe_height = max(safe_height_based_on_head, self.safe_height_defined_by_user)
+        max_safe_height = self.safe_height_defined_by_user
 
         # Get current robot height
         robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
