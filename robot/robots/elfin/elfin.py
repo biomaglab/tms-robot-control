@@ -60,6 +60,15 @@ class Elfin(Robot):
         sleep(0.1)
 
         return self.connection.move_linear(target)
+    
+    def dynamic_motion(self, target, speed_ratio):
+        success = self.connection.set_speed_ratio(speed_ratio)
+        if not success:
+            return False
+        
+        # Using moveB
+        return self.connection.move_linear(target)
+        
 
     def move_circular(self, start_position, waypoint, target, speed_ratio):
         success = self.connection.set_speed_ratio(speed_ratio)
