@@ -121,6 +121,18 @@ class Dobot(Robot):
 
         # TODO: Properly handle errors and return the success of the movement here.
         return True
+    
+    def dynamic_motion(self, target, speed_ratio):
+        success = self.connection.set_speed_ratio(speed_ratio)
+        if not success:
+            return False
+
+        self.target = target
+        self.connection.move_servo(self.target)
+        self.motion_type = MotionType.NORMAL
+
+        # TODO: Properly handle errors and return the success of the movement here.
+        return True
 
     # TODO: 'speed_ratio' parameter is currently ignored.
     def move_circular(self, start_position, waypoint, target, speed_ratio):
