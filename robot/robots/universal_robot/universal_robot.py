@@ -126,6 +126,21 @@ class UniversalRobot(Robot):
             radius=radius,
         )
 
+    def dynamic_motion(self, target, speed_ratio):
+        #TODO: needs to be tested
+        acceleration = self.DEFAULT_ACCELERATION
+        velocity = self.MAX_VELOCITY * speed_ratio
+        time = 0  # When acceleration and velocity are defined, time is not used.
+        radius = 0  # Use a blend radius of 0.
+
+        return self.command_connection.move_linear(
+            target=self.convert_to_meters_and_radians(target),
+            acceleration=acceleration,
+            velocity=velocity,
+            time=time,
+            radius=radius,
+        )
+
     def move_circular(self, start_position, waypoint, target, speed_ratio):
         # TODO: This is currently incorrect; start_position, waypoint, and target as defined as [x, y, z, rx, ry, rz] where
         #   [rx, ry, rz] are the Euler angles, whereas the robot interface takes in rotation vectors. This would be the correct
