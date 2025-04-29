@@ -81,7 +81,7 @@ class DirectlyPIDAlgorithm:
     def _tune(self, target_pose_in_robot_space):
         print("Initiating tuning motion")
 
-        success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed_ratio)
+        success = self.robot.dynamic_motion(target_pose_in_robot_space, self.tuning_speed_ratio)
         return success
 
     def _move_to_safe_height(self, target_pose_in_robot_space=None):
@@ -100,7 +100,7 @@ class DirectlyPIDAlgorithm:
             pose[3] = target_pose_in_robot_space[3]
             pose[4] = target_pose_in_robot_space[4]
             pose[5] = target_pose_in_robot_space[5]
-        success = self.robot.move_linear(pose, self.default_speed_ratio)
+        success = self.robot.dynamic_motion(pose, self.default_speed_ratio)
 
         # Transition to the next state if needed
         if target_pose_in_robot_space and success and (round(actual_pose_z) >= round(self.config['safe_height'])):

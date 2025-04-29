@@ -122,6 +122,19 @@ class Robot(ABC):
         pass
 
     @abstractmethod
+    def dynamic_motion(self, target, speed_ratio):
+        """
+        Change the robot movement dynamically/immediately in a linear path to the target in robot's base coordinate system 
+        with a given speed.
+
+        :param target: The target position in a linear path, as a list of 6 values: [x, y, z, rx, ry, rz].
+            [x, y, z] define the position in mm, and [rx, ry, rz] define the Euler angles in degrees,
+            using the 'sxyz' convention.
+        :param speed_ratio: The speed of the movement (as a proportion of the maximum speed; 0-1).
+        """
+        pass
+
+    @abstractmethod
     def stop_robot(self):
         """
         Stop the robot's movement.
