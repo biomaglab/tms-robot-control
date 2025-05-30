@@ -168,7 +168,7 @@ class RadiallyOutwardAlgorithm:
             )
 
         elif self.motion_type == MotionType.TUNING:
-            print("Initiating tuning motion")
+            #print("Initiating tuning motion")
             success = self.robot.move_linear(
                 target=target_pose_in_robot_space_estimated_from_displacement,
                 speed_ratio=self.tuning_speed_ratio,

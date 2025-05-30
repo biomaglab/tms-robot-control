@@ -76,8 +76,8 @@ class ElfinConnection:
         return success
 
     def _send_and_receive(self, request, verbose=False):
-        if verbose:
-            print("Sending request: {}".format(request))
+        # if verbose:
+        #     print("Sending request: {}".format(request))
 
         full_request = request + self.REQUEST_ENDING_CHARS
         try:
@@ -92,8 +92,8 @@ class ElfinConnection:
             self.connected = False
             return False, None
 
-        if verbose:
-            print("Done.")
+        # if verbose:
+        #     print("Done.")
 
         # Process the response.
         command = response[0]

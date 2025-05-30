@@ -57,6 +57,7 @@ class DirectlyUpwardAlgorithm:
                       target_pose_in_robot_space_estimated_from_displacement,
                       robot_pose,
                       head_center):
+        normalize_force_sensor = False
 
         # If motion sequence is not initiated, check if it should be.
         if self.motion_sequence_state == MotionSequenceState.NOT_INITIATED:
@@ -80,7 +81,7 @@ class DirectlyUpwardAlgorithm:
 
         # If motion sequence is initiated, continue the sequence, otherwise perform tuning motion.
         if self.motion_sequence_state != MotionSequenceState.NOT_INITIATED:
-            success = self._perform_motion(target_pose_in_robot_space_estimated_from_displacement)
+            success, normalize_force_sensor = self._perform_motion(target_pose_in_robot_space_estimated_from_displacement)
         else:
             success = self._tune(target_pose_in_robot_space_estimated_from_displacement)
 
@@ -89,19 +90,17 @@ class DirectlyUpwardAlgorithm:
             print("Motion sequence finished")
             self.reset_state()
 
-        # TODO: The force sensor is not normalized for now - add some logic here.
-        normalize_force_sensor = False
-
         return success, normalize_force_sensor
 
     def _tune(self, target_pose_in_robot_space):
-        print("Initiating tuning motion")
+        #print("Initiating tuning motion")
 
         success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed_ratio)
         return success
 
     def _perform_motion(self, target_pose_in_robot_space):
         success = False
+        normalize_force_sensor = False
 
         if self.motion_sequence_state == MotionSequenceState.MOVE_UPWARD:
             success = self._move_to_safe_height()
@@ -121,6 +120,7 @@ class DirectlyUpwardAlgorithm:
             pose = target_pose_in_robot_space
             pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.config['safe_height'] - pose[2])
             success = self.robot.move_linear(pose, self.default_speed_ratio)
+            normalize_force_sensor = True
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_TO_TARGET:
             print("")
@@ -135,7 +135,7 @@ class DirectlyUpwardAlgorithm:
         if success:
             self.motion_sequence_state = self.motion_sequence_state.next()
 
-        return success
+        return success, normalize_force_sensor
 
     def move_away_from_head(self):
         success = self._move_to_safe_height()

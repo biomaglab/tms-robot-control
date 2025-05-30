@@ -97,7 +97,7 @@ class RobotStateController:
                 self.keypress = False
 
         # Print the state if it has changed.
-        self.print_state()
+        # self.print_state()
 
     def print_state(self):
         state_changed = self.state != self.previous_state
