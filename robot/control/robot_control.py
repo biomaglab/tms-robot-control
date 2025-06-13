@@ -20,7 +20,8 @@ from robot.control.robot_state_controller import RobotStateController, RobotStat
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
 from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
-from robot.control.PID import PID
+from robot.control.PID import ImpedancePIDController
+from robot.control.pressure_sensor import BufferedPressureSensorReader
 
 
 class RobotObjective(Enum):
@@ -82,13 +83,19 @@ class RobotControl:
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
         self.ft_displacement_offset = [0, 0]
+        self.use_pressure = self.config['use_pressure_sensor']
+        self.use_force = self.config['use_force_sensor']
         # Initialize PID controllers
-        self.pid_x = PID()
-        self.pid_y = PID()
-        self.pid_z = PID()
-        self.pid_rx = PID()
-        self.pid_ry = PID()
-        self.pid_rz = PID()
+        self.pid_x = ImpedancePIDController()
+        self.pid_y = ImpedancePIDController()
+        self.pid_z = ImpedancePIDController(mode='impedance') if (self.use_pressure or self.use_force) else ImpedancePIDController()
+        self.pid_rx = ImpedancePIDController()
+        self.pid_ry = ImpedancePIDController()
+        self.pid_rz = ImpedancePIDController()
+
+        if self.use_pressure:
+            self.pressure_force = BufferedPressureSensorReader(self.config['com_port_pressure_sensor'], 115200, buffer_size=100)
+            #self.pid_z.set_force_setpoint()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -337,7 +344,12 @@ class RobotControl:
             # Update PID controllers
             self.pid_x.update(translation[0])
             self.pid_y.update(translation[1])
-            self.pid_z.update(translation[2])
+            if self.use_pressure:
+                self.pid_z.update(translation[2], self.get_pressure_sensor_values())
+            elif self.use_force:
+                self.pid_z.update(translation[2], self.read_force_sensor())
+            else:
+                self.pid_z.update(translation[2])
             self.pid_rx.update(angles_as_deg[0])
             self.pid_ry.update(angles_as_deg[1])
             self.pid_rz.update(angles_as_deg[2])
@@ -561,7 +573,13 @@ class RobotControl:
             print('Cannot collect the coil markers, please try again')
             return False
 
+    def get_pressure_sensor_values(self):
+        return self.pressure_force.get_latest_value()
+
     def read_force_sensor(self):
+        if not self.config['use_force_sensor']:
+            print("Error: use_force_sensor in environment variables not set to 'true' when running robot_control.read_force_sensor")
+
         success, force_sensor_values = self.robot.read_force_sensor()
 
         # If force sensor could not be read, return early.
@@ -817,6 +835,11 @@ class RobotControl:
             self.force_ref = force_sensor_values[0:3]
             self.moment_ref = force_sensor_values[3:6]
             print('Normalised!')
+
+        if self.config["use_pressure_sensor"] and not self.pressure_force.ready:
+            warning = "Error: Pressure force sensor is not connected."
+            print(warning)
+            return False, warning
 
         # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
