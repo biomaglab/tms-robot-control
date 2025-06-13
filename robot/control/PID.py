@@ -17,10 +17,11 @@ class ImpedancePIDController:
         self.last_time = self.current_time
 
         # Independent setpoints
-        self.pid_setpoint = 0.0        # Used in PID mode (e.g., force feedback target)
-        self.force_setpoint = 3.0      # Used in Impedance mode (desired force)
+        self.displacement_setpoint = 0.0        # Used in PID mode (desired displacement)
+        self.force_setpoint = -3.0      # Used in Impedance mode (desired force)
 
-        self.last_error = 0.0
+        self.last_displacement_error = 0.0
+        self.last_force_error = 0.0
         self.PTerm = 0.0
         self.ITerm = 0.0
         self.DTerm = 0.0
@@ -37,12 +38,13 @@ class ImpedancePIDController:
         self.PTerm = 0.0
         self.ITerm = 0.0
         self.DTerm = 0.0
-        self.last_error = 0.0
+        self.last_displacement_error = 0.0
+        self.last_force_error = 0.0
         self.velocity = 0.0
         self.output = 0.0
         self.last_time = time.monotonic()
 
-    def update(self, feedback_value, displacement_feedback=None):
+    def update(self, feedback_value, force_feedback=None):
         if not self.enabled:
             return self.output
 
@@ -54,40 +56,52 @@ class ImpedancePIDController:
 
         delta_time = self.sample_time if self.sample_time > 0 else delta_time_actual
 
-        if self.mode == 'pid':
-            error = self.pid_setpoint - feedback_value
-
-        elif self.mode == 'impedance':
-            error = self.force_setpoint - feedback_value
-
-        self.PTerm = self.Kp * error
-        self.ITerm += error * delta_time
-        self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))
-        delta_error = error - self.last_error
-        self.DTerm = delta_error / delta_time if delta_time > 0 else 0.0
+        displacement_error = self.displacement_setpoint - feedback_value
 
         if self.mode == 'pid':
+            self.PTerm = self.Kp * displacement_error
+            self.ITerm += displacement_error * delta_time
+            self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))
+            delta_error = displacement_error - self.last_displacement_error
+            self.DTerm = delta_error / delta_time if delta_time > 0 else 0.0
             unclamped = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
             self.output = max(self.output_min, min(unclamped, self.output_max))
 
             if unclamped != self.output and self.Ki != 0:
                 self.ITerm = (self.output - self.PTerm - self.Kd * self.DTerm) / self.Ki
+            self.last_displacement_error = displacement_error
 
         elif self.mode == 'impedance':
-            if displacement_feedback is None:
-                raise ValueError("displacement_feedback is required in impedance mode")
+            if force_feedback is None:
+                raise ValueError("force_feedback is required in impedance mode")
 
-            displacement_error = self.output - displacement_feedback
-            impedance = self.stiffness * displacement_error - self.damping * self.velocity
-            position_correction = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm) + impedance
+            # Compute force error (desired - actual)
+            force_error = self.force_setpoint - force_feedback
+            print("force_error", force_error)
+            # PID for force control (force feedback loop)
+            self.PTerm = self.Kp * force_error
+            self.ITerm += force_error * delta_time
+            self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))  # Anti-windup
+            # Derivative of force error
+            delta_force_error = force_error - self.last_force_error
+            self.DTerm = delta_force_error / delta_time if delta_time > 0 else 0.0
 
-            acceleration = position_correction - self.damping * self.velocity
+            # Impedance control: Calculate position correction based on displacement error
+            impedance_position_correction = self.stiffness * displacement_error - self.damping * self.velocity
+
+            # Update position correction using force control (PID) and impedance control
+            unclamped_output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm) + impedance_position_correction
+
+            # Update position based on velocity and acceleration
+            acceleration = (unclamped_output - self.damping * self.velocity)
             self.velocity += acceleration * delta_time
-            self.output += self.velocity * delta_time
-            self.output = max(self.output_min, min(self.output, self.output_max))
 
+            # Apply position output limits
+            self.output = max(self.output_min, min(unclamped_output, self.output_max))
+            self.last_force_error = force_error
+
+        # Store last update time and error for future calculations
         self.last_time = self.current_time
-        self.last_error = error
 
         return self.output
 
@@ -109,7 +123,7 @@ class ImpedancePIDController:
 
     def set_pid_setpoint(self, setpoint):
         """Used in PID mode."""
-        self.pid_setpoint = setpoint
+        self.displacement_setpoint = setpoint
 
     def set_force_setpoint(self, force_setpoint):
         """Used in impedance mode."""

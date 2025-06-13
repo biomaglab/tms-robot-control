@@ -88,7 +88,7 @@ class RobotControl:
         # Initialize PID controllers
         self.pid_x = ImpedancePIDController()
         self.pid_y = ImpedancePIDController()
-        self.pid_z = ImpedancePIDController(mode='impedance') if (self.use_pressure or self.use_force) else ImpedancePIDController()
+        self.pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance') if (self.use_pressure or self.use_force) else ImpedancePIDController()
         self.pid_rx = ImpedancePIDController()
         self.pid_ry = ImpedancePIDController()
         self.pid_rz = ImpedancePIDController()
@@ -345,7 +345,7 @@ class RobotControl:
             self.pid_x.update(translation[0])
             self.pid_y.update(translation[1])
             if self.use_pressure:
-                self.pid_z.update(translation[2], self.get_pressure_sensor_values())
+                self.pid_z.update(translation[2], -self.get_pressure_sensor_values()/10)
             elif self.use_force:
                 self.pid_z.update(translation[2], self.read_force_sensor())
             else:
