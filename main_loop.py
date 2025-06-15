@@ -14,9 +14,9 @@ from robot.control.color import Color
 
 
 class RemoteControl:
-    def __init__(self, remote_host):
+    def __init__(self, remote_host, robot_id):
         self.__buffer = []
-        self.__robot_id = "robot_1"
+        self.__robot_id = robot_id
         self.__remote_host = remote_host
         self.__connected = False
         self.__sio = socketio.Client()
@@ -79,18 +79,26 @@ class RemoteControl:
 def get_command_line_arguments():
     default_host = '127.0.0.1'
     default_port = 5000
+    default_robot_id = 'robot_1'
 
-    if len(sys.argv) == 3:
+    if len(sys.argv) == 4:
         host = sys.argv[1]
         port = int(sys.argv[2])
-    elif len(sys.argv) == 2:
+        robot_id = sys.argv[3]
+    elif len(sys.argv) == 3:
         host = default_host
         port = int(sys.argv[1])
+        robot_id = sys.argv[2]
+    elif len(sys.argv) == 2:
+        host = default_host
+        port = default_port
+        robot_id = sys.argv[1]
     else:
         host = default_host
         port = default_port
+        robot_id = default_robot_id
 
-    return host, port
+    return host, port, robot_id
 
 def get_config():
     # Load environment variables from .env file.
@@ -215,10 +223,10 @@ def main(connection=None):
         connection_type = "ros"
 
     except:
-        host, port = get_command_line_arguments()
+        host, port, robot_id = get_command_line_arguments()
         # Connect to server
         url = 'http://{}:{}'.format(host, port)
-        remote_control = RemoteControl(url)
+        remote_control = RemoteControl(url, robot_id)
         remote_control.connect()
         robot_control = RobotControl(
             remote_control=remote_control,
