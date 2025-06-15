@@ -16,6 +16,7 @@ from robot.control.color import Color
 class RemoteControl:
     def __init__(self, remote_host):
         self.__buffer = []
+        self.__robot_id = "robot_1"
         self.__remote_host = remote_host
         self.__connected = False
         self.__sio = socketio.Client()
@@ -35,9 +36,11 @@ class RemoteControl:
         self.__connected = False
 
     def __on_message_receive(self, msg):
-        self.__lock.acquire()
-        self.__buffer.append(msg)
-        self.__lock.release()
+        robot_id = msg.get('data', {}).get('robot_ID', None)
+        if robot_id == self.__robot_id:
+            self.__lock.acquire()
+            self.__buffer.append(msg)
+            self.__lock.release()
 
     def __on_restart_main_loop(self):
         """Restarts the current program.
@@ -66,6 +69,8 @@ class RemoteControl:
             time.sleep(1.0)
 
     def send_message(self, topic, data={}):
+        robot_id = {'robot_ID': self.__robot_id}
+        data.update(robot_id)
         self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
 
 # Run the script like this: python main_loop.py [host] [port].
