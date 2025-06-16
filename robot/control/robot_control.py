@@ -489,7 +489,7 @@ class RobotControl:
         # Send message to neuronavigation with force or pressure for GUI.
         if self.remote_control:
             topic = 'Robot to Neuronavigation: Send force sensor data'
-            data = {{'force_feedback': force_feedback}}
+            data = {'force_feedback': force_feedback}
             self.remote_control.send_message(topic, data)
         # TODO:
         #if self.connection:
