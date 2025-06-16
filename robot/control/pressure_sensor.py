@@ -16,6 +16,7 @@ class BufferedPressureSensorReader:
         self.lock = threading.Lock()
         self._stop_event = threading.Event()
         self.ready = False
+        self.started = False  # Flag: has valid data been received
         self.serial = None
 
         # Start background thread
@@ -37,8 +38,15 @@ class BufferedPressureSensorReader:
                 if line:
                     try:
                         value = float(line)
+                        if not self.started and not self._is_valid(value):
+                            print("[i] Waiting for valid pressure data...")
+                            continue  # Ignore invalid/NaN at startup
+
                         with self.lock:
                             self.buffer.append(value)
+                        if not self.started:
+                            self.started = True
+                            print("[✓] Pressure data started.")
                     except ValueError:
                         print(f"[!] Invalid float: {line}")
             except serial.SerialException as e:
@@ -57,6 +65,10 @@ class BufferedPressureSensorReader:
             self.ready = False
             return False
 
+    def _is_valid(self, value):
+        return not (value is None or isinstance(value, float) and (
+                    value != value or value == float('inf') or value == float('-inf')))
+
     def _disconnect(self):
         self.ready = False
         try:
@@ -65,19 +77,6 @@ class BufferedPressureSensorReader:
         except Exception as e:
             print(f"[!] Error closing serial: {e}")
         self.serial = None
-
-    def get_latest_value(self):
-        with self.lock:
-            return self.buffer[-1] if self.buffer else None
-
-    def get_buffer(self):
-        with self.lock:
-            return list(self.buffer)
-
-    def stop(self):
-        self._stop_event.set()
-        self.thread.join()
-        self._disconnect()
 
     def _verify_port(self):
         """Check if the port exists and is accessible."""
@@ -91,3 +90,19 @@ class BufferedPressureSensorReader:
                 return True
         except serial.SerialException:
             return False
+
+    def get_latest_value(self):
+        with self.lock:
+            return self.buffer[-1] if self.buffer else None
+
+    def get_buffer(self):
+        with self.lock:
+            return list(self.buffer)
+
+    def has_started(self):
+        return self.started
+
+    def stop(self):
+        self._stop_event.set()
+        self.thread.join()
+        self._disconnect()

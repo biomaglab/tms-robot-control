@@ -341,13 +341,17 @@ class RobotControl:
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
         if self.config['movement_algorithm'] == 'directly_PID':
+            if self.use_pressure:
+                force_feedback = -self.get_pressure_sensor_values() / 10
+            elif self.use_force:
+                force_feedback = self.read_force_sensor()
+            else:
+                force_feedback = None
             # Update PID controllers
             self.pid_x.update(translation[0])
             self.pid_y.update(translation[1])
-            if self.use_pressure:
-                self.pid_z.update(translation[2], -self.get_pressure_sensor_values()/10)
-            elif self.use_force:
-                self.pid_z.update(translation[2], self.read_force_sensor())
+            if force_feedback is not None:
+                self.pid_z.update(translation[2], force_feedback)
             else:
                 self.pid_z.update(translation[2])
             self.pid_rx.update(angles_as_deg[0])

@@ -42,7 +42,8 @@ class ImpedancePIDController:
         self.last_force_error = 0.0
         self.velocity = 0.0
         self.output = 0.0
-        self.last_time = time.monotonic()
+        self.current_time = time.monotonic()
+        self.last_time = self.current_time
 
     def update(self, feedback_value, force_feedback=None):
         if not self.enabled:
@@ -55,29 +56,13 @@ class ImpedancePIDController:
             return self.output
 
         delta_time = self.sample_time if self.sample_time > 0 else delta_time_actual
-
+        # Compute displacement error (desired - actual)
         displacement_error = self.displacement_setpoint - feedback_value
 
-        if self.mode == 'pid':
-            self.PTerm = self.Kp * displacement_error
-            self.ITerm += displacement_error * delta_time
-            self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))
-            delta_error = displacement_error - self.last_displacement_error
-            self.DTerm = delta_error / delta_time if delta_time > 0 else 0.0
-            unclamped = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
-            self.output = max(self.output_min, min(unclamped, self.output_max))
-
-            if unclamped != self.output and self.Ki != 0:
-                self.ITerm = (self.output - self.PTerm - self.Kd * self.DTerm) / self.Ki
-            self.last_displacement_error = displacement_error
-
-        elif self.mode == 'impedance':
-            if force_feedback is None:
-                raise ValueError("force_feedback is required in impedance mode")
-
+        if self.mode == 'impedance' and force_feedback is not None:
             # Compute force error (desired - actual)
             force_error = self.force_setpoint - force_feedback
-            print("force_error", force_error)
+
             # PID for force control (force feedback loop)
             self.PTerm = self.Kp * force_error
             self.ITerm += force_error * delta_time
@@ -99,6 +84,19 @@ class ImpedancePIDController:
             # Apply position output limits
             self.output = max(self.output_min, min(unclamped_output, self.output_max))
             self.last_force_error = force_error
+
+        else:
+            self.PTerm = self.Kp * displacement_error
+            self.ITerm += displacement_error * delta_time
+            self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))
+            delta_error = displacement_error - self.last_displacement_error
+            self.DTerm = delta_error / delta_time if delta_time > 0 else 0.0
+            unclamped = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
+            self.output = max(self.output_min, min(unclamped, self.output_max))
+
+            if unclamped != self.output and self.Ki != 0:
+                self.ITerm = (self.output - self.PTerm - self.Kd * self.DTerm) / self.Ki
+            self.last_displacement_error = displacement_error
 
         # Store last update time and error for future calculations
         self.last_time = self.current_time
