@@ -342,7 +342,7 @@ class RobotControl:
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
         if self.config['movement_algorithm'] == 'directly_PID':
             if self.use_pressure:
-                force_feedback = -self.get_pressure_sensor_values() / 10
+                force_feedback = self.get_pressure_sensor_values()
             elif self.use_force:
                 force_feedback = self.read_force_sensor()
             else:
@@ -589,7 +589,10 @@ class RobotControl:
             return False
 
     def get_pressure_sensor_values(self):
-        return self.pressure_force.get_latest_value()
+        pressure = self.pressure_force.get_latest_value()
+        if pressure:
+            return -pressure / 10 # Rescale to match the force and torque sensor.
+        return None
 
     def read_force_sensor(self):
         if not self.config['use_force_sensor']:
