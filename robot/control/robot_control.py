@@ -352,6 +352,7 @@ class RobotControl:
             self.pid_y.update(translation[1])
             if force_feedback is not None:
                 self.pid_z.update(translation[2], force_feedback)
+                self.SendForceSensorDataToNeuronavigation(force_feedback)
             else:
                 self.pid_z.update(translation[2])
             self.pid_rx.update(angles_as_deg[0])
@@ -483,6 +484,16 @@ class RobotControl:
         self.status = False
 
         #self.remote_control.send_message(topic, data)
+
+    def SendForceSensorDataToNeuronavigation(self, force_feedback):
+        # Send message to neuronavigation with force or pressure for GUI.
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Send force sensor data'
+            data = {{'force_feedback': force_feedback}}
+            self.remote_control.send_message(topic, data)
+        # TODO:
+        #if self.connection:
+            #self.connection.send_force_sensor(force_feedback)
 
     def SendObjectiveToNeuronavigation(self):
         # Send message to tms_robot_control indicating the current objective.
