@@ -20,6 +20,8 @@ class BufferedPressureSensorReader:
         self.started = False  # Flag: has valid data been received
         self.serial = None
 
+        self._last_z_offset_sent = 0
+
         # Start background thread
         self.thread = threading.Thread(target=self._serial_loop, daemon=True)
         self.thread.start()
@@ -41,7 +43,6 @@ class BufferedPressureSensorReader:
                         value = float(line)
                         if not self.started and not self._is_valid(value):
                             print("[i] Waiting for valid pressure data...")
-                            time.sleep(1)
                             continue  # Ignore invalid/NaN at startup
 
                         with self.lock:
@@ -104,27 +105,39 @@ class BufferedPressureSensorReader:
     def has_started(self):
         return self.started
 
-    def is_force_stable(self, threshold_std=0.05, min_samples=50, window_size=100, smoothing=False):
+    def is_force_stable(
+        self,
+        force_setpoint,
+        z_offset,
+        setpoint_tolerance=10,
+        threshold_std=1,
+        min_samples=15,
+        window_size=25,
+        smoothing=True,
+        z_offset_tolerance=1
+    ):
         """
-        Determine if the force is stable based on the standard deviation over recent samples.
+        Determine if the force is stable and the z_offset is different enough to be sent.
 
         Args:
-            threshold_std (float): Maximum allowed standard deviation for force to be considered stable.
-            min_samples (int): Minimum number of samples required to perform the check.
-            window_size (int): Number of most recent samples to use for stability check.
-            smoothing (bool): If True, apply simple exponential smoothing.
+            force_setpoint (float): Target force value (before scaling).
+            z_offset (float): The current z-offset candidate to check.
+            setpoint_tolerance (float): Allowed deviation from the scaled force setpoint.
+            threshold_std (float): Max allowed standard deviation to consider force stable.
+            min_samples (int): Minimum number of samples required for evaluation.
+            window_size (int): Number of recent samples to consider.
+            smoothing (bool): If True, apply exponential smoothing to reduce noise.
+            z_offset_tolerance (float): Minimum change required from last sent z_offset.
 
         Returns:
-            bool: True if force is stable, False otherwise.
+            bool: True if force is stable and z_offset differs enough from the last sent value.
         """
         buffer = self.get_buffer()
         if not buffer or len(buffer) < min_samples:
             return False
 
-        # Use only the most recent samples
         recent = buffer[-window_size:] if len(buffer) > window_size else buffer
 
-        # Optional: Apply smoothing to reduce high-frequency noise
         if smoothing and len(recent) > 1:
             alpha = 0.2
             smoothed = [recent[0]]
@@ -133,8 +146,18 @@ class BufferedPressureSensorReader:
             recent = smoothed
 
         std_dev = np.std(recent)
+        mean_val = np.mean(recent)
+        force_setpoint_scaled = -force_setpoint * 10
 
-        return std_dev < threshold_std
+        force_near_setpoint = abs(mean_val - force_setpoint_scaled) <= setpoint_tolerance
+        force_stable = std_dev < threshold_std
+        z_offset_changed = not np.isclose(self._last_z_offset_sent, z_offset, atol=z_offset_tolerance) # Avoid sending the same value repeatedly
+
+        is_stable = force_stable and force_near_setpoint and z_offset_changed
+        if is_stable:
+            self._last_z_offset_sent = z_offset
+
+        return is_stable
 
     def stop(self):
         self._stop_event.set()
