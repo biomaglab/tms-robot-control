@@ -95,6 +95,7 @@ class RobotControl:
 
         if self.use_pressure:
             self.pressure_force = BufferedPressureSensorReader(self.config['com_port_pressure_sensor'], 115200, buffer_size=100)
+            self._last_z_offset_sent = None
             #self.pid_z.set_force_setpoint()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -353,6 +354,7 @@ class RobotControl:
             if force_feedback is not None:
                 self.pid_z.update(translation[2], force_feedback)
                 self.SendForceSensorDataToNeuronavigation(force_feedback)
+                self.SendForceStabilityToNeuronavigation(translation[2])
             else:
                 self.pid_z.update(translation[2])
             self.pid_rx.update(angles_as_deg[0])
@@ -494,6 +496,22 @@ class RobotControl:
         # TODO:
         #if self.connection:
             #self.connection.send_force_sensor(force_feedback)
+
+    def SendForceStabilityToNeuronavigation(self, z_offset):
+        """
+        Sends a z-offset update to the neuronavigation system if the applied force is stable.
+        """
+        if not self.pressure_force.is_force_stable():
+            return  # Exit early if force is not stable
+        if self._last_z_offset_sent == z_offset:
+            return  # Avoid sending the same value repeatedly
+
+        self._last_z_offset_sent = z_offset
+
+        if self.remote_control:
+            topic = 'Robot to Neuronavigation: Update z_offset target'
+            data = {'z_offset': z_offset}
+            self.remote_control.send_message(topic, data)
 
     def SendObjectiveToNeuronavigation(self):
         # Send message to tms_robot_control indicating the current objective.

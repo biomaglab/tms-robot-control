@@ -3,6 +3,7 @@ import time
 import serial
 import serial.tools.list_ports
 from collections import deque
+import numpy as np
 
 
 class BufferedPressureSensorReader:
@@ -102,6 +103,38 @@ class BufferedPressureSensorReader:
 
     def has_started(self):
         return self.started
+
+    def is_force_stable(self, threshold_std=0.05, min_samples=50, window_size=100, smoothing=False):
+        """
+        Determine if the force is stable based on the standard deviation over recent samples.
+
+        Args:
+            threshold_std (float): Maximum allowed standard deviation for force to be considered stable.
+            min_samples (int): Minimum number of samples required to perform the check.
+            window_size (int): Number of most recent samples to use for stability check.
+            smoothing (bool): If True, apply simple exponential smoothing.
+
+        Returns:
+            bool: True if force is stable, False otherwise.
+        """
+        buffer = self.get_buffer()
+        if not buffer or len(buffer) < min_samples:
+            return False
+
+        # Use only the most recent samples
+        recent = buffer[-window_size:] if len(buffer) > window_size else buffer
+
+        # Optional: Apply smoothing to reduce high-frequency noise
+        if smoothing and len(recent) > 1:
+            alpha = 0.2
+            smoothed = [recent[0]]
+            for val in recent[1:]:
+                smoothed.append(alpha * val + (1 - alpha) * smoothed[-1])
+            recent = smoothed
+
+        std_dev = np.std(recent)
+
+        return std_dev < threshold_std
 
     def stop(self):
         self._stop_event.set()
