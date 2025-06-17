@@ -41,7 +41,6 @@ class BufferedPressureSensorReader:
                         value = float(line)
                         if not self.started and not self._is_valid(value):
                             print("[i] Waiting for valid pressure data...")
-                            time.sleep(1)
                             continue  # Ignore invalid/NaN at startup
 
                         with self.lock:
