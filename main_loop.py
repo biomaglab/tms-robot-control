@@ -98,6 +98,8 @@ def get_config():
         'VERBOSE',
         'MOVEMENT_ALGORITHM',
         'USE_FORCE_SENSOR',
+        'USE_PRESSURE_SENSOR',
+        'COM_PORT_PRESSURE_SENSOR',
         'DWELL_TIME',
         'SAFE_HEIGHT',
         'DEFAULT_SPEED_RATIO',
@@ -120,6 +122,8 @@ def get_config():
     movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
     dwell_time = float(os.getenv('DWELL_TIME'))
     use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
+    use_pressure_sensor = os.getenv('USE_PRESSURE_SENSOR').lower() == 'true'
+    com_port_pressure_sensor = os.getenv('COM_PORT_PRESSURE_SENSOR')
     safe_height = float(os.getenv('SAFE_HEIGHT'))
     default_speed_ratio = float(os.getenv('DEFAULT_SPEED_RATIO'))
     tuning_speed_ratio = float(os.getenv('TUNING_SPEED_RATIO'))
@@ -142,6 +146,8 @@ def get_config():
         'movement_algorithm': movement_algorithm,
         'dwell_time': dwell_time,
         'use_force_sensor': use_force_sensor,
+        'use_pressure_sensor': use_pressure_sensor,
+        'com_port_pressure_sensor': com_port_pressure_sensor,
         'safe_height': safe_height,
         'default_speed_ratio': default_speed_ratio,
         'tuning_speed_ratio': tuning_speed_ratio,

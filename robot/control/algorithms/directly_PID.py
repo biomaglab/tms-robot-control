@@ -3,7 +3,7 @@ from enum import Enum
 import numpy as np
 
 from robot.control.color import Color
-from robot.control.PID import PID
+from robot.control.PID import ImpedancePIDController
 
 
 class MotionSequenceState(Enum):
