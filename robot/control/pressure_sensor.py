@@ -109,7 +109,7 @@ class BufferedPressureSensorReader:
         self,
         force_setpoint,
         z_offset,
-        setpoint_tolerance=1,
+        setpoint_tolerance=1.5,
         threshold_std=0.1,
         min_samples=15,
         window_size=25,
