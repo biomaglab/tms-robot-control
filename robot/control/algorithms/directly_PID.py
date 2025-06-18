@@ -41,6 +41,7 @@ class DirectlyPIDAlgorithm:
 
     def reset_state(self):
         self.motion_sequence_state = MotionSequenceState.NOT_INITIATED
+        self.force_normalized = False
 
     def move_decision(self,
                       displacement_to_target,
@@ -73,8 +74,17 @@ class DirectlyPIDAlgorithm:
         else:
             success = self._tune(target_pose_in_robot_space_estimated_from_displacement)
 
-        # TODO: The force sensor is not normalized for now - add some logic here.
-        normalize_force_sensor = False
+        # Normalize force sensor only if we're close to the target
+        # Only normalize if close AND hasn't been normalized yet
+        close_translation = max_translation < self.translation_threshold / 2
+        close_rotation = max_rotation < self.rotation_threshold / 2
+
+        if close_translation and close_rotation and not self.force_normalized:
+            normalize_force_sensor = True
+            self.force_normalized = True  # Mark as normalized
+            print("Force normalization triggered.")
+        else:
+            normalize_force_sensor = False
 
         return success, normalize_force_sensor
 

@@ -61,8 +61,8 @@ class RobotControl:
         self.matrix_tracker_to_robot = []
 
         # reference force and moment values
-        self.force_ref = np.array([0.0, 0.0, 0.0])
-        self.moment_ref = np.array([0.0, 0.0, 0.0])
+        self.reference_force = np.array([0.0, 0.0, 0.0])
+        self.reference_torque = np.array([0.0, 0.0, 0.0])
 
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
@@ -615,20 +615,25 @@ class RobotControl:
 
     def get_force_sensor_only_Z(self):
         force_sensor_values = self.read_force_sensor()
-        if force_sensor_values:
-            return force_sensor_values[2]
-        return None
+        if force_sensor_values is None or len(force_sensor_values) < 6:
+            return None
+
+        force_vector = np.array(force_sensor_values[:3])
+        normalized_force = force_vector - self.reference_force
+
+        return normalized_force[2]  # Z-axis
 
     def read_force_sensor(self):
-        if not self.config['use_force_sensor']:
+        if not self.use_force:
             print("Error: use_force_sensor in environment variables not set to 'true' when running robot_control.read_force_sensor")
+            return None
 
         success, force_sensor_values = self.robot.read_force_sensor()
 
         # If force sensor could not be read, return early.
         if not success:
             print("Error: Could not read the force sensor.")
-            return
+            return None
 
         return force_sensor_values
 
@@ -643,7 +648,6 @@ class RobotControl:
         return success
 
     def OnCheckConnectionRobot(self, data):
-
         topic = 'Robot to Neuronavigation: Robot connection status'
         data = {'data': self.status_connection}
         self.remote_control.send_message(topic, data)
@@ -785,10 +789,16 @@ class RobotControl:
 
             return False, warning
 
-        if self.config["use_pressure_sensor"] and not self.pressure_force.ready:
+        if self.use_pressure and not self.pressure_force.ready:
             warning = "Error: Pressure force sensor is not connected."
             print(warning)
             return False, warning
+
+        # Normalize force sensor values if needed.
+        if self.use_force and normalize_force_sensor:
+            force_sensor_values = self.read_force_sensor()
+            self.reference_force = force_sensor_values[0:3]
+            self.reference_torque = force_sensor_values[3:6]
 
         # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
@@ -875,11 +885,6 @@ class RobotControl:
             return
 
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
-
-        if self.config['use_force_sensor']:
-            force_sensor_values = self.read_force_sensor()
-        else:
-            force_sensor_values = False
 
         if self.tracker.m_tracker_to_robot is not None:
             head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_in_tracker_space_filtered)
