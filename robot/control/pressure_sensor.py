@@ -40,7 +40,7 @@ class BufferedPressureSensorReader:
                 line = self.serial.readline().decode('utf-8', errors='ignore').strip()
                 if line:
                     try:
-                        value = float(line)
+                        value = -float(line) / 10 # Rescale to match the force and torque sensor.
                         if not self.started and not self._is_valid(value):
                             print("[i] Waiting for valid pressure data...")
                             continue  # Ignore invalid/NaN at startup
@@ -109,8 +109,8 @@ class BufferedPressureSensorReader:
         self,
         force_setpoint,
         z_offset,
-        setpoint_tolerance=10,
-        threshold_std=1,
+        setpoint_tolerance=1,
+        threshold_std=0.1,
         min_samples=15,
         window_size=25,
         smoothing=True,
@@ -147,9 +147,8 @@ class BufferedPressureSensorReader:
 
         std_dev = np.std(recent)
         mean_val = np.mean(recent)
-        force_setpoint_scaled = -force_setpoint * 10
 
-        force_near_setpoint = abs(mean_val - force_setpoint_scaled) <= setpoint_tolerance
+        force_near_setpoint = abs(mean_val - force_setpoint) <= setpoint_tolerance
         force_stable = std_dev < threshold_std
         z_offset_changed = not np.isclose(self._last_z_offset_sent, z_offset, atol=z_offset_tolerance) # Avoid sending the same value repeatedly
 

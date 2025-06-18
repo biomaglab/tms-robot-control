@@ -605,7 +605,7 @@ class RobotControl:
     def get_pressure_sensor_values(self):
         pressure = self.pressure_force.get_latest_value()
         if pressure:
-            return -pressure / 10 # Rescale to match the force and torque sensor.
+            return pressure
         return None
 
     def read_force_sensor(self):
