@@ -63,6 +63,8 @@ class RobotControl:
         # reference force and moment values
         self.reference_force = np.array([0.0, 0.0, 0.0])
         self.reference_torque = np.array([0.0, 0.0, 0.0])
+        self.force_z_buffer = deque(maxlen=100)
+        self._last_z_offset_sent = 0
 
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
@@ -79,7 +81,12 @@ class RobotControl:
         # Initialize PID controllers
         self.pid_x = ImpedancePIDController()
         self.pid_y = ImpedancePIDController()
-        self.pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance') if (self.use_pressure or self.use_force) else ImpedancePIDController()
+        if self.use_force:
+            self.pid_z = ImpedancePIDController(P=0.1, I=0.0, D=0.0, stiffness=0.1, damping=0, mode='impedance')
+        elif self.use_pressure:
+            self.pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
+        else:
+            self.pid_z = ImpedancePIDController()
         self.pid_rx = ImpedancePIDController()
         self.pid_ry = ImpedancePIDController()
         self.pid_rz = ImpedancePIDController()
@@ -139,13 +146,6 @@ class RobotControl:
 
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
-
-        self.pid_x.clear()
-        self.pid_y.clear()
-        self.pid_z.clear()
-        self.pid_rx.clear()
-        self.pid_ry.clear()
-        self.pid_rz.clear()
 
         print("Target set")
 
@@ -269,6 +269,8 @@ class RobotControl:
         self.pid_rx.clear()
         self.pid_ry.clear()
         self.pid_rz.clear()
+        self._last_z_offset_sent = 0
+        self.movement_algorithm.reset_force_normalized()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
@@ -339,7 +341,6 @@ class RobotControl:
             if self.use_pressure:
                 force_feedback = self.get_pressure_sensor_values()
             elif self.use_force:
-                # TODO: Normalize force when the coil is close enough to the target to minimize the influence of its own weight.
                 force_feedback = self.get_force_sensor_only_Z()
             else:
                 force_feedback = None
@@ -349,8 +350,7 @@ class RobotControl:
             if force_feedback is not None:
                 self.pid_z.update(translation[2], force_feedback)
                 self.SendForceSensorDataToNeuronavigation(-force_feedback)
-                if self.use_pressure: #TODO: same for force and torque
-                    self.SendForceStabilityToNeuronavigation(translation[2])
+                self.SendForceStabilityToNeuronavigation(translation[2])
             else:
                 self.pid_z.update(translation[2])
             self.pid_rx.update(angles_as_deg[0])
@@ -513,8 +513,13 @@ class RobotControl:
         Sends a z-offset update to the neuronavigation system if the applied force is stable.
         """
         z_offset = round(z_offset, 2)
-        if not self.pressure_force.is_force_stable(self.pid_z.force_setpoint, z_offset):
-            return  # Exit early if force is not stable
+        # Check force or pressure stability, depending on what's enabled
+        if (
+            (self.use_pressure and not self.pressure_force.is_force_stable(self.pid_z.force_setpoint, z_offset)) or
+            (self.use_force and not self.is_force_z_stable(self.pid_z.force_setpoint, z_offset))
+        ):
+            return  # Exit early if the selected mode reports instability
+
 
         if self.remote_control:
             topic = 'Robot to Neuronavigation: Update z_offset target'
@@ -621,7 +626,10 @@ class RobotControl:
         force_vector = np.array(force_sensor_values[:3])
         normalized_force = force_vector - self.reference_force
 
-        return normalized_force[2]  # Z-axis
+        force_z = -normalized_force[2]  # Z-axis, flipped sign
+        self.force_z_buffer.append(force_z)
+
+        return force_z
 
     def read_force_sensor(self):
         if not self.use_force:
@@ -636,6 +644,60 @@ class RobotControl:
             return None
 
         return force_sensor_values
+    
+    def is_force_z_stable(
+        self,
+        force_setpoint,
+        z_offset,
+        setpoint_tolerance=1.5,
+        threshold_std=0.1,
+        min_samples=15,
+        window_size=25,
+        smoothing=True,
+        z_offset_tolerance=1.0
+    ):
+        """
+        Determine if the Z-axis force is stable and if z_offset should be sent.
+
+        Args:
+            force_setpoint (float): Desired force value along Z (e.g. in Newtons).
+            z_offset (float): Current z-offset candidate.
+            setpoint_tolerance (float): Acceptable deviation from setpoint.
+            threshold_std (float): Max allowed std deviation to consider force stable.
+            min_samples (int): Minimum force samples required.
+            window_size (int): Number of samples to use for evaluation.
+            smoothing (bool): Whether to apply EMA smoothing to force data.
+            z_offset_tolerance (float): Minimum required change from last sent z_offset.
+
+        Returns:
+            bool: True if force is stable, near setpoint, and z_offset differs enough.
+        """
+        buffer = list(self.force_z_buffer)  # Assuming self.force_z_buffer is a deque or similar
+        if not buffer or len(buffer) < min_samples:
+            return False
+
+        recent = buffer[-window_size:] if len(buffer) > window_size else buffer
+
+        if smoothing and len(recent) > 1:
+            alpha = 0.2
+            smoothed = [recent[0]]
+            for val in recent[1:]:
+                smoothed.append(alpha * val + (1 - alpha) * smoothed[-1])
+            recent = smoothed
+
+        std_dev = np.std(recent)
+        mean_val = np.mean(recent)
+
+        force_near_setpoint = abs(mean_val - force_setpoint) <= setpoint_tolerance
+        force_stable = std_dev < threshold_std
+        z_offset_changed = not np.isclose(self._last_z_offset_sent, z_offset, atol=z_offset_tolerance)
+
+        is_stable = force_stable and force_near_setpoint and z_offset_changed
+        if is_stable:
+            self._last_z_offset_sent = z_offset
+
+        return is_stable
+
 
     def reconnect_to_robot(self):
         print("Trying to reconnect to robot...")

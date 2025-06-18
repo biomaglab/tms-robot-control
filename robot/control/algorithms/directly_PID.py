@@ -38,9 +38,12 @@ class DirectlyPIDAlgorithm:
         self.robot_config = robot_config
 
         self.reset_state()
+        self.reset_force_normalized()
 
     def reset_state(self):
         self.motion_sequence_state = MotionSequenceState.NOT_INITIATED
+    
+    def reset_force_normalized(self):
         self.force_normalized = False
 
     def move_decision(self,
@@ -76,8 +79,8 @@ class DirectlyPIDAlgorithm:
 
         # Normalize force sensor only if we're close to the target
         # Only normalize if close AND hasn't been normalized yet
-        close_translation = max_translation < self.translation_threshold / 2
-        close_rotation = max_rotation < self.rotation_threshold / 2
+        close_translation = max_translation < self.translation_threshold / 5
+        close_rotation = max_rotation < self.rotation_threshold / 5
 
         if close_translation and close_rotation and not self.force_normalized:
             normalize_force_sensor = True
