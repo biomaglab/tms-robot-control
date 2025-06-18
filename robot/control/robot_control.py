@@ -339,7 +339,8 @@ class RobotControl:
             if self.use_pressure:
                 force_feedback = self.get_pressure_sensor_values()
             elif self.use_force:
-                force_feedback = self.read_force_sensor()
+                # TODO: Normalize force when the coil is close enough to the target to minimize the influence of its own weight.
+                force_feedback = self.get_force_sensor_only_Z()
             else:
                 force_feedback = None
             # Update PID controllers
@@ -348,7 +349,8 @@ class RobotControl:
             if force_feedback is not None:
                 self.pid_z.update(translation[2], force_feedback)
                 self.SendForceSensorDataToNeuronavigation(-force_feedback)
-                self.SendForceStabilityToNeuronavigation(translation[2])
+                if self.use_pressure: #TODO: same for force and torque
+                    self.SendForceStabilityToNeuronavigation(translation[2])
             else:
                 self.pid_z.update(translation[2])
             self.pid_rx.update(angles_as_deg[0])
@@ -609,6 +611,12 @@ class RobotControl:
         pressure = self.pressure_force.get_latest_value()
         if pressure:
             return pressure
+        return None
+
+    def get_force_sensor_only_Z(self):
+        force_sensor_values = self.read_force_sensor()
+        if force_sensor_values:
+            return force_sensor_values[2]
         return None
 
     def read_force_sensor(self):
