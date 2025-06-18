@@ -260,6 +260,12 @@ class RobotControl:
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
         self.movement_algorithm.reset_state()
+        self.pid_x.clear()
+        self.pid_y.clear()
+        self.pid_z.clear()
+        self.pid_rx.clear()
+        self.pid_ry.clear()
+        self.pid_rz.clear()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
@@ -338,7 +344,7 @@ class RobotControl:
             self.pid_y.update(translation[1])
             if force_feedback is not None:
                 self.pid_z.update(translation[2], force_feedback)
-                self.SendForceSensorDataToNeuronavigation(force_feedback)
+                self.SendForceSensorDataToNeuronavigation(-force_feedback)
                 self.SendForceStabilityToNeuronavigation(translation[2])
             else:
                 self.pid_z.update(translation[2])
@@ -470,6 +476,11 @@ class RobotControl:
         #self.remote_control.send_message(topic, data)
 
     def SendForceSensorDataToNeuronavigation(self, force_feedback):
+        # Check if force_feedback is NaN (handles both scalars and arrays)
+        if force_feedback is None or np.isnan(force_feedback).any():
+            print("Warning: force_feedback is NaN. Sending default value of 0.0.")
+            force_feedback = 0.0  
+
         # Send message to neuronavigation with force or pressure for GUI.
         if self.remote_control:
             topic = 'Robot to Neuronavigation: Send force sensor data'
