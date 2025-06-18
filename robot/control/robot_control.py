@@ -57,32 +57,20 @@ class RobotControl:
         self.robot_coordinates = []
         self.matrix_tracker_to_robot = []
 
-        self.new_force_sensor_data = 0
-        self.target_force_sensor_data = 5
-
         # reference force and moment values
         self.force_ref = np.array([0.0, 0.0, 0.0])
         self.moment_ref = np.array([0.0, 0.0, 0.0])
-        self.tuning_ongoing = False
-        self.F_dq = deque(maxlen=6)
-        self.M_dq = deque(maxlen=6)
 
-        self.REF_FLAG = False
         listener = keyboard.Listener(on_press=self.on_keypress)
         listener.start()
-        #self.status = True
 
         self.target_set = False
         self.m_target_to_head = None
-
-        self.linear_out_target = None
-        self.arc_motion_target = None
-        self.previous_robot_status = False
-
         self.target_reached = False
+
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
-        self.ft_displacement_offset = [0, 0]
+
         self.use_pressure = self.config['use_pressure_sensor']
         self.use_force = self.config['use_force_sensor']
         # Initialize PID controllers
@@ -145,7 +133,6 @@ class RobotControl:
         target = np.array(target).reshape(4, 4)
 
         self.m_target_to_head = self.process_tracker.compute_transformation_target_to_head(self.tracker, target)
-        self.target_force_sensor_data = self.new_force_sensor_data
 
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
@@ -167,7 +154,6 @@ class RobotControl:
         self.SendObjectiveToNeuronavigation()
 
         self.m_target_to_head = None
-        self.target_force_sensor_data = 5
 
         print("Target unset")
 
@@ -367,8 +353,6 @@ class RobotControl:
             angles_as_deg[1] = -self.pid_ry.output
             angles_as_deg[2] = -self.pid_rz.output
 
-        translation[0] += self.ft_displacement_offset[0]
-        translation[1] += self.ft_displacement_offset[1]
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
         if self.verbose and self.last_displacement_update_time is not None:
@@ -479,10 +463,9 @@ class RobotControl:
             self.remote_control.send_message(topic, data)
 
     def SensorUpdateTarget(self, distance, status):
+        #TODO: tune coil tilt based on the torque values
         topic = 'Robot to Neuronavigation: Update target from FT values'
         data = {'data' : (distance, status)}
-
-        self.status = False
 
         #self.remote_control.send_message(topic, data)
 
@@ -534,14 +517,7 @@ class RobotControl:
             key.name if hasattr(key, 'name') and key.name is not None else \
             None
 
-        if key_str == 'f1':
-            print("")
-            print("{}Key 'f1' pressed:{} Normalising...".format(Color.BOLD, Color.END))
-            print("")
-            self.REF_FLAG = True
-            return
-
-        elif key_str == 'f2' and self.robot_state_controller is not None and self.config['wait_for_keypress_before_movement']:
+        if key_str == 'f2' and self.robot_state_controller is not None and self.config['wait_for_keypress_before_movement']:
             print("")
             print("{}Key 'f2' pressed:{} Initiating next movement...".format(Color.BOLD, Color.END))
             print("")
@@ -619,93 +595,7 @@ class RobotControl:
             print("Error: Could not read the force sensor.")
             return
 
-        # TODO: condition for self.config['use_force_sensor']
-        #
-        # # true f-t value
-        # current_F = force_sensor_values[0:3]
-        # current_M = force_sensor_values[3:6]
-        # # normalised f-t value
-        # F_normalised = current_F - self.force_ref
-        # M_normalised = current_M - self.moment_ref
-        # self.F_dq.append(F_normalised)
-        # self.M_dq.append(M_normalised)
-        #
-        # if self.REF_FLAG:
-        #     self.force_ref = current_F
-        #     self.moment_ref = current_M
-        #     self.REF_FLAG = False
-        #
-        # # smoothed f-t value, to increase size of filter increase deque size
-        # F_avg = np.mean(self.F_dq, axis=0)
-        # M_avg = np.mean(self.M_dq, axis=0)
-        # point_of_application = ft.find_r(F_avg, M_avg)
-        #
-        # point_of_application[0], point_of_application[1] = point_of_application[1], point_of_application[0] #change in axis, relevant for only aalto robot
-        #
-        # if const.DISPLAY_POA and len(point_of_application) == 3:
-        #     with open(const.TEMP_FILE, 'a') as tmpfile:
-        #         tmpfile.write(f'{point_of_application}\n')
-        #
-        # self.new_force_sensor_data = -F_normalised[2]
-        # # Calculate vector of point of application vs centre
-        # distance = [point_of_application[0], point_of_application[1]]
-        # # self.ft_displacement.offset = [point_of_application[0], point_of_application[1]]
-        # # TODO: Change this entire part to compensate force properly in a feedback loop
-
         return force_sensor_values
-
-    def compensate_force(self):
-        """
-        Compensate the force by moving the robot in the negative z-direction by 2 mm.
-        """
-        # TODO: Are these checks actually needed?
-        if self.robot.is_moving() or self.robot.is_error_state():
-            return
-
-        print("Compensating force")
-
-        # Get the current robot pose.
-        success, robot_pose = self.robot.get_pose()
-        if not success:
-            print("Error: Could not read the robot pose.")
-            return
-
-        # Create the transformation matrix for the robot pose.
-        m_robot = robot_process.coordinates_to_transformation_matrix(
-            position=robot_pose[:3],
-            orientation=robot_pose[3:],
-            axes='sxyz',
-        )
-
-        # Create the compensation vector that points 2 mm to the negative z-direction.
-        compensation = [0, 0, -2, 0, 0, 0]
-
-        # Create the transformation matrix for the compensation.
-        m_compensation = robot_process.coordinates_to_transformation_matrix(
-            position=compensation[:3],
-            orientation=compensation[3:],
-            axes='sxyz',
-        )
-
-        # Compute the final transformation matrix.
-        m_final = m_robot @ m_compensation
-
-        # Convert the transformation matrix to coordinates.
-        translation, angles_as_deg = robot_process.transformation_matrix_to_coordinates(m_final, axes='sxyz')
-
-        target_pose = list(translation) + list(angles_as_deg)
-
-        # Move the robot to the target pose.
-        tuning_speed_ratio = self.config['tuning_speed_ratio']
-        success = self.robot.move_linear(target_pose, tuning_speed_ratio)
-
-        if not success:
-            print("Error: Could not compensate the force.")
-            return
-
-        # Wait for the compensation to finish.
-        time.sleep(0.5)
-        return
 
     def reconnect_to_robot(self):
         print("Trying to reconnect to robot...")
@@ -833,12 +723,6 @@ class RobotControl:
             self.displacement_to_target = None
             return True, ""
 
-        # if self.config['use_force_sensor'] and np.sqrt(np.sum(np.square(self.displacement_to_target[:3]))) < 10: # check if coil is 20mm from target and look for ft readout
-        #     if np.sqrt(np.sum(np.square(point_of_application[:2]))) > 0.5:
-        #         if self.status:
-        #             self.SensorUpdateTarget(distance, self.status)
-        #             self.status = False
-
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
         # Move the robot.
@@ -859,14 +743,6 @@ class RobotControl:
                 print("Error: Robot is in error state")
 
             return False, warning
-
-        # Normalize force sensor values if needed.
-        use_force_sensor = self.config['use_force_sensor']
-        if use_force_sensor and normalize_force_sensor:
-            force_sensor_values = self.read_force_sensor()
-            self.force_ref = force_sensor_values[0:3]
-            self.moment_ref = force_sensor_values[3:6]
-            print('Normalised!')
 
         if self.config["use_pressure_sensor"] and not self.pressure_force.ready:
             warning = "Error: Pressure force sensor is not connected."
@@ -994,16 +870,6 @@ class RobotControl:
 
         self.target_pose_in_robot_space_estimated_from_head_pose = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
 
-    def check_force_sensor(self):
-        force_sensor_threshold = self.robot_config['force_sensor_threshold']
-        force_sensor_scale_threshold = self.robot_config['force_sensor_scale_threshold']
-        if self.new_force_sensor_data > force_sensor_threshold and \
-            self.new_force_sensor_data > (self.target_force_sensor_data + np.abs(self.target_force_sensor_data * (force_sensor_scale_threshold / 100))):
-
-            self.compensate_force()
-
-            return False
-
     def SendWarningToNeuronavigation(self, warning):
         # Send warning message to invesalius.
         # TODO self.connection
@@ -1036,7 +902,6 @@ class RobotControl:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
-            self.check_force_sensor()
             success, warning = self.handle_objective_track_target()
             self.SendWarningToNeuronavigation(warning)
 
