@@ -18,7 +18,7 @@ class ImpedancePIDController:
 
         # Independent setpoints
         self.displacement_setpoint = 0.0        # Used in PID mode (desired displacement)
-        self.force_setpoint = -3.0      # Used in Impedance mode (desired force)
+        self.force_setpoint = -5.0      # Used in Impedance mode (desired force)
 
         self.last_displacement_error = 0.0
         self.last_force_error = 0.0
