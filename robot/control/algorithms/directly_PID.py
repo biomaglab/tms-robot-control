@@ -79,8 +79,8 @@ class DirectlyPIDAlgorithm:
 
         # Normalize force sensor only if we're close to the target
         # Only normalize if close AND hasn't been normalized yet
-        close_translation = max_translation < self.translation_threshold / 5
-        close_rotation = max_rotation < self.rotation_threshold / 5
+        close_translation = max_translation < self.translation_threshold / 8
+        close_rotation = max_rotation < self.rotation_threshold / 8
 
         if close_translation and close_rotation and not self.force_normalized:
             normalize_force_sensor = True

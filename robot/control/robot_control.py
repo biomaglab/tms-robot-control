@@ -64,6 +64,7 @@ class RobotControl:
         self.reference_force = np.array([0.0, 0.0, 0.0])
         self.reference_torque = np.array([0.0, 0.0, 0.0])
         self.force_z_buffer = deque(maxlen=100)
+        self.filtered_force_torque = None  # Initialize filtered force-torque vector
         self._last_z_offset_sent = 0
 
         listener = keyboard.Listener(on_press=self.on_keypress)
@@ -82,7 +83,7 @@ class RobotControl:
         self.pid_x = ImpedancePIDController()
         self.pid_y = ImpedancePIDController()
         if self.use_force:
-            self.pid_z = ImpedancePIDController(P=0.1, I=0.0, D=0.0, stiffness=0.1, damping=0, mode='impedance')
+            self.pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
         elif self.use_pressure:
             self.pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
         else:
@@ -270,6 +271,10 @@ class RobotControl:
         self.pid_ry.clear()
         self.pid_rz.clear()
         self._last_z_offset_sent = 0
+        self.reference_force = np.array([0.0, 0.0, 0.0])
+        self.reference_torque = np.array([0.0, 0.0, 0.0])
+        self.force_z_buffer = deque(maxlen=100)
+        self.filtered_force_torque = None
         self.movement_algorithm.reset_force_normalized()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
@@ -623,10 +628,7 @@ class RobotControl:
         if force_sensor_values is None or len(force_sensor_values) < 6:
             return None
 
-        force_vector = np.array(force_sensor_values[:3])
-        normalized_force = force_vector - self.reference_force
-
-        force_z = -normalized_force[2]  # Z-axis, flipped sign
+        force_z = -force_sensor_values[2]  # Z-axis, flipped sign
         self.force_z_buffer.append(force_z)
 
         return force_z
@@ -643,8 +645,25 @@ class RobotControl:
             print("Error: Could not read the force sensor.")
             return None
 
-        return force_sensor_values
-    
+        force_vector = np.array(force_sensor_values[:3])
+        torque_vector = np.array(force_sensor_values[3:])
+
+        # Normalize
+        norm_force = force_vector - self.reference_force
+        norm_torque = torque_vector - self.reference_torque
+
+        combined = np.concatenate([norm_force, norm_torque])  # [Fx, Fy, Fz, Tx, Ty, Tz]
+        # Apply exponential moving average filter
+        alpha = 0.5
+        if self.filtered_force_torque is None:
+            # Initialize with first measurement
+            self.filtered_force_torque = combined
+        else:
+            # EMA update: new_filtered = alpha * current + (1-alpha) * previous_filtered
+            self.filtered_force_torque = alpha * combined + (1 - alpha) * self.filtered_force_torque
+
+        return self.filtered_force_torque
+
     def is_force_z_stable(
         self,
         force_setpoint,
@@ -672,14 +691,14 @@ class RobotControl:
         Returns:
             bool: True if force is stable, near setpoint, and z_offset differs enough.
         """
-        buffer = list(self.force_z_buffer)  # Assuming self.force_z_buffer is a deque or similar
+        buffer = list(self.force_z_buffer)  # self.force_z_buffer is a deque
         if not buffer or len(buffer) < min_samples:
             return False
 
         recent = buffer[-window_size:] if len(buffer) > window_size else buffer
 
         if smoothing and len(recent) > 1:
-            alpha = 0.2
+            alpha = 0.5
             smoothed = [recent[0]]
             for val in recent[1:]:
                 smoothed.append(alpha * val + (1 - alpha) * smoothed[-1])
