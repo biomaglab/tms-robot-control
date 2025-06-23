@@ -20,7 +20,7 @@ from robot.control.robot_state_controller import RobotStateController, RobotStat
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
 from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
-from robot.control.PID import ImpedancePIDController, MultiAxisImpedancePIDController
+from robot.control.PID import ImpedancePIDController
 from robot.control.pressure_sensor import BufferedPressureSensorReader
 
 
@@ -83,11 +83,7 @@ class RobotControl:
         self.pid_x = ImpedancePIDController()
         self.pid_y = ImpedancePIDController()
         if self.use_force:
-            self.pid_z = MultiAxisImpedancePIDController(
-                                                            P=[0.03, 0.001, 0.001],
-                                                            I=[0.0001, 0.00001, 0.00001],
-                                                            D=[0.02, 0.0005, 0.0005]
-                                                        )
+            self.pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
         elif self.use_pressure:
             self.pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
         else:
@@ -357,10 +353,7 @@ class RobotControl:
             self.pid_x.update(translation[0])
             self.pid_y.update(translation[1])
             if force_feedback is not None:
-                #self.pid_z.update(translation[2], force_feedback)
-                force_torque = self.read_force_sensor()
-                self.pid_z.update(feedback_z=translation[2], force_feedback_vec=[force_feedback, force_torque[3], force_torque[4]])
-
+                self.pid_z.update(translation[2], force_feedback)
                 self.SendForceSensorDataToNeuronavigation(-force_feedback)
                 self.SendForceStabilityToNeuronavigation(translation[2])
             else:
@@ -371,9 +364,9 @@ class RobotControl:
             # Set translation and rotation based on PID output
             translation[0] = -self.pid_x.output
             translation[1] = -self.pid_y.output
-            translation[2] = -self.pid_z.output[0]
-            angles_as_deg[0] = -self.pid_z.output[1]
-            angles_as_deg[1] = -self.pid_z.output[2]
+            translation[2] = -self.pid_z.output
+            angles_as_deg[0] = -self.pid_rx.output
+            angles_as_deg[1] = -self.pid_ry.output
             angles_as_deg[2] = -self.pid_rz.output
 
         self.displacement_to_target = list(translation) + list(angles_as_deg)
