@@ -3,14 +3,14 @@ import time
 class PIDControllerGroup:
     def __init__(self, use_force=False, use_pressure=False):
         self.translation_pids = [
-            ImpedancePIDController(),  # x
-            ImpedancePIDController(),  # y
+            ImpedancePIDController(P=0.5),  # x
+            ImpedancePIDController(P=0.5),  # y
         ]
 
         if use_pressure:
             pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
         elif use_force:
-            pid_z = ImpedancePIDController(P=0.5, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
+            pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
         else:
             pid_z = ImpedancePIDController()
 
@@ -29,7 +29,7 @@ class PIDControllerGroup:
 
         # Update z with optional force feedback
         if force_feedback is not None:
-            self.dynamically_update_stiffness(translations[2], force_feedback=force_feedback)
+            self.dynamically_update_stiffness_and_damping(translations[2], force_feedback=force_feedback)
             self.translation_pids[2].update(translations[2], force_feedback=force_feedback)
         else:
             self.translation_pids[2].update(translations[2])
@@ -38,10 +38,10 @@ class PIDControllerGroup:
         for pid, angle in zip(self.rotation_pids, angles):
             pid.update(angle)
     
-    def dynamically_update_stiffness(self, z_displacement, force_feedback, 
+    def dynamically_update_stiffness_and_damping(self, z_displacement, force_feedback, 
                                     max_displacement=1.0, 
                                     min_stiffness=0.01, max_stiffness=0.1,
-                                    smoothing=0.9, release_force_threshold=0.1):
+                                    smoothing=0.9, release_force_threshold=0.1, damping_ratio=0.6):
         """
         Adjust stiffness based on displacement and force_feedback, with lockout if force is too high.
 
@@ -53,6 +53,7 @@ class PIDControllerGroup:
             max_stiffness (float): Maximum stiffness for large displacements.
             smoothing (float): EMA smoothing factor (0 = no smoothing).
             release_force_threshold (float): Force value below which stiffness lock is released.
+            damping_ratio (float): Ratio used to compute damping relative to current stiffness.
         """
 
         # Compute absolute force limit
@@ -82,8 +83,9 @@ class PIDControllerGroup:
             current_stiffness = self.translation_pids[2].stiffness
             stiffness = smoothing * current_stiffness + (1 - smoothing) * target_stiffness
 
-        # Set the stiffness
+        # Set the stiffness and damping
         self.translation_pids[2].stiffness = stiffness
+        self.translation_pids[2].damping = damping_ratio * stiffness
 
     def get_outputs(self):
         # Return two lists, negated outputs for translation and rotation respectively
