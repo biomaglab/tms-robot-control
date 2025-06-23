@@ -7,10 +7,10 @@ class PIDControllerGroup:
             ImpedancePIDController(),  # y
         ]
 
-        if use_force:
-            pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
-        elif use_pressure:
+        if use_pressure:
             pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
+        elif use_force:
+            pid_z = ImpedancePIDController(P=0.5, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
         else:
             pid_z = ImpedancePIDController()
 
@@ -29,19 +29,70 @@ class PIDControllerGroup:
 
         # Update z with optional force feedback
         if force_feedback is not None:
-            self.translation_pids[2].update(translations[2], feedback=force_feedback)
+            self.dynamically_update_stiffness(translations[2], force_feedback=force_feedback)
+            self.translation_pids[2].update(translations[2], force_feedback=force_feedback)
         else:
             self.translation_pids[2].update(translations[2])
 
     def update_rotation(self, angles):
         for pid, angle in zip(self.rotation_pids, angles):
             pid.update(angle)
+    
+    def dynamically_update_stiffness(self, z_displacement, force_feedback, 
+                                    max_displacement=1.0, 
+                                    min_stiffness=0.01, max_stiffness=0.1,
+                                    smoothing=0.9, release_force_threshold=0.1):
+        """
+        Adjust stiffness based on displacement and force_feedback, with lockout if force is too high.
+
+        Parameters:
+            z_displacement (float): Z-axis displacement.
+            force_feedback (float): Current measured force (typically negative in compression).
+            max_displacement (float): Max considered displacement.
+            min_stiffness (float): Minimum stiffness when force is high.
+            max_stiffness (float): Maximum stiffness for large displacements.
+            smoothing (float): EMA smoothing factor (0 = no smoothing).
+            release_force_threshold (float): Force value below which stiffness lock is released.
+        """
+
+        # Compute absolute force limit
+        max_force = abs(self.translation_pids[2].force_setpoint * 2)
+
+        # Initialize lock flag if not present
+        if not hasattr(self, "stiffness_locked_due_to_force"):
+            self.stiffness_locked_due_to_force = False
+
+        # Lock stiffness if force_feedback exceeds threshold
+        if abs(force_feedback) > max_force:
+            self.stiffness_locked_due_to_force = True
+
+        # Unlock stiffness if force is close enough to zero
+        if abs(force_feedback) < release_force_threshold:
+            self.stiffness_locked_due_to_force = False
+
+        if self.stiffness_locked_due_to_force:
+            # Force too high → lock to minimum stiffness
+            stiffness = min_stiffness
+        else:
+            # Scale stiffness with displacement
+            normalized_disp = max(0.0, min(z_displacement / max_displacement, 1.0))
+            target_stiffness = min_stiffness + normalized_disp * (max_stiffness - min_stiffness)
+
+            # Apply smoothing
+            current_stiffness = self.translation_pids[2].stiffness
+            stiffness = smoothing * current_stiffness + (1 - smoothing) * target_stiffness
+
+        # Set the stiffness
+        self.translation_pids[2].stiffness = stiffness
 
     def get_outputs(self):
         # Return two lists, negated outputs for translation and rotation respectively
         trans_out = [-pid.output for pid in self.translation_pids]
         rot_out = [-pid.output for pid in self.rotation_pids]
         return trans_out, rot_out
+    
+    def get_force_setpoint(self):
+        return self.translation_pids[2].force_setpoint
 
     def clear(self):
         for pid in self.translation_pids + self.rotation_pids:
