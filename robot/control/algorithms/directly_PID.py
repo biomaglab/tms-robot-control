@@ -51,7 +51,8 @@ class DirectlyPIDAlgorithm:
                       target_pose_in_robot_space_estimated_from_head_pose,
                       target_pose_in_robot_space_estimated_from_displacement,
                       robot_pose,
-                      head_center):
+                      head_center,
+                      z_offset):
 
         # Compute the maximum translation and rotation to the target.
         max_translation = np.max(np.abs(displacement_to_target[:3]))
@@ -79,8 +80,8 @@ class DirectlyPIDAlgorithm:
 
         # Normalize force sensor only if we're close to the target
         # Only normalize if close AND hasn't been normalized yet
-        close_translation = max_translation < self.translation_threshold / 8
-        close_rotation = max_rotation < self.rotation_threshold / 8
+        close_translation = max_translation < self.translation_threshold / 10
+        close_rotation = max_rotation < self.rotation_threshold / 10
 
         if close_translation and close_rotation and not self.force_normalized:
             normalize_force_sensor = True

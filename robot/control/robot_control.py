@@ -63,6 +63,7 @@ class RobotControl:
         # reference force and moment values
         self.reference_force = np.array([0.0, 0.0, 0.0])
         self.reference_torque = np.array([0.0, 0.0, 0.0])
+        self.force_feedback_buffer = deque(maxlen=1)
         self.force_z_buffer = deque(maxlen=100)
         self.filtered_force_torque = None  # Initialize filtered force-torque vector
 
@@ -79,6 +80,7 @@ class RobotControl:
         self.use_pressure = self.config['use_pressure_sensor']
         self.use_force = self.config['use_force_sensor']
         self.force_feedback = None
+        self.force_near_setpoint = True
         self.last_force_feedback = None
         self.z_offset = 0
         self._last_z_offset_sent = 0
@@ -263,6 +265,7 @@ class RobotControl:
         self._last_z_offset_sent = 0
         self.reference_force = np.array([0.0, 0.0, 0.0])
         self.reference_torque = np.array([0.0, 0.0, 0.0])
+        self.force_feedback_buffer = deque(maxlen=1)
         self.force_z_buffer = deque(maxlen=100)
         self.filtered_force_torque = None
 
@@ -565,7 +568,6 @@ class RobotControl:
             return None
 
         force_z = -force_sensor_values[2]  # Z-axis, flipped sign
-        self.force_z_buffer.append(force_z)
 
         return force_z
 
@@ -590,13 +592,14 @@ class RobotControl:
 
         combined = np.concatenate([norm_force, norm_torque])  # [Fx, Fy, Fz, Tx, Ty, Tz]
         # Apply exponential moving average filter
-        alpha = 0.5
+        alpha = 0.9
         if self.filtered_force_torque is None:
             # Initialize with first measurement
             self.filtered_force_torque = combined
         else:
             # EMA update: new_filtered = alpha * current + (1-alpha) * previous_filtered
             self.filtered_force_torque = alpha * combined + (1 - alpha) * self.filtered_force_torque
+        self.force_feedback_buffer.append(self.filtered_force_torque)
 
         return self.filtered_force_torque
 
@@ -763,7 +766,7 @@ class RobotControl:
             is_time_to_tune = False
 
         # Check if the robot is already in the target position and not enough time has passed since the last tuning.
-        if self.target_reached and not is_time_to_tune:
+        if self.target_reached and not is_time_to_tune and self.force_near_setpoint:
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
             return True, ""
@@ -794,6 +797,7 @@ class RobotControl:
             target_pose_in_robot_space_estimated_from_displacement=self.target_pose_in_robot_space_estimated_from_displacement,
             robot_pose=robot_pose,
             head_center=self.head_center,
+            z_offset=self.z_offset,
         )
 
         if not success:
@@ -811,10 +815,10 @@ class RobotControl:
             return False, warning
 
         # Normalize force sensor values if needed.
-        if self.use_force and normalize_force_sensor:
-            force_sensor_values = self.read_force_sensor()
-            self.reference_force = force_sensor_values[0:3]
-            self.reference_torque = force_sensor_values[3:6]
+        if self.use_force and not self.use_pressure and normalize_force_sensor:
+            force_torque_bias = np.mean(self.force_feedback_buffer, axis=0)
+            self.reference_force = force_torque_bias[0:3]
+            self.reference_torque = force_torque_bias[3:6]
 
         # Set the robot state to "start moving" if the movement was successful and the dwell_time is different from zero.
         if success:
@@ -934,6 +938,9 @@ class RobotControl:
 
         self.force_feedback = self.get_pressure_sensor_values() if self.use_pressure else \
             self.get_force_sensor_only_Z() if self.use_force else None
+        self.force_z_buffer.append(self.force_feedback)
+        if self.config.get('movement_algorithm') == 'directly_PID' and self.objective == RobotObjective.TRACK_TARGET:
+            self.force_near_setpoint = abs(np.mean(self.force_z_buffer, axis=0) - self.pid_group.get_force_setpoint()) <= 1.5
 
     def update_navigation_variables(self, warning):
         self.SendWarningToNeuronavigation(warning)
@@ -958,6 +965,7 @@ class RobotControl:
         if force_feedback is None or np.isnan(force_feedback).any():
             #print("Warning: force_feedback is None or NaN.")
             return
+        force_feedback = np.round(force_feedback, 1)
         if force_feedback == self.last_force_feedback:
             return
         self.last_force_feedback = force_feedback

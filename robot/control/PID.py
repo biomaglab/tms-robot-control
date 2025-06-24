@@ -8,9 +8,13 @@ class PIDControllerGroup:
         ]
 
         if use_pressure:
+            self.stiffness = 0.05
+            self.damping = 0.02
             pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
         elif use_force:
-            pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
+            self.stiffness = 0.1
+            self.damping = 0
+            pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=self.stiffness, damping=self.damping, mode='impedance')
         else:
             pid_z = ImpedancePIDController(P=0.1)
 
@@ -29,7 +33,7 @@ class PIDControllerGroup:
 
         # Update z with optional force feedback
         if force_feedback is not None:
-            self.dynamically_update_stiffness_and_damping(translations[2], force_feedback=force_feedback)
+            self.dynamically_update_stiffness_and_damping(translations[2], force_feedback=force_feedback, min_stiffness=(self.stiffness*2)/10, max_stiffness=self.stiffness*2, damping_ratio=self.damping/self.stiffness)
             self.translation_pids[2].update(translations[2], force_feedback=force_feedback)
         else:
             self.translation_pids[2].update(translations[2])
