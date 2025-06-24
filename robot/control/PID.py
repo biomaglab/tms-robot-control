@@ -12,7 +12,7 @@ class PIDControllerGroup:
         elif use_force:
             pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=0.1, damping=0, mode='impedance')
         else:
-            pid_z = ImpedancePIDController()
+            pid_z = ImpedancePIDController(P=0.1)
 
         self.translation_pids.append(pid_z)
 
@@ -41,7 +41,7 @@ class PIDControllerGroup:
     def dynamically_update_stiffness_and_damping(self, z_displacement, force_feedback, 
                                     max_displacement=1.0, 
                                     min_stiffness=0.01, max_stiffness=0.1,
-                                    smoothing=0.9, release_force_threshold=0.1, damping_ratio=0.6):
+                                    smoothing=0.9, release_force_threshold=0.1, damping_ratio=0.4):
         """
         Adjust stiffness based on displacement and force_feedback, with lockout if force is too high.
 

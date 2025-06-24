@@ -937,9 +937,10 @@ class RobotControl:
 
     def update_navigation_variables(self, warning):
         self.SendWarningToNeuronavigation(warning)
-        self.SendForceSensorDataToNeuronavigation(self.force_feedback)
-        if self.objective == RobotObjective.TRACK_TARGET:
-            self.SendForceStabilityToNeuronavigation(self.z_offset)
+        if self.use_force or self.use_pressure:
+            self.SendForceSensorDataToNeuronavigation(self.force_feedback)
+            if self.objective == RobotObjective.TRACK_TARGET:
+                self.SendForceStabilityToNeuronavigation(self.z_offset)
 
     def SendWarningToNeuronavigation(self, warning):
         # Send warning message to invesalius.
