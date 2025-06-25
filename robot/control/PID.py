@@ -173,8 +173,8 @@ class ImpedancePIDController:
             self.ITerm += force_error * delta_time
             self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))  # Anti-windup
             # Derivative of force error
-            delta_force_error = force_error - self.last_force_error
-            self.DTerm = delta_force_error / delta_time if delta_time > 0 else 0.0
+            raw_DTerm = (force_error - self.last_force_error) / delta_time if delta_time > 0 else 0.0
+            self.DTerm = 0.9 * self.DTerm + 0.1 * raw_DTerm  # low-pass filter
 
             # Impedance control: Calculate position correction based on displacement error
             impedance_position_correction = self.stiffness * displacement_error - self.damping * self.velocity
@@ -184,6 +184,7 @@ class ImpedancePIDController:
 
             # Update position based on velocity and acceleration
             acceleration = (unclamped_output - self.damping * self.velocity)
+            acceleration = max(-0.5, min(0.5, acceleration))  # limit
             self.velocity += acceleration * delta_time
 
             # Apply position output limits

@@ -19,7 +19,7 @@ from robot.control.color import Color
 from robot.control.robot_state_controller import RobotStateController, RobotState
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
-from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
+from robot.control.algorithms.directly_PID import CableCharacterizer, DirectlyPIDAlgorithm
 from robot.control.PID import PIDControllerGroup
 from robot.control.pressure_sensor import BufferedPressureSensorReader
 
@@ -86,6 +86,7 @@ class RobotControl:
         self._last_z_offset_sent = 0
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(use_force=self.use_force, use_pressure=self.use_pressure)
+        self.cable_char = CableCharacterizer(safe_height=config['safe_height'])
 
         if self.use_pressure:
             self.pressure_force = BufferedPressureSensorReader(self.config['com_port_pressure_sensor'], 115200, buffer_size=100)
@@ -308,34 +309,33 @@ class RobotControl:
         return list(translation) + list(angles_as_deg)
 
     def OnUpdateDisplacementToTarget(self, data):
-        # For the displacement received from the neuronavigation, the following holds:
-        #
-        # - It is a vector from the current robot pose to the target pose.
-        # - It is represented as the vector (Dx, Dy, Dz, Da, Db, Dc) in the coordinate system of the tool center point (TCP), where
-        #   Dx, Dy, and Dz are the differences along x-, y-, and z-axes, and Da, Db, Dc are the differences in Euler angles between the
-        #   current pose and the target pose.
-        # - The Euler angles are applied in the order of rx, ry, rz, i.e., the rotation around x-axis is performed first, followed by
-        #   rotation around y-axis, and finally rotation around z-axis.
-        # - The rotations are applied in this order in a rotating frame ('rxyz'), not a static frame.
-        # - Contrary to the common convention and the convention used elsewhere in the code, the rotation is applied _before_ translation.
         displacement = data["displacement"]
-
-        # XXX: The handedness of the coordinate system used by neuronavigation is different from the one used by the robot,
-        #   hence the sign reversal below.
-        #
-        # The exact axes (x- and rx-axes) that are reversed are determined using the observations below:
-        #
-        # Starting from the target (i.e., displacement = [0, 0, 0, 0, 0, 0]), move the robot in the positive x-direction by 10 mm.
-        # The displacement is a vector from the current robot position to the target position, so the displacement should
-        # become [-10, 0, 0, 0, 0, 0]. However, the displacement received from neuronavigation is [10, 0, 0, 0, 0, 0].
-        # The same applies for rx-axis (but not for the other axes) - hence the sign reversal for x- and rx-axes.
-        #
         displacement[0] = -displacement[0]
         displacement[3] = -displacement[3]
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
 
+        # Store current displacement for kinematics calculation
+        current_time = time.time()
+        if hasattr(self, 'last_displacement'):
+            dt = max(0.001, current_time - self.last_displacement_time)
+            self.current_velocity = (np.array(translation) - np.array(self.last_displacement)) / dt
+
+            if hasattr(self, 'last_velocity'):
+                self.current_acceleration = (self.current_velocity - self.last_velocity) / dt
+            else:
+                self.current_acceleration = np.zeros(6)
+
+            self.last_velocity = self.current_velocity
+        else:
+            self.current_velocity = np.zeros(6)
+            self.current_acceleration = np.zeros(6)
+
+        self.last_displacement = translation
+        self.last_displacement_time = current_time
+
         if self.config.get('movement_algorithm') == 'directly_PID':
+            # Use cable-compensated force from read_force_sensor
             self.pid_group.update_translation(translation, self.force_feedback)
             self.pid_group.update_rotation(angles_as_deg)
             self.z_offset = translation[2]
@@ -567,9 +567,35 @@ class RobotControl:
         if force_sensor_values is None or len(force_sensor_values) < 6:
             return None
 
+        # Apply additional filtering and compensation specific to Z-axis
         force_z = -force_sensor_values[2]  # Z-axis, flipped sign
 
-        return force_z
+        # Apply cable compensation if available
+        if hasattr(self, 'cable_char') and self.cable_char.characterization_complete:
+            # Get current kinematics for dynamic compensation
+            velocity = getattr(self, 'current_velocity', np.zeros(6))
+            acceleration = getattr(self, 'current_acceleration', np.zeros(6))
+
+            # Apply additional dynamic compensation
+            force_z = self.cable_char.apply_dynamic_compensation(force_z, velocity, acceleration)
+
+        # Apply low-pass filtering specific to Z-axis
+        if not hasattr(self, 'z_force_filter'):
+            # Initialize EMA filter for Z-force
+            self.z_force_filter = force_z
+            self.z_force_alpha = 0.4  # Stronger filtering for Z-axis
+        else:
+            self.z_force_filter = (self.z_force_alpha * force_z +
+                                   (1 - self.z_force_alpha) * self.z_force_filter)
+
+        # Adaptive filtering based on movement state
+        if hasattr(self, 'current_velocity') and np.linalg.norm(self.current_velocity) > 0.01:
+            # Increase filtering during movement
+            adaptive_alpha = max(0.1, self.z_force_alpha * 0.5)
+            self.z_force_filter = (adaptive_alpha * force_z +
+                                   (1 - adaptive_alpha) * self.z_force_filter)
+
+        return self.z_force_filter
 
     def read_force_sensor(self):
         if not self.use_force:
@@ -592,7 +618,7 @@ class RobotControl:
 
         combined = np.concatenate([norm_force, norm_torque])  # [Fx, Fy, Fz, Tx, Ty, Tz]
         # Apply exponential moving average filter
-        alpha = 0.9
+        alpha = 0.6
         if self.filtered_force_torque is None:
             # Initialize with first measurement
             self.filtered_force_torque = combined
@@ -797,7 +823,7 @@ class RobotControl:
             target_pose_in_robot_space_estimated_from_displacement=self.target_pose_in_robot_space_estimated_from_displacement,
             robot_pose=robot_pose,
             head_center=self.head_center,
-            z_offset=self.z_offset,
+            force_feedback=self.force_feedback,
         )
 
         if not success:
@@ -864,6 +890,8 @@ class RobotControl:
         self.moving_away_from_head = success
 
         if success:
+            # Reset characterization when moving away
+            self.cable_char.reset()
             self.robot_state_controller.set_state_to_start_moving()
 
         return success
