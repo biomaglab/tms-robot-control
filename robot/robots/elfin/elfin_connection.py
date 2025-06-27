@@ -1,5 +1,6 @@
 from enum import Enum
 from socket import socket, AF_INET, SOCK_STREAM
+import time
 
 
 class MotionState(Enum):
@@ -28,6 +29,7 @@ class ElfinConnection:
         """
         self.ip = ip
         self.use_new_api = use_new_api
+        self.servo_started = False
 
         self.connected = False
         self.socket = None
@@ -142,36 +144,46 @@ class ElfinConnection:
         request = "GrpStop," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
-    
+
     def enable_assistive_robot(self):
         """
         Enable assistive mode.
 
         :return: True if successful, otherwise False.
         """
-        request = "StartAssistiveMode," + str(self.ROBOT_ID)
+        command = "GrpOpenFreeDriver" if self.use_new_api else "StartAssistiveMode"
+        request = command + "," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
-    
+
     def disable_assistive_robot(self):
         """
         Disable assistive mode.
 
         :return: True if successful, otherwise False.
         """
-        request = "CloseAssistiveMode," + str(self.ROBOT_ID)
+        command = "GrpCloseFreeDriver" if self.use_new_api else "CloseAssistiveMode"
+        request = command + "," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def set_speed_ratio(self, speed_ratio):
         """
-        Sets the speed ratio.
+        Sets the speed ratio if it has changed.
 
-        :param double speed_ratio: The desired speed ratio, range: 0.01-1.
-        :return: True if successful, otherwise False.
+        :param float speed_ratio: Desired speed ratio, range: 0.01–1.0
+        :return: True if successful, otherwise False
         """
-        request = "SetOverride," + str(self.ROBOT_ID) + ',' + str(speed_ratio)
+        if getattr(self, "_last_speed_ratio", None) == speed_ratio:
+            return True  # No need to resend the same speed
+
+        request = "SetOverride," + str(self.ROBOT_ID) + "," + str(speed_ratio)
         success, _ = self._send_and_receive(request)
+
+        if success:
+            self._last_speed_ratio = speed_ratio
+            time.sleep(0.1)  # Allow speed change to take effect
+
         return success
 
     def get_pose(self):
@@ -208,6 +220,34 @@ class ElfinConnection:
         request = command + "," + str(self.ROBOT_ID) + ',' + self.list_to_str(target)
 
         success, _ = self._send_and_receive(request, verbose=True)
+        return success
+
+    def start_servo(self, servo_time_ms=10, lookahead_time_ms=50):
+        cmd = "StartServo," + str(self.ROBOT_ID) + "," + str(servo_time_ms) + "," + str(lookahead_time_ms)
+        success, _ = self._send_and_receive(cmd)
+        self.servo_started = success
+        return success
+
+    def ensure_servo_started(self):
+        if not getattr(self, "servo_started", False):
+            return self.start_servo()
+        return True
+
+    def move_servo(self, target):
+        if self.use_new_api:
+            if not self.ensure_servo_started():
+                return False
+
+            ucs = [0] * 6
+            tcp = [0] * 6
+            request = "PushServoP," + str(self.ROBOT_ID) + "," \
+                      + self.list_to_str(target) + "," \
+                      + self.list_to_str(ucs) + "," \
+                      + self.list_to_str(tcp)
+        else:
+            request = "MoveB," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
+
+        success, _ = self._send_and_receive(request)
         return success
 
     def read_force_sensor(self):
