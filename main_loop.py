@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import sys
-from threading import Lock
 import time
+from threading import Lock
 
 import numpy as np
 import socketio
