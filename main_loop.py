@@ -243,20 +243,20 @@ def main(connection=None):
                 for i in range(len(buf)):
                     if topic[i] in const.PUB_MESSAGES:
                         get_function = {
-                            const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
-                            const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
-                            const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
-                            const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
-                            const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.OnUpdateTrackerPoses,
-                            const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
-                            const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
-                            const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
-                            const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.OnSetRobotTransformationMatrix,
-                            const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
-                            const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
-                            const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
-                            const.FUNCTION_SET_FREE_DRIVE: robot_control.OnSetFreeDrive,
-                            const.FUNCTION_CHECK_CONNECTION: robot_control.OnCheckConnectionRobot,
+                            const.FUNCTION_CONNECT_TO_ROBOT: robot_control.on_robot_connection,
+                            const.FUNCTION_SET_TARGET: robot_control.on_set_target,
+                            const.FUNCTION_UNSET_TARGET: robot_control.on_unset_target,
+                            const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.on_set_tracker_fiducials,
+                            const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.on_update_tracker_poses,
+                            const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.on_create_point,
+                            const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.on_reset_robot_matrix,
+                            const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.on_robot_matrix_estimation,
+                            const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.on_set_robot_transformation_matrix,
+                            const.FUNCTION_COIL_AT_TARGET: robot_control.on_coil_at_target,
+                            const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.on_update_displacement_to_target,
+                            const.FUNCTION_SET_OBJECTIVE: robot_control.on_set_objective,
+                            const.FUNCTION_SET_FREE_DRIVE: robot_control.on_set_freedrive,
+                            const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
