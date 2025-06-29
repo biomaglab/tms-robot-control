@@ -6,6 +6,7 @@ on:
 
 jobs:
   ruff-lint:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     permissions:
@@ -24,9 +25,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install Ruff
-        run: pip install ruff
+        run: pip install ruff==0.4.3  # Pin version for reproducibility
 
-      - name: Lint and auto-fix with Ruff
+      - name: Run Ruff with auto-fix
         run: ruff check . --fix
 
       - name: Commit changes (if any)
