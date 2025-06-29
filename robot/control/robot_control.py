@@ -12,7 +12,6 @@ import robot.robots.elfin.elfin as elfin
 import robot.robots.dobot.dobot as dobot
 import robot.robots.universal_robot.universal_robot as ur
 import robot.control.coordinates as coordinates
-#import robot.control.ft as ft
 import robot.control.robot_processing as robot_process
 from robot.control.color import Color
 
@@ -20,8 +19,9 @@ from robot.control.robot_state_controller import RobotStateController, RobotStat
 from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.algorithms.directly_upward import DirectlyUpwardAlgorithm
 from robot.control.algorithms.directly_PID import DirectlyPIDAlgorithm
-from robot.control.PID import ImpedancePIDController
-from robot.control.pressure_sensor import BufferedPressureSensorReader
+from robot.control.PID import PIDControllerGroup
+from robot.sensors.pressure_sensor import BufferedPressureSensorReader
+from robot.sensors.force_and_torque_sensor import BufferedForceTorqueSensor
 
 
 class RobotObjective(Enum):
@@ -76,17 +76,17 @@ class RobotControl:
 
         self.use_pressure = self.config['use_pressure_sensor']
         self.use_force = self.config['use_force_sensor']
+        self.force_feedback = None
+        self.z_offset = 0
+
         # Initialize PID controllers
-        self.pid_x = ImpedancePIDController()
-        self.pid_y = ImpedancePIDController()
-        self.pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance') if (self.use_pressure or self.use_force) else ImpedancePIDController()
-        self.pid_rx = ImpedancePIDController()
-        self.pid_ry = ImpedancePIDController()
-        self.pid_rz = ImpedancePIDController()
+        self.pid_group = PIDControllerGroup(use_force=self.use_force, use_pressure=self.use_pressure)
 
         if self.use_pressure:
             self.pressure_force = BufferedPressureSensorReader(self.config['com_port_pressure_sensor'], 115200, buffer_size=100)
             #self.pid_z.set_force_setpoint()
+        if self.use_force:
+            self.force_and_torque = BufferedForceTorqueSensor(self.config, self.robot, buffer_size=100)
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -140,12 +140,8 @@ class RobotControl:
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
 
-        self.pid_x.clear()
-        self.pid_y.clear()
-        self.pid_z.clear()
-        self.pid_rx.clear()
-        self.pid_ry.clear()
-        self.pid_rz.clear()
+        if self.config.get('movement_algorithm') == 'directly_PID':
+            self.pid_group.clear()
 
         print("Target set")
 
@@ -263,12 +259,8 @@ class RobotControl:
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
         self.movement_algorithm.reset_state()
-        self.pid_x.clear()
-        self.pid_y.clear()
-        self.pid_z.clear()
-        self.pid_rx.clear()
-        self.pid_ry.clear()
-        self.pid_rz.clear()
+        if self.config.get('movement_algorithm') == 'directly_PID':
+            self.pid_group.clear()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
@@ -335,34 +327,13 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
         translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
-        if self.config['movement_algorithm'] == 'directly_PID':
-            if self.use_pressure:
-                force_feedback = self.get_pressure_sensor_values()
-            elif self.use_force:
-                # TODO: Normalize force when the coil is close enough to the target to minimize the influence of its own weight.
-                force_feedback = self.get_force_sensor_only_Z()
-            else:
-                force_feedback = None
-            # Update PID controllers
-            self.pid_x.update(translation[0])
-            self.pid_y.update(translation[1])
-            if force_feedback is not None:
-                self.pid_z.update(translation[2], force_feedback)
-                self.SendForceSensorDataToNeuronavigation(-force_feedback)
-                if self.use_pressure: #TODO: same for force and torque
-                    self.SendForceStabilityToNeuronavigation(translation[2])
-            else:
-                self.pid_z.update(translation[2])
-            self.pid_rx.update(angles_as_deg[0])
-            self.pid_ry.update(angles_as_deg[1])
-            self.pid_rz.update(angles_as_deg[2])
-            # Set translation and rotation based on PID output
-            translation[0] = -self.pid_x.output
-            translation[1] = -self.pid_y.output
-            translation[2] = -self.pid_z.output
-            angles_as_deg[0] = -self.pid_rx.output
-            angles_as_deg[1] = -self.pid_ry.output
-            angles_as_deg[2] = -self.pid_rz.output
+        # Update PID controllers
+        if self.config.get('movement_algorithm') == 'directly_PID':
+            # Use cable-compensated force from read_force_sensor
+            self.pid_group.update_translation(translation, self.force_feedback)
+            self.pid_group.update_rotation(angles_as_deg)
+            self.z_offset = translation[2]
+            translation, angles_as_deg = self.pid_group.get_outputs()
 
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
@@ -493,16 +464,30 @@ class RobotControl:
 
         #self.remote_control.send_message(topic, data)
 
+    def SendWarningToNeuronavigation(self, warning):
+        # Send warning message to invesalius.
+        # TODO self.connection
+        # if self.connection:
+        #     self.connection.set_warning(warning)
+        if self.remote_control and self.last_warning  != "":
+            topic = 'Robot to Neuronavigation: Update robot warning'
+            data = {'robot_warning': warning}
+            self.remote_control.send_message(topic, data)
+        self.last_warning = warning
+
     def SendForceSensorDataToNeuronavigation(self, force_feedback):
         # Check if force_feedback is NaN (handles both scalars and arrays)
         if force_feedback is None or np.isnan(force_feedback).any():
-            print("Warning: force_feedback is NaN. Sending default value of 0.0.")
-            force_feedback = 0.0  
+            #print("Warning: force_feedback is None or NaN.")
+            return
+        force_feedback = np.round(force_feedback, 1)
+        if self.force_and_torque.z_offset_changed(force_feedback):
+            return
 
         # Send message to neuronavigation with force or pressure for GUI.
         if self.remote_control:
             topic = 'Robot to Neuronavigation: Send force sensor data'
-            data = {'force_feedback': force_feedback}
+            data = {'force_feedback': -force_feedback}
             self.remote_control.send_message(topic, data)
         # TODO:
         #if self.connection:
@@ -513,8 +498,13 @@ class RobotControl:
         Sends a z-offset update to the neuronavigation system if the applied force is stable.
         """
         z_offset = round(z_offset, 2)
-        if not self.pressure_force.is_force_stable(self.pid_z.force_setpoint, z_offset):
-            return  # Exit early if force is not stable
+        # Check stability with pressure taking priority over force
+        if self.use_pressure:
+            if not self.pressure_force.is_force_stable(self.pid_group.get_force_setpoint(), z_offset):
+                return  # Exit early if pressure is enabled and unstable
+        elif self.use_force:
+            if not self.force_and_torque.is_force_z_stable(self.pid_group.get_force_setpoint(), z_offset):
+                return  # Exit early if only force is enabled and unstable
 
         if self.remote_control:
             topic = 'Robot to Neuronavigation: Update z_offset target'
@@ -614,23 +604,10 @@ class RobotControl:
         return None
 
     def get_force_sensor_only_Z(self):
-        force_sensor_values = self.read_force_sensor()
+        force_sensor_values = self.force_and_torque.get_latest_value(axis=2)
         if force_sensor_values:
-            return force_sensor_values[2]
+            return force_sensor_values
         return None
-
-    def read_force_sensor(self):
-        if not self.config['use_force_sensor']:
-            print("Error: use_force_sensor in environment variables not set to 'true' when running robot_control.read_force_sensor")
-
-        success, force_sensor_values = self.robot.read_force_sensor()
-
-        # If force sensor could not be read, return early.
-        if not success:
-            print("Error: Could not read the force sensor.")
-            return
-
-        return force_sensor_values
 
     def reconnect_to_robot(self):
         print("Trying to reconnect to robot...")
@@ -876,10 +853,8 @@ class RobotControl:
 
         head_pose_in_tracker_space_filtered = self.process_tracker.kalman_filter(self.tracker.head_pose)
 
-        if self.config['use_force_sensor']:
-            force_sensor_values = self.read_force_sensor()
-        else:
-            force_sensor_values = False
+        if self.use_force:
+            self.force_and_torque.update_force_buffer()
 
         if self.tracker.m_tracker_to_robot is not None:
             head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(head_pose_in_tracker_space_filtered)
@@ -911,16 +886,15 @@ class RobotControl:
 
         self.target_pose_in_robot_space_estimated_from_head_pose = robot_process.compute_head_move_compensation(head_pose_in_robot_space, self.m_target_to_head)
 
-    def SendWarningToNeuronavigation(self, warning):
-        # Send warning message to invesalius.
-        # TODO self.connection
-        # if self.connection:
-        #     self.connection.set_warning(warning)
-        if self.remote_control and self.last_warning  != "":
-            topic = 'Robot to Neuronavigation: Update robot warning'
-            data = {'robot_warning': warning}
-            self.remote_control.send_message(topic, data)
-        self.last_warning = warning
+        self.force_feedback = self.get_pressure_sensor_values() if self.use_pressure else \
+            self.get_force_sensor_only_Z() if self.use_force else None
+
+    def update_navigation_variables(self, warning):
+        self.SendWarningToNeuronavigation(warning)
+        if self.use_force or self.use_pressure:
+            self.SendForceSensorDataToNeuronavigation(self.force_feedback)
+            if self.objective == RobotObjective.TRACK_TARGET:
+                self.SendForceStabilityToNeuronavigation(self.z_offset)
 
     def update(self):
         # Check if the robot is connected.
@@ -939,14 +913,16 @@ class RobotControl:
 
         self.update_state_variables()
 
+        warning = ""
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
             success, warning = self.handle_objective_track_target()
-            self.SendWarningToNeuronavigation(warning)
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
             success = self.handle_objective_move_away_from_head()
+
+        self.update_navigation_variables(warning)
 
         return success
