@@ -1,17 +1,17 @@
 from time import sleep
 
-from robot.robots.robot import Robot
-
 from robot.robots.elfin.elfin_connection import (
     ElfinConnection,
     MotionState,
 )
+from robot.robots.robot import Robot
 
 
 class Elfin(Robot):
     """
     The class for communicating with Elfin robot.
     """
+
     def __init__(self, ip, use_new_api=False):
         self.connection = ElfinConnection(
             ip=ip,
@@ -60,15 +60,14 @@ class Elfin(Robot):
         sleep(0.1)
 
         return self.connection.move_linear(target)
-    
+
     def dynamic_motion(self, target, speed_ratio):
         success = self.connection.set_speed_ratio(speed_ratio)
         if not success:
             return False
-        
+
         # Using moveB
         return self.connection.move_linear(target)
-        
 
     def move_circular(self, start_position, waypoint, target, speed_ratio):
         success = self.connection.set_speed_ratio(speed_ratio)
@@ -92,11 +91,11 @@ class Elfin(Robot):
         sleep(0.05)
 
         return success
-    
+
     def enable_free_drive(self):
         success = self.connection.enable_assistive_robot()
         return success
-    
+
     def disable_free_drive(self):
         success = self.connection.disable_assistive_robot()
         return success
@@ -104,4 +103,4 @@ class Elfin(Robot):
     # Destruction and cleanup
     def close(self):
         self.stop_robot()
-        self.disconnect() 
+        self.disconnect()

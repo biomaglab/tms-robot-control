@@ -1,4 +1,5 @@
 from collections import deque
+
 import numpy as np
 
 
@@ -17,7 +18,7 @@ class BufferedForceTorqueSensor:
         self._last_z_offset_sent = None
 
     def read_force_sensor(self):
-        if not self.config.get('use_force_sensor', False):
+        if not self.config.get("use_force_sensor", False):
             print("Error: 'use_force_sensor' is not enabled in configuration.")
             return None
 
@@ -81,7 +82,7 @@ class BufferedForceTorqueSensor:
         min_samples=15,
         window_size=25,
         smoothing=True,
-        z_offset_tolerance=1.0
+        z_offset_tolerance=1.0,
     ):
         """
         Determines if Z force is stable and z_offset has changed enough.
