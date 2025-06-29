@@ -82,74 +82,74 @@ class RobotApi():
     def __set_callbacks(self, connection):
         connection.set_callback__connect_to_robot(self.connect_to_robot)
         connection.set_callback__update_poses(self.update_poses)
-        connection.set_callback__coil_at_target(self.OnCoilAtTarget)
-        connection.set_callback__set_target(self.OnSetTarget)
-        connection.set_callback__unset_target(self.OnUnsetTarget)
-        connection.set_callback__set_tracker_fiducials(self.OnSetTrackerFiducials)
-        connection.set_callback__collect_robot_pose(self.OnCreatePoint)
-        connection.set_callback__reset_robot_transformation_matrix(self.OnResetRobotMatrix)
-        connection.set_callback__estimate_robot_transformation_matrix(self.OnRobotMatrixEstimation)
-        connection.set_callback__set_robot_transformation_matrix(self.OnSetRobotTransformationMatrix)
-        connection.set_callback__update_displacement_to_target(self.OnUpdateDisplacementToTarget)
-        connection.set_callback__set_objective(self.OnSetObjective)
+        connection.set_callback__coil_at_target(self.on_coil_at_target)
+        connection.set_callback__set_target(self.on_set_target)
+        connection.set_callback__unset_target(self.on_unset_target)
+        connection.set_callback__set_tracker_fiducials(self.on_set_tracker_fiducials)
+        connection.set_callback__collect_robot_pose(self.on_create_point)
+        connection.set_callback__reset_robot_transformation_matrix(self.on_reset_robot_matrix)
+        connection.set_callback__estimate_robot_transformation_matrix(self.on_robot_matrix_estimation)
+        connection.set_callback__set_robot_transformation_matrix(self.on_set_robot_transformation_matrix)
+        connection.set_callback__update_displacement_to_target(self.on_update_displacement_to_target)
+        connection.set_callback__set_objective(self.on_set_objective)
 
     def connect_to_robot(self, robot_ip):
         if self.connection is not None:
             data = {'robot_IP': robot_ip}
-            self.robot_control.OnRobotConnection(data)
+            self.robot_control.on_robot_connection(data)
 
     def update_poses(self, poses, visibilities):
         if self.connection is not None:
             data = {'poses': poses, 'visibilities': visibilities}
-            self.robot_control.OnUpdateTrackerPoses(data)
+            self.robot_control.on_update_tracker_poses(data)
 
-    def OnCoilAtTarget(self, state):
+    def on_coil_at_target(self, state):
         if self.connection is not None:
             data = {'state': state}
-            self.robot_control.OnCoilAtTarget(data)
+            self.robot_control.on_coil_at_target(data)
 
-    def OnSetTarget(self, target):
+    def on_set_target(self, target):
         if self.connection is not None:
             data = {'target': target}
-            self.robot_control.OnSetTarget(data)
+            self.robot_control.on_set_target(data)
 
-    def OnUnsetTarget(self):
+    def on_unset_target(self):
         if self.connection is not None:
             data = {'target': False}
-            self.robot_control.OnUnsetTarget(data)
+            self.robot_control.on_unset_target(data)
 
-    def OnSetTrackerFiducials(self, fiducial_left, fiducial_right, fiducial_nasion):
+    def on_set_tracker_fiducials(self, fiducial_left, fiducial_right, fiducial_nasion):
         if self.connection is not None:
             m_fiducial_left = np.array(fiducial_left, dtype=float).reshape((4, 4)).tolist()
             m_fiducial_right = np.array(fiducial_right, dtype=float).reshape((4, 4)).tolist()
             m_fiducial_nasion = np.array(fiducial_nasion, dtype=float).reshape((4, 4)).tolist()
             data = {'tracker_fiducials': [m_fiducial_left, m_fiducial_right, m_fiducial_nasion]}
-            self.robot_control.OnSetTrackerFiducials(data)
+            self.robot_control.on_set_tracker_fiducials(data)
 
-    def OnCreatePoint(self, data):
+    def on_create_point(self, data):
         if self.connection is not None:
-            self.robot_control.OnCreatePoint(data)
+            self.robot_control.on_create_point(data)
 
-    def OnResetRobotMatrix(self, data):
+    def on_reset_robot_matrix(self, data):
         if self.connection is not None:
-            self.robot_control.OnResetRobotMatrix()
+            self.robot_control.on_reset_robot_matrix()
 
-    def OnRobotMatrixEstimation(self, data):
+    def on_robot_matrix_estimation(self, data):
         if self.connection is not None:
-            self.robot_control.OnRobotMatrixEstimation()
+            self.robot_control.on_robot_matrix_estimation()
 
-    def OnSetRobotTransformationMatrix(self, data):
+    def on_set_robot_transformation_matrix(self, data):
         if self.connection is not None:
             data = {'data': data}
-            self.robot_control.OnSetRobotTransformationMatrix(data)
+            self.robot_control.on_set_robot_transformation_matrix(data)
 
-    def OnUpdateDisplacementToTarget(self, displacement):
+    def on_update_displacement_to_target(self, displacement):
         if self.connection is not None:
             data = {'displacement': displacement}
-            self.robot_control.OnUpdateDisplacementToTarget(data)
+            self.robot_control.on_update_displacement_to_target(data)
 
-    def OnSetObjective(self, objective):
+    def on_set_objective(self, objective):
         if self.connection is not None:
             data = {'objective': objective}
-            self.robot_control.OnSetObjective(data)
+            self.robot_control.on_set_objective(data)
 

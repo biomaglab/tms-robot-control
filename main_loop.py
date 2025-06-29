@@ -266,7 +266,7 @@ def main(connection=None):
             if previous_success != success:
                 # Reset objective if robot update was not successful.
                 robot_control.objective = RobotObjective.NONE
-                robot_control.SendObjectiveToNeuronavigation()
+                robot_control.send_objective_to_neuronavigation()
 
                 if connection_type == "ros":
                     connection.update_robot_status(success)

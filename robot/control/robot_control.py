@@ -102,18 +102,18 @@ class RobotControl:
 
         self.safe_height_defined_by_user = self.config['safe_height']
 
-    def OnRobotConnection(self, data):
-        robot_IP = data["robot_IP"]
-        self.ConnectToRobot(robot_IP)
+    def on_robot_connection(self, data):
+        robot_ip = data["robot_IP"]
+        self.connect_to_robot(robot_ip)
 
-    def OnSetFreeDrive(self, data):
+    def on_set_freedrive(self, data):
         set = data["set"]
         if set == True:
             self.robot.enable_free_drive()
         else:
             self.robot.disable_free_drive()
 
-    def OnSetTrackerFiducials(self, data):
+    def on_set_tracker_fiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
         self.process_tracker.__init__(
             robot_config=self.robot_config
@@ -125,7 +125,7 @@ class RobotControl:
 
         print("Tracker fiducials set")
 
-    def OnSetTarget(self, data):
+    def on_set_target(self, data):
         if not self.robot:
             print("ERROR: Attempting to set target, but robot not initialized.")
             return
@@ -145,24 +145,24 @@ class RobotControl:
 
         print("Target set")
 
-    def OnUnsetTarget(self, data):
+    def on_unset_target(self, data):
         self.target_set = False
 
         # Reset the objective if the target is unset.
         self.objective = RobotObjective.NONE
-        self.SendObjectiveToNeuronavigation()
+        self.send_objective_to_neuronavigation()
 
         self.m_target_to_head = None
 
         print("Target unset")
 
-    def OnUpdateTrackerPoses(self, data):
+    def on_update_tracker_poses(self, data):
         if len(data) > 1:
             poses = data["poses"]
             visibilities = data["visibilities"]
             self.tracker.SetCoordinates(np.vstack([poses[0], poses[1], poses[2]]), visibilities)
 
-    def OnCreatePoint(self, data):
+    def on_create_point(self, data):
         if self.create_calibration_point():
             if self.connection:
                 self.connection.robot_pose_collected(success=True)
@@ -171,14 +171,14 @@ class RobotControl:
                 data = {}
                 self.remote_control.send_message(topic, data)
 
-    def OnResetRobotMatrix(self, data):
+    def on_reset_robot_matrix(self, data):
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.tracker_coordinates = []
         self.robot_coordinates = []
         self.matrix_tracker_to_robot = []
 
-    def OnRobotMatrixEstimation(self, data=None):
+    def on_robot_matrix_estimation(self, data=None):
         try:
             affine_matrix_robot_to_tracker = robot_process.AffineTransformation(
                 np.array(self.tracker_coordinates),
@@ -208,12 +208,12 @@ class RobotControl:
             print("numpy.linalg.LinAlgError")
             print("Try a new acquisition")
 
-    def OnSetRobotTransformationMatrix(self, data):
+    def on_set_robot_transformation_matrix(self, data):
         X_est, Y_est, affine_matrix_tracker_to_robot = np.split(np.array(data["data"]).reshape(12, 4), 3, axis=0)
         self.matrix_tracker_to_robot = X_est, Y_est, affine_matrix_tracker_to_robot
         self.tracker.SetTrackerToRobotMatrix(self.matrix_tracker_to_robot)
 
-    def OnCoilToRobotAlignment(self, displacement):
+    def on_coil_to_robot_alignment(self, displacement):
         # XXX: Why does the transformation done by this function exist in the first place? The displacement is received
         #   from neuronavigation in terms of the TCP coordinate system, and it is used to estimate the target position in robot
         #   space using the current robot pose and the displacement.
@@ -243,7 +243,7 @@ class RobotControl:
 
         return robot_process.transformation_matrix_to_coordinates(displacement_matrix, axes='sxyz')
 
-    def OnSetObjective(self, data):
+    def on_set_objective(self, data):
         objective = data['objective']
         self.objective = RobotObjective(objective)
 
@@ -264,7 +264,7 @@ class RobotControl:
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
         # buttons in neuronavigation to reflect the current state of the robot.
-        self.SendObjectiveToNeuronavigation()
+        self.send_objective_to_neuronavigation()
 
     def compute_target_in_robot_space(self):
         # If the displacement to the target is not available, return early.
@@ -300,7 +300,7 @@ class RobotControl:
 
         return list(translation) + list(angles_as_deg)
 
-    def OnUpdateDisplacementToTarget(self, data):
+    def on_update_displacement_to_target(self, data):
         # For the displacement received from the neuronavigation, the following holds:
         #
         # - It is a vector from the current robot pose to the target pose.
@@ -326,7 +326,7 @@ class RobotControl:
         displacement[0] = -displacement[0]
         displacement[3] = -displacement[3]
 
-        translation, angles_as_deg = self.OnCoilToRobotAlignment(displacement)
+        translation, angles_as_deg = self.on_coil_to_robot_alignment(displacement)
         # Update PID controllers
         if self.config.get('movement_algorithm') == 'directly_PID':
             # Use cable-compensated force from read_force_sensor
@@ -350,14 +350,14 @@ class RobotControl:
             if all(x == self.displacement_to_target_history[0] for x in self.displacement_to_target_history):
                 self.stop_robot()
                 self.objective = RobotObjective.NONE
-                self.SendObjectiveToNeuronavigation()
+                self.send_objective_to_neuronavigation()
                 print("ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected.")
             del self.displacement_to_target_history[0]
 
-    def OnCoilAtTarget(self, data):
+    def on_coil_at_target(self, data):
         self.target_reached = data["state"]
 
-    def ConnectToRobot(self, robot_IP):
+    def connect_to_robot(self, robot_ip):
 
         self.status_connection = "Trying to connect"
 
@@ -367,22 +367,22 @@ class RobotControl:
             self.remote_control.send_message(topic, data)
 
         robot_type = self.config['robot']
-        print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_IP))
+        print("Trying to connect to robot '{}' with IP: {}".format(robot_type, robot_ip))
 
         if robot_type == "elfin":
-            robot = elfin.Elfin(robot_IP)
+            robot = elfin.Elfin(robot_ip)
             success = robot.connect()
 
         elif robot_type == "elfin_new_api":
-            robot = elfin.Elfin(robot_IP, use_new_api=True)
+            robot = elfin.Elfin(robot_ip, use_new_api=True)
             success = robot.connect()
 
         elif robot_type == "dobot":
-            robot = dobot.Dobot(robot_IP, robot_config=self.robot_config)
+            robot = dobot.Dobot(robot_ip, robot_config=self.robot_config)
             success = robot.connect()
 
         elif robot_type == "ur":
-            robot = ur.UniversalRobot(robot_IP)
+            robot = ur.UniversalRobot(robot_ip)
             success = robot.connect()
 
         elif robot_type == "test":
@@ -457,14 +457,14 @@ class RobotControl:
             data = {'data': self.status_connection}
             self.remote_control.send_message(topic, data)
 
-    def SensorUpdateTarget(self, distance, status):
+    def sensor_update_target(self, distance, status):
         #TODO: tune coil tilt based on the torque values
         topic = 'Robot to Neuronavigation: Update target from FT values'
         data = {'data' : (distance, status)}
 
         #self.remote_control.send_message(topic, data)
 
-    def SendWarningToNeuronavigation(self, warning):
+    def send_warning_to_neuronavigation(self, warning):
         # Send warning message to invesalius.
         # TODO self.connection
         # if self.connection:
@@ -475,7 +475,7 @@ class RobotControl:
             self.remote_control.send_message(topic, data)
         self.last_warning = warning
 
-    def SendForceSensorDataToNeuronavigation(self, force_feedback):
+    def send_force_sensor_data_to_neuronavigation(self, force_feedback):
         # Check if force_feedback is NaN (handles both scalars and arrays)
         if force_feedback is None or np.isnan(force_feedback).any():
             #print("Warning: force_feedback is None or NaN.")
@@ -493,7 +493,7 @@ class RobotControl:
         #if self.connection:
             #self.connection.send_force_sensor(force_feedback)
 
-    def SendForceStabilityToNeuronavigation(self, z_offset):
+    def send_force_stability_to_neuronavigation(self, z_offset):
         """
         Sends a z-offset update to the neuronavigation system if the applied force is stable.
         """
@@ -511,7 +511,7 @@ class RobotControl:
             data = {'z_offset': z_offset}
             self.remote_control.send_message(topic, data)
 
-    def SendObjectiveToNeuronavigation(self):
+    def send_objective_to_neuronavigation(self):
         # Send message to tms_robot_control indicating the current objective.
         if self.connection:
             self.connection.set_objective(self.objective.value)
@@ -550,7 +550,7 @@ class RobotControl:
             self.stop_robot()
 
             self.objective = RobotObjective.NONE
-            self.SendObjectiveToNeuronavigation()
+            self.send_objective_to_neuronavigation()
 
     def stop_robot(self):
         success = self.robot.stop_robot()
@@ -619,7 +619,7 @@ class RobotControl:
 
         return success
 
-    def OnCheckConnectionRobot(self, data):
+    def on_check_connection_robot(self, data):
 
         topic = 'Robot to Neuronavigation: Robot connection status'
         data = {'data': self.status_connection}
@@ -785,7 +785,7 @@ class RobotControl:
             self.moving_away_from_head = False
             self.objective = RobotObjective.NONE
 
-            self.SendObjectiveToNeuronavigation()
+            self.send_objective_to_neuronavigation()
 
             return True
 
@@ -890,11 +890,11 @@ class RobotControl:
             self.get_force_sensor_only_Z() if self.use_force else None
 
     def update_navigation_variables(self, warning):
-        self.SendWarningToNeuronavigation(warning)
+        self.send_warning_to_neuronavigation(warning)
         if self.use_force or self.use_pressure:
-            self.SendForceSensorDataToNeuronavigation(self.force_feedback)
+            self.send_force_sensor_data_to_neuronavigation(self.force_feedback)
             if self.objective == RobotObjective.TRACK_TARGET:
-                self.SendForceStabilityToNeuronavigation(self.z_offset)
+                self.send_force_stability_to_neuronavigation(self.z_offset)
 
     def update(self):
         # Check if the robot is connected.
