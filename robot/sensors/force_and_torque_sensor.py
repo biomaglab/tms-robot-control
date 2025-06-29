@@ -31,7 +31,6 @@ class BufferedForceTorqueSensor:
     def update_force_buffer(self):
         force_values = self.read_force_sensor()
         if force_values is not None:
-            # Assuming Z-axis force is at index 2
             self.force_buffer.append(force_values)
 
     def get_latest_value(self, axis=None):

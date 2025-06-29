@@ -329,7 +329,6 @@ class RobotControl:
         translation, angles_as_deg = self.on_coil_to_robot_alignment(displacement)
         # Update PID controllers
         if self.config.get('movement_algorithm') == 'directly_PID':
-            # Use cable-compensated force from read_force_sensor
             self.pid_group.update_translation(translation, self.force_feedback)
             self.pid_group.update_rotation(angles_as_deg)
             self.z_offset = translation[2]
