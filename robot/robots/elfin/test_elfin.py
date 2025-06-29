@@ -10,7 +10,7 @@ root_dir = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.insert(0, root_dir)
 
 
-from robot.robots.elfin.elfin import Elfin
+from robot.robots.elfin.elfin import Elfin  # noqa: E402
 
 ip = "192.168.200.251"
 

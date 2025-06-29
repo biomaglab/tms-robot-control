@@ -11,7 +11,7 @@ root_dir = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.insert(0, root_dir)
 
 
-from robot.robots.universal_robot.universal_robot import UniversalRobot
+from robot.robots.universal_robot.universal_robot import UniversalRobot  # noqa: E402
 
 ip = "169.254.128.103"
 

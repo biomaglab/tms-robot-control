@@ -4,27 +4,27 @@ import time
 class PIDControllerGroup:
     def __init__(self, use_force=False, use_pressure=False):
         self.translation_pids = [
-            ImpedancePIDController(P=0.5),  # x
-            ImpedancePIDController(P=0.5),  # y
+            ImpedancePIDController(proportional=0.5),  # x
+            ImpedancePIDController(proportional=0.5),  # y
         ]
 
         if use_pressure:
             self.stiffness = 0.05
             self.damping = 0.02
-            pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode="impedance")
+            pid_z = ImpedancePIDController(proportional=0.5, integral=0.01, derivative=0.0, mode="impedance")
         elif use_force:
             self.stiffness = 0.1
             self.damping = 0
             pid_z = ImpedancePIDController(
-                P=0.1,
-                I=0.0001,
-                D=0.0,
+                proportional=0.1,
+                integral=0.0001,
+                derivative=0.0,
                 stiffness=self.stiffness,
                 damping=self.damping,
                 mode="impedance",
             )
         else:
-            pid_z = ImpedancePIDController(P=0.1)
+            pid_z = ImpedancePIDController(proportional=0.1)
 
         self.translation_pids.append(pid_z)
 
@@ -132,10 +132,10 @@ class PIDControllerGroup:
 
 
 class ImpedancePIDController:
-    def __init__(self, P=0.3, I=0.01, D=0.0, stiffness=0.05, damping=0.02, mode="pid"):
-        self.Kp = P
-        self.Ki = I
-        self.Kd = D
+    def __init__(self, proportional=0.3, integral=0.01, derivative=0.0, stiffness=0.05, damping=0.02, mode="pid"):
+        self.Kp = proportional
+        self.Ki = integral
+        self.Kd = derivative
         self.stiffness = stiffness
         self.damping = damping
 
@@ -250,13 +250,13 @@ class ImpedancePIDController:
             raise ValueError("mode must be 'pid' or 'impedance'")
         self.mode = mode
 
-    def set_gains(self, P=None, I=None, D=None):
-        if P is not None:
-            self.Kp = P
-        if I is not None:
-            self.Ki = I
-        if D is not None:
-            self.Kd = D
+    def set_gains(self, proportional=None, integral=None, derivative=None):
+        if proportional is not None:
+            self.Kp = proportional
+        if integral is not None:
+            self.Ki = integral
+        if derivative is not None:
+            self.Kd = derivative
 
     def set_impedance(self, stiffness=None, damping=None):
         if stiffness is not None:

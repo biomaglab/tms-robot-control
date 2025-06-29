@@ -120,7 +120,7 @@ class ElfinConnection:
         #   successful, otherwise element 2 is reserved for the error code. It would
         #   be cleaner if the params started always from element 3 and error code was 0
         #   if there is no error.
-        fetch_params = type(response) != bool and len(response) > 3 and success
+        fetch_params = type(response) is not bool and len(response) > 3 and success
 
         # The elements 2...n-1 are the parameters, where n is the last element.
         params = response[2:-1] if fetch_params else None
