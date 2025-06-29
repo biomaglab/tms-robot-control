@@ -4,13 +4,13 @@ import sys
 import time
 from threading import Lock
 
-import socketio
 import numpy as np
+import socketio
 from dotenv import load_dotenv
 
 import robot.constants as const
-from robot.control.robot_control import RobotControl, RobotObjective
 from robot.control.color import Color
+from robot.control.robot_control import RobotControl, RobotObjective
 
 
 class RemoteControl:
@@ -20,10 +20,10 @@ class RemoteControl:
         self.__connected = False
         self.__sio = socketio.Client()
 
-        self.__sio.on('connect', self.__on_connect)
-        self.__sio.on('disconnect', self.__on_disconnect)
-        self.__sio.on('to_robot', self.__on_message_receive)
-        self.__sio.on('restart_robot_main_loop', self.__on_restart_main_loop)
+        self.__sio.on("connect", self.__on_connect)
+        self.__sio.on("disconnect", self.__on_disconnect)
+        self.__sio.on("to_robot", self.__on_message_receive)
+        self.__sio.on("restart_robot_main_loop", self.__on_restart_main_loop)
         self.__lock = Lock()
 
     def __on_connect(self):
@@ -66,13 +66,14 @@ class RemoteControl:
             time.sleep(1.0)
 
     def send_message(self, topic, data={}):
-        self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
+        self.__sio.emit("from_robot", {"topic": topic, "data": data})
+
 
 # Run the script like this: python main_loop.py [host] [port].
 #
 # If not given, use the defaults, as shown below.
 def get_command_line_arguments():
-    default_host = '127.0.0.1'
+    default_host = "127.0.0.1"
     default_port = 5000
 
     if len(sys.argv) == 3:
@@ -87,28 +88,29 @@ def get_command_line_arguments():
 
     return host, port
 
+
 def get_config():
     # Load environment variables from .env file.
     load_dotenv()
 
     # List environment variables.
     env_vars = [
-        'SITE',
-        'ROBOT',
-        'VERBOSE',
-        'MOVEMENT_ALGORITHM',
-        'USE_FORCE_SENSOR',
-        'USE_PRESSURE_SENSOR',
-        'COM_PORT_PRESSURE_SENSOR',
-        'DWELL_TIME',
-        'SAFE_HEIGHT',
-        'DEFAULT_SPEED_RATIO',
-        'TUNING_SPEED_RATIO',
-        'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
-        'TUNING_INTERVAL',
-        'WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT',
-        'TRANSLATION_THRESHOLD',
-        'ROTATION_THRESHOLD',
+        "SITE",
+        "ROBOT",
+        "VERBOSE",
+        "MOVEMENT_ALGORITHM",
+        "USE_FORCE_SENSOR",
+        "USE_PRESSURE_SENSOR",
+        "COM_PORT_PRESSURE_SENSOR",
+        "DWELL_TIME",
+        "SAFE_HEIGHT",
+        "DEFAULT_SPEED_RATIO",
+        "TUNING_SPEED_RATIO",
+        "STOP_ROBOT_IF_HEAD_NOT_VISIBLE",
+        "TUNING_INTERVAL",
+        "WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT",
+        "TRANSLATION_THRESHOLD",
+        "ROTATION_THRESHOLD",
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -116,58 +118,66 @@ def get_config():
             return None
 
     # Create configuration dictionary.
-    site = os.getenv('SITE')
-    robot = os.getenv('ROBOT')
-    verbose = os.getenv('VERBOSE').lower() == 'true'
-    movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
-    dwell_time = float(os.getenv('DWELL_TIME'))
-    use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
-    use_pressure_sensor = os.getenv('USE_PRESSURE_SENSOR').lower() == 'true'
-    com_port_pressure_sensor = os.getenv('COM_PORT_PRESSURE_SENSOR')
-    safe_height = float(os.getenv('SAFE_HEIGHT'))
-    default_speed_ratio = float(os.getenv('DEFAULT_SPEED_RATIO'))
-    tuning_speed_ratio = float(os.getenv('TUNING_SPEED_RATIO'))
-    stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
-    wait_for_keypress_before_movement = os.getenv('WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT').lower() == 'true'
-    translation_threshold = float(os.getenv('TRANSLATION_THRESHOLD'))
-    rotation_threshold = float(os.getenv('ROTATION_THRESHOLD'))
+    site = os.getenv("SITE")
+    robot = os.getenv("ROBOT")
+    verbose = os.getenv("VERBOSE").lower() == "true"
+    movement_algorithm = os.getenv("MOVEMENT_ALGORITHM")
+    dwell_time = float(os.getenv("DWELL_TIME"))
+    use_force_sensor = os.getenv("USE_FORCE_SENSOR").lower() == "true"
+    use_pressure_sensor = os.getenv("USE_PRESSURE_SENSOR").lower() == "true"
+    com_port_pressure_sensor = os.getenv("COM_PORT_PRESSURE_SENSOR")
+    safe_height = float(os.getenv("SAFE_HEIGHT"))
+    default_speed_ratio = float(os.getenv("DEFAULT_SPEED_RATIO"))
+    tuning_speed_ratio = float(os.getenv("TUNING_SPEED_RATIO"))
+    stop_robot_if_head_not_visible = (
+        os.getenv("STOP_ROBOT_IF_HEAD_NOT_VISIBLE").lower() == "true"
+    )
+    wait_for_keypress_before_movement = (
+        os.getenv("WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT").lower() == "true"
+    )
+    translation_threshold = float(os.getenv("TRANSLATION_THRESHOLD"))
+    rotation_threshold = float(os.getenv("ROTATION_THRESHOLD"))
 
     # If tuning interval is not provided, set it to None, otherwise convert to float.
-    tuning_interval = os.getenv('TUNING_INTERVAL')
+    tuning_interval = os.getenv("TUNING_INTERVAL")
     if tuning_interval == "":
         tuning_interval = None
     else:
         tuning_interval = float(tuning_interval)
 
     config = {
-        'site': site,
-        'robot': robot,
-        'verbose': verbose,
-        'movement_algorithm': movement_algorithm,
-        'dwell_time': dwell_time,
-        'use_force_sensor': use_force_sensor,
-        'use_pressure_sensor': use_pressure_sensor,
-        'com_port_pressure_sensor': com_port_pressure_sensor,
-        'safe_height': safe_height,
-        'default_speed_ratio': default_speed_ratio,
-        'tuning_speed_ratio': tuning_speed_ratio,
-        'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
-        'tuning_interval': tuning_interval,
-        'wait_for_keypress_before_movement': wait_for_keypress_before_movement,
-        'translation_threshold': translation_threshold,
-        'rotation_threshold': rotation_threshold,
+        "site": site,
+        "robot": robot,
+        "verbose": verbose,
+        "movement_algorithm": movement_algorithm,
+        "dwell_time": dwell_time,
+        "use_force_sensor": use_force_sensor,
+        "use_pressure_sensor": use_pressure_sensor,
+        "com_port_pressure_sensor": com_port_pressure_sensor,
+        "safe_height": safe_height,
+        "default_speed_ratio": default_speed_ratio,
+        "tuning_speed_ratio": tuning_speed_ratio,
+        "stop_robot_if_head_not_visible": stop_robot_if_head_not_visible,
+        "tuning_interval": tuning_interval,
+        "wait_for_keypress_before_movement": wait_for_keypress_before_movement,
+        "translation_threshold": translation_threshold,
+        "rotation_threshold": rotation_threshold,
     }
 
     # Print configuration.
     print("Configuration")
     print("")
     for key, value in config.items():
-        key_formatted = key.replace('_', ' ').capitalize()
+        key_formatted = key.replace("_", " ").capitalize()
         print("{}: {}{}{}".format(key_formatted, Color.BOLD, value, Color.END))
 
     print("")
     if wait_for_keypress_before_movement:
-        print("{}Note: The robot only performs a movement when a key is pressed{}".format(Color.BOLD, Color.END))
+        print(
+            "{}Note: The robot only performs a movement when a key is pressed{}".format(
+                Color.BOLD, Color.END
+            )
+        )
         print("")
 
     # Validate configuration.
@@ -185,18 +195,19 @@ def get_config():
 
     return config
 
+
 def main(connection=None):
     config = get_config()
     if config is None:
         exit(1)
 
     # Configure logging.
-    np.set_printoptions(formatter={'float': '{:0.1f}'.format})
+    np.set_printoptions(formatter={"float": "{:0.1f}".format})
 
     # Initialize robot controller
 
-    site = config['site']
-    robot = config['robot']
+    site = config["site"]
+    robot = config["robot"]
 
     site_config = const.SITE_CONFIG[site]
 
@@ -205,6 +216,7 @@ def main(connection=None):
 
     try:
         from .robot_api import RobotApi
+
         robot_control = RobotControl(
             remote_control=None,
             config=config,
@@ -218,7 +230,7 @@ def main(connection=None):
     except:
         host, port = get_command_line_arguments()
         # Connect to server
-        url = 'http://{}:{}'.format(host, port)
+        url = "http://{}:{}".format(host, port)
         remote_control = RemoteControl(url)
         remote_control.connect()
         robot_control = RobotControl(
@@ -237,8 +249,8 @@ def main(connection=None):
             if len(buf) == 0:
                 pass
 
-            elif any(item in [d['topic'] for d in buf] for item in const.PUB_MESSAGES):
-                topic = [d['topic'] for d in buf]
+            elif any(item in [d["topic"] for d in buf] for item in const.PUB_MESSAGES):
+                topic = [d["topic"] for d in buf]
 
                 for i in range(len(buf)):
                     if topic[i] in const.PUB_MESSAGES:
@@ -273,14 +285,14 @@ def main(connection=None):
 
                 elif connection_type == "server":
                     # Send robot status to tms_robot_control via remote control.
-                    topic = 'Robot to Neuronavigation: Update robot status'
-                    data = {'robot_status': success}
+                    topic = "Robot to Neuronavigation: Update robot status"
+                    data = {"robot_status": success}
                     remote_control.send_message(topic, data)
 
             previous_success = success
 
-        time.sleep(robot_config['sleep'])
+        time.sleep(robot_config["sleep"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

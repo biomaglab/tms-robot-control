@@ -1,5 +1,6 @@
 from enum import Enum
-from socket import socket, AF_INET, SOCK_STREAM
+from socket import AF_INET, SOCK_STREAM, socket
+
 
 # Circular motion supports two modes: unconstrained and fixed.
 #
@@ -76,7 +77,7 @@ class CommandConnection:
         full_request = request + self.REQUEST_ENDING_CHARS
         try:
             # Send the request to the robot.
-            self.socket.sendall(full_request.encode('utf-8'))
+            self.socket.sendall(full_request.encode("utf-8"))
 
         except (BrokenPipeError, ConnectionResetError, TimeoutError) as e:
             print("Robot connection error: {}".format(e))
@@ -96,7 +97,6 @@ class CommandConnection:
         :return: A string representation of the list, e.g. "1,2,3".
         """
         return ",".join([str(s) for s in listt])
-
 
     # Robot commands
 

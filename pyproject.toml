@@ -1,0 +1,5 @@
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = ["E", "F", "I"]  # E = pycodestyle, F = pyflakes, I = import sort
+fix = true

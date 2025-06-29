@@ -1,0 +1,37 @@
+name: Ruff Auto-format on PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  ruff-lint:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Ruff
+        run: pip install ruff==0.4.3  # Pin version for reproducibility
+
+      - name: Run Ruff with auto-fix
+        run: ruff check . --fix
+
+      - name: Commit changes (if any)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (git commit -am "style: auto-format with Ruff" && git push)

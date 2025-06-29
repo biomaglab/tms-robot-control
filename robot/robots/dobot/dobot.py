@@ -1,15 +1,13 @@
 # Code based on: https://github.com/Dobot-Arm/TCP-IP-CR-Python
 
-from enum import Enum
-
 import time
+from enum import Enum
 from threading import Thread
 
 import numpy as np
 
 import robot.control.robot_processing as robot_process
 from robot.robots.dobot.dobot_connection import DobotConnection, RobotStatus
-
 from robot.robots.robot import Robot
 
 
@@ -29,6 +27,7 @@ class Dobot(Robot):
     """
     The class for communicating with Dobot robot.
     """
+
     TOOL_ID = 0
     TIMEOUT_START_MOTION = 1
     TIMEOUT_MOTION = 15
@@ -60,12 +59,12 @@ class Dobot(Robot):
             return
 
         if self.robot_status == RobotStatus.DISABLED.value:
-            print('Enabling robot...')
+            print("Enabling robot...")
             self.connection.enable_robot()
             time.sleep(1)
 
         if self.robot_status == RobotStatus.ERROR.value:
-            print('Cleaning errors...')
+            print("Cleaning errors...")
             self.connection.clear_error()
             time.sleep(1)
 
@@ -92,10 +91,10 @@ class Dobot(Robot):
     def get_pose(self):
         # Always successfully return coordinates.
         return True, self.coordinates
-    
+
     def enable_free_drive(self):
         return self.connection.enable_free_drive()
-    
+
     def disable_free_drive(self):
         return self.connection.disable_free_drive()
 
@@ -121,7 +120,7 @@ class Dobot(Robot):
 
         # TODO: Properly handle errors and return the success of the movement here.
         return True
-    
+
     def dynamic_motion(self, target, speed_ratio):
         success = self.connection.set_speed_ratio(speed_ratio)
         if not success:
@@ -141,7 +140,7 @@ class Dobot(Robot):
         self.target = start_position, waypoint, target
         self.motion_type = MotionType.ARC
 
-        arc_bezier_curve_step = self.robot_config['arc_bezier_curve_step']
+        arc_bezier_curve_step = self.robot_config["arc_bezier_curve_step"]
         curve_set = robot_process.bezier_curve(
             points=np.asarray(self.target),
             step=arc_bezier_curve_step,
@@ -154,9 +153,15 @@ class Dobot(Robot):
                 self.stop_robot()
                 break
 
-            distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
-            if not np.allclose(np.array(self.target[2][:3]), np.array(target[2][:3]), 0,
-                               distance_threshold_for_arc_motion):
+            distance_threshold_for_arc_motion = self.robot_config[
+                "distance_threshold_for_arc_motion"
+            ]
+            if not np.allclose(
+                np.array(self.target[2][:3]),
+                np.array(target[2][:3]),
+                0,
+                distance_threshold_for_arc_motion,
+            ):
                 self.stop_robot()
                 break
 
@@ -179,7 +184,7 @@ class Dobot(Robot):
     def close(self):
         self.stop_robot()
         self.connected = False
-        #TODO: robot function to close? self.cobot.close()
+        # TODO: robot function to close? self.cobot.close()
 
     ## Internal methods
 
@@ -199,11 +204,11 @@ class Dobot(Robot):
             # Refresh coordinate points
             self.coordinates = np.array(feedback["tool_vector_actual"][0])
             self.force_torque_data = np.array(feedback["six_force_value"][0])
-            #OR self.force_torque_data = feedback["actual_TCP_force"][0]
+            # OR self.force_torque_data = feedback["actual_TCP_force"][0]
             self.robot_status = int(feedback["robot_mode"][0])
             self.running_status = int(feedback["running_status"][0])
 
-            #time.sleep(0.001)
+            # time.sleep(0.001)
 
     def _motion_loop(self):
         timeout_start = time.time()

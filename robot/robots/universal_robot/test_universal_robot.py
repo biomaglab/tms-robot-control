@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import time
 
 # All the imports in the module files (e.g., universal_robot.py) assume
@@ -7,7 +7,7 @@ import time
 # However, this test script is located in a subdirectory.
 # To ensure that all imports work correctly, we need to add the root directory to the Python path.
 current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
+root_dir = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.insert(0, root_dir)
 
 
@@ -31,9 +31,16 @@ for movement_direction in [-1, 1]:
     current_pose = robot.get_pose()
 
     print("")
-    print("Pose before movement: X = {:.3f}, Y = {:.3f}, Z = {:.3f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
-        current_pose[0], current_pose[1], current_pose[2], current_pose[3], current_pose[4], current_pose[5],
-    ))
+    print(
+        "Pose before movement: X = {:.3f}, Y = {:.3f}, Z = {:.3f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
+            current_pose[0],
+            current_pose[1],
+            current_pose[2],
+            current_pose[3],
+            current_pose[4],
+            current_pose[5],
+        )
+    )
 
     ## Test linear movement.
     print("")
@@ -73,9 +80,16 @@ for movement_direction in [-1, 1]:
     current_pose = robot.get_pose()
 
     print("")
-    print("Pose after movement: X = {:.3f}, Y = {:.3f}, Z = {:.3f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
-        current_pose[0], current_pose[1], current_pose[2], current_pose[3], current_pose[4], current_pose[5],
-    ))
+    print(
+        "Pose after movement: X = {:.3f}, Y = {:.3f}, Z = {:.3f}, Rx = {:.2f}, Ry = {:.2f}, Rz = {:.2f}".format(
+            current_pose[0],
+            current_pose[1],
+            current_pose[2],
+            current_pose[3],
+            current_pose[4],
+            current_pose[5],
+        )
+    )
 
     ## Test circular movement.
     print("")

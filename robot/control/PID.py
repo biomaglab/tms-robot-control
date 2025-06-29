@@ -11,11 +11,18 @@ class PIDControllerGroup:
         if use_pressure:
             self.stiffness = 0.05
             self.damping = 0.02
-            pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode='impedance')
+            pid_z = ImpedancePIDController(P=0.5, I=0.01, D=0.0, mode="impedance")
         elif use_force:
             self.stiffness = 0.1
             self.damping = 0
-            pid_z = ImpedancePIDController(P=0.1, I=0.0001, D=0.0, stiffness=self.stiffness, damping=self.damping, mode='impedance')
+            pid_z = ImpedancePIDController(
+                P=0.1,
+                I=0.0001,
+                D=0.0,
+                stiffness=self.stiffness,
+                damping=self.damping,
+                mode="impedance",
+            )
         else:
             pid_z = ImpedancePIDController(P=0.1)
 
@@ -34,8 +41,16 @@ class PIDControllerGroup:
 
         # Update z with optional force feedback
         if force_feedback is not None:
-            self.dynamically_update_stiffness_and_damping(translations[2], force_feedback=force_feedback, min_stiffness=(self.stiffness*2)/10, max_stiffness=self.stiffness*2, damping_ratio=self.damping/self.stiffness)
-            self.translation_pids[2].update(translations[2], force_feedback=force_feedback)
+            self.dynamically_update_stiffness_and_damping(
+                translations[2],
+                force_feedback=force_feedback,
+                min_stiffness=(self.stiffness * 2) / 10,
+                max_stiffness=self.stiffness * 2,
+                damping_ratio=self.damping / self.stiffness,
+            )
+            self.translation_pids[2].update(
+                translations[2], force_feedback=force_feedback
+            )
         else:
             self.translation_pids[2].update(translations[2])
 
@@ -43,10 +58,17 @@ class PIDControllerGroup:
         for pid, angle in zip(self.rotation_pids, angles):
             pid.update(angle)
 
-    def dynamically_update_stiffness_and_damping(self, z_displacement, force_feedback,
-                                    max_displacement=1.0,
-                                    min_stiffness=0.01, max_stiffness=0.1,
-                                    smoothing=0.9, release_force_threshold=0.1, damping_ratio=0.4):
+    def dynamically_update_stiffness_and_damping(
+        self,
+        z_displacement,
+        force_feedback,
+        max_displacement=1.0,
+        min_stiffness=0.01,
+        max_stiffness=0.1,
+        smoothing=0.9,
+        release_force_threshold=0.1,
+        damping_ratio=0.4,
+    ):
         """
         Adjust stiffness based on displacement and force_feedback, with lockout if force is too high.
         Parameters:
@@ -81,11 +103,15 @@ class PIDControllerGroup:
         else:
             # Scale stiffness with displacement
             normalized_disp = max(0.0, min(z_displacement / max_displacement, 1.0))
-            target_stiffness = min_stiffness + normalized_disp * (max_stiffness - min_stiffness)
+            target_stiffness = min_stiffness + normalized_disp * (
+                max_stiffness - min_stiffness
+            )
 
             # Apply smoothing
             current_stiffness = self.translation_pids[2].stiffness
-            stiffness = smoothing * current_stiffness + (1 - smoothing) * target_stiffness
+            stiffness = (
+                smoothing * current_stiffness + (1 - smoothing) * target_stiffness
+            )
 
         # Set the stiffness and damping
         self.translation_pids[2].stiffness = stiffness
@@ -106,7 +132,7 @@ class PIDControllerGroup:
 
 
 class ImpedancePIDController:
-    def __init__(self, P=0.3, I=0.01, D=0.0, stiffness=0.05, damping=0.02, mode='pid'):
+    def __init__(self, P=0.3, I=0.01, D=0.0, stiffness=0.05, damping=0.02, mode="pid"):
         self.Kp = P
         self.Ki = I
         self.Kd = D
@@ -114,7 +140,7 @@ class ImpedancePIDController:
         self.damping = damping
 
         self.mode = mode.lower()
-        if self.mode not in ('pid', 'impedance'):
+        if self.mode not in ("pid", "impedance"):
             raise ValueError("mode must be 'pid' or 'impedance'")
 
         self.sample_time = 0.0
@@ -122,8 +148,8 @@ class ImpedancePIDController:
         self.last_time = self.current_time
 
         # Independent setpoints
-        self.displacement_setpoint = 0.0        # Used in PID mode (desired displacement)
-        self.force_setpoint = -5.0      # Used in Impedance mode (desired force)
+        self.displacement_setpoint = 0.0  # Used in PID mode (desired displacement)
+        self.force_setpoint = -5.0  # Used in Impedance mode (desired force)
 
         self.last_displacement_error = 0.0
         self.last_force_error = 0.0
@@ -135,8 +161,8 @@ class ImpedancePIDController:
         self.output = 0.0
         self.velocity = 0.0
 
-        self.output_min = -float('inf')
-        self.output_max = float('inf')
+        self.output_min = -float("inf")
+        self.output_max = float("inf")
         self.enabled = True
 
     def clear(self):
@@ -164,26 +190,35 @@ class ImpedancePIDController:
         # Compute displacement error (desired - actual)
         displacement_error = self.displacement_setpoint - feedback_value
 
-        if self.mode == 'impedance' and force_feedback is not None:
+        if self.mode == "impedance" and force_feedback is not None:
             # Compute force error (desired - actual)
             force_error = self.force_setpoint - force_feedback
 
             # PID for force control (force feedback loop)
             self.PTerm = self.Kp * force_error
             self.ITerm += force_error * delta_time
-            self.ITerm = max(-self.windup_guard, min(self.windup_guard, self.ITerm))  # Anti-windup
+            self.ITerm = max(
+                -self.windup_guard, min(self.windup_guard, self.ITerm)
+            )  # Anti-windup
             # Derivative of force error
             delta_force_error = force_error - self.last_force_error
             self.DTerm = delta_force_error / delta_time if delta_time > 0 else 0.0
 
             # Impedance control: Calculate position correction based on displacement error
-            impedance_position_correction = self.stiffness * displacement_error - self.damping * self.velocity
+            impedance_position_correction = (
+                self.stiffness * displacement_error - self.damping * self.velocity
+            )
 
             # Update position correction using force control (PID) and impedance control
-            unclamped_output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm) + impedance_position_correction
+            unclamped_output = (
+                self.PTerm
+                + (self.Ki * self.ITerm)
+                + (self.Kd * self.DTerm)
+                + impedance_position_correction
+            )
 
             # Update position based on velocity and acceleration
-            acceleration = (unclamped_output - self.damping * self.velocity)
+            acceleration = unclamped_output - self.damping * self.velocity
             self.velocity += acceleration * delta_time
 
             # Apply position output limits
@@ -211,18 +246,23 @@ class ImpedancePIDController:
     # --- Configuration Methods ---
 
     def set_mode(self, mode):
-        if mode not in ('pid', 'impedance'):
+        if mode not in ("pid", "impedance"):
             raise ValueError("mode must be 'pid' or 'impedance'")
         self.mode = mode
 
     def set_gains(self, P=None, I=None, D=None):
-        if P is not None: self.Kp = P
-        if I is not None: self.Ki = I
-        if D is not None: self.Kd = D
+        if P is not None:
+            self.Kp = P
+        if I is not None:
+            self.Ki = I
+        if D is not None:
+            self.Kd = D
 
     def set_impedance(self, stiffness=None, damping=None):
-        if stiffness is not None: self.stiffness = stiffness
-        if damping is not None: self.damping = damping
+        if stiffness is not None:
+            self.stiffness = stiffness
+        if damping is not None:
+            self.damping = damping
 
     def set_pid_setpoint(self, setpoint):
         """Used in PID mode."""

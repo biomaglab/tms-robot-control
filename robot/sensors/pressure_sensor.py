@@ -1,9 +1,10 @@
 import threading
 import time
+from collections import deque
+
+import numpy as np
 import serial
 import serial.tools.list_ports
-from collections import deque
-import numpy as np
 
 
 class BufferedPressureSensorReader:
@@ -37,10 +38,12 @@ class BufferedPressureSensorReader:
                     continue
 
             try:
-                line = self.serial.readline().decode('utf-8', errors='ignore').strip()
+                line = self.serial.readline().decode("utf-8", errors="ignore").strip()
                 if line:
                     try:
-                        value = -float(line) / 10 # Rescale to match the force and torque sensor.
+                        value = (
+                            -float(line) / 10
+                        )  # Rescale to match the force and torque sensor.
                         if not self.started and not self._is_valid(value):
                             print("[i] Waiting for valid pressure data...")
                             continue  # Ignore invalid/NaN at startup
@@ -69,8 +72,11 @@ class BufferedPressureSensorReader:
             return False
 
     def _is_valid(self, value):
-        return not (value is None or isinstance(value, float) and (
-                    value != value or value == float('inf') or value == float('-inf')))
+        return not (
+            value is None
+            or isinstance(value, float)
+            and (value != value or value == float("inf") or value == float("-inf"))
+        )
 
     def _disconnect(self):
         self.ready = False
@@ -114,7 +120,7 @@ class BufferedPressureSensorReader:
         min_samples=15,
         window_size=25,
         smoothing=True,
-        z_offset_tolerance=1
+        z_offset_tolerance=1,
     ):
         """
         Determine if the force is stable and the z_offset is different enough to be sent.
@@ -150,7 +156,9 @@ class BufferedPressureSensorReader:
 
         force_near_setpoint = abs(mean_val - force_setpoint) <= setpoint_tolerance
         force_stable = std_dev < threshold_std
-        z_offset_changed = not np.isclose(self._last_z_offset_sent, z_offset, atol=z_offset_tolerance) # Avoid sending the same value repeatedly
+        z_offset_changed = not np.isclose(
+            self._last_z_offset_sent, z_offset, atol=z_offset_tolerance
+        )  # Avoid sending the same value repeatedly
 
         is_stable = force_stable and force_near_setpoint and z_offset_changed
         if is_stable:

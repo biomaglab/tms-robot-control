@@ -1,6 +1,6 @@
-from enum import Enum
-from socket import socket, AF_INET, SOCK_STREAM
 import time
+from enum import Enum
+from socket import AF_INET, SOCK_STREAM, socket
 
 
 class MotionState(Enum):
@@ -9,6 +9,7 @@ class MotionState(Enum):
     WAITING_FOR_EXECUTION = 2
     ERROR = 3
     UNKNOWN = 4
+
 
 class ReferenceFrame(Enum):
     ROBOT = 0
@@ -84,10 +85,10 @@ class ElfinConnection:
         full_request = request + self.REQUEST_ENDING_CHARS
         try:
             # Send the request to the robot.
-            self.socket.sendall(full_request.encode('utf-8'))
+            self.socket.sendall(full_request.encode("utf-8"))
 
             # Receive the response from the robot.
-            response = self.socket.recv(self.RESPONSE_LENGTH).decode('utf-8').split(',')
+            response = self.socket.recv(self.RESPONSE_LENGTH).decode("utf-8").split(",")
 
         except (BrokenPipeError, ConnectionResetError, TimeoutError) as e:
             print("Robot connection error: {}".format(e))
@@ -102,11 +103,13 @@ class ElfinConnection:
         status = response[1]
         error_code = response[2]
 
-        if status == 'OK':
+        if status == "OK":
             success = True
 
-        elif status == 'Fail':
-            print("The command {} returned the error code: {}".format(command, error_code))
+        elif status == "Fail":
+            print(
+                "The command {} returned the error code: {}".format(command, error_code)
+            )
             success = False
 
         else:
@@ -204,7 +207,11 @@ class ElfinConnection:
         if not success or params is None:
             coordinates = None
         else:
-            coordinates = [float(s) for s in params[6:12]] if self.use_new_api else [float(s) for s in params]
+            coordinates = (
+                [float(s) for s in params[6:12]]
+                if self.use_new_api
+                else [float(s) for s in params]
+            )
 
         return success, coordinates
 
@@ -217,13 +224,20 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         command = "MoveL" if self.use_new_api else "MoveB"
-        request = command + "," + str(self.ROBOT_ID) + ',' + self.list_to_str(target)
+        request = command + "," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def start_servo(self, servo_time_ms=10, lookahead_time_ms=50):
-        cmd = "StartServo," + str(self.ROBOT_ID) + "," + str(servo_time_ms) + "," + str(lookahead_time_ms)
+        cmd = (
+            "StartServo,"
+            + str(self.ROBOT_ID)
+            + ","
+            + str(servo_time_ms)
+            + ","
+            + str(lookahead_time_ms)
+        )
         success, _ = self._send_and_receive(cmd)
         self.servo_started = success
         return success
@@ -240,10 +254,16 @@ class ElfinConnection:
 
             ucs = [0] * 6
             tcp = [0] * 6
-            request = "PushServoP," + str(self.ROBOT_ID) + "," \
-                      + self.list_to_str(target) + "," \
-                      + self.list_to_str(ucs) + "," \
-                      + self.list_to_str(tcp)
+            request = (
+                "PushServoP,"
+                + str(self.ROBOT_ID)
+                + ","
+                + self.list_to_str(target)
+                + ","
+                + self.list_to_str(ucs)
+                + ","
+                + self.list_to_str(tcp)
+            )
         else:
             request = "MoveB," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
 
@@ -328,14 +348,32 @@ class ElfinConnection:
             # XXX: The velocity is set to 300 and the acceleration to 2500. It turns out that the units specified in the API manual
             #   (mm/s and mm/s^2, respectively) are most likely incorrect. It is uncertain what is the actual unit, but these values
             #   seem to work well enough.
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(start_position) + ',' + self.list_to_str(waypoint) + \
-                    ',' + self.list_to_str(target) + ',0,1,0,300,2500,1,TCP,Base,0'
+            request = (
+                "MoveC,"
+                + str(self.ROBOT_ID)
+                + ","
+                + self.list_to_str(start_position)
+                + ","
+                + self.list_to_str(waypoint)
+                + ","
+                + self.list_to_str(target)
+                + ",0,1,0,300,2500,1,TCP,Base,0"
+            )
         else:
             # Always use movement type 0.
-            movement_type_str = '0'
+            movement_type_str = "0"
 
             # Note: The start position is unused in the old version of the Elfin API.
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint[:3]) + ',' + self.list_to_str(target) + ',' + movement_type_str
+            request = (
+                "MoveC,"
+                + str(self.ROBOT_ID)
+                + ","
+                + self.list_to_str(waypoint[:3])
+                + ","
+                + self.list_to_str(target)
+                + ","
+                + movement_type_str
+            )
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
