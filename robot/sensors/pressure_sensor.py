@@ -22,6 +22,7 @@ class BufferedPressureSensorReader:
         self.serial = None
 
         self._last_z_offset_sent = 0
+        self._last_force_sent = 0
 
         # Start background thread
         self.thread = threading.Thread(target=self._serial_loop, daemon=True)
@@ -111,12 +112,38 @@ class BufferedPressureSensorReader:
     def has_started(self):
         return self.started
 
+    def force_changed(self, force_feedback, tolerance=0.1):
+        """
+        Checks whether the new z_offset differs significantly from the last one.
+        """
+        has_force_changed = not np.isclose(self._last_force_sent or 0.0, force_feedback, atol=tolerance)
+        if has_force_changed:
+            self._last_force_sent = force_feedback
+
+        return has_force_changed
+    
+    def is_force_near_setpoint(self, force_setpoint, threshold=1.5):
+        """
+        Check if the average force from the buffer is within a threshold of the force setpoint.
+
+        Parameters:
+        - get_buffer: callable that returns the recent force readings in the Z-axis
+        - force_setpoint: float, the target force value to compare against
+        - threshold: float, allowable deviation from the setpoint (default: 1.5)
+
+        Returns:
+        - bool: True if the average force is within threshold of the setpoint, False otherwise
+        """
+        force_buffer = self.get_buffer()
+        avg_force = np.mean(force_buffer, axis=0)
+        return abs(avg_force - force_setpoint) <= threshold
+
     def is_force_stable(
         self,
         force_setpoint,
         z_offset,
         setpoint_tolerance=1.5,
-        threshold_std=0.1,
+        threshold_std=0.5,
         min_samples=15,
         window_size=25,
         smoothing=True,

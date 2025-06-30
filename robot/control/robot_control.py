@@ -80,15 +80,12 @@ class RobotControl:
             use_force=self.use_force, use_pressure=self.use_pressure
         )
 
+        self.force_sensor = None
         if self.use_pressure:
-            self.pressure_force = BufferedPressureSensorReader(
+            self.force_sensor = BufferedPressureSensorReader(
                 self.config["com_port_pressure_sensor"], 115200, buffer_size=100
             )
             # self.pid_z.set_force_setpoint()
-        if self.use_force:
-            self.force_and_torque = BufferedForceTorqueSensor(
-                self.config, self.robot, buffer_size=100
-            )
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -447,6 +444,11 @@ class RobotControl:
 
             self.robot = robot
 
+            if self.use_force and not self.use_pressure:
+                self.force_sensor = BufferedForceTorqueSensor(
+                    self.config, self.robot, buffer_size=100
+                )
+
             movement_algorithm_name = self.config["movement_algorithm"]
             if movement_algorithm_name == "radially_outward":
                 self.movement_algorithm = RadiallyOutwardAlgorithm(
@@ -518,9 +520,13 @@ class RobotControl:
         if force_feedback is None or np.isnan(force_feedback).any():
             # print("Warning: force_feedback is None or NaN.")
             return
-        force_feedback = np.round(force_feedback, 1)
-        if self.force_and_torque.z_offset_changed(force_feedback):
-            return
+        force_feedback = np.round(force_feedback, 2)
+        if self.use_pressure:
+            if not self.force_sensor.force_changed(force_feedback):
+                return  
+        elif self.use_force:
+            if not self.force_sensor.force_changed(force_feedback):
+                return
 
         # Send message to neuronavigation with force or pressure for GUI.
         if self.remote_control:
@@ -538,12 +544,12 @@ class RobotControl:
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
         if self.use_pressure:
-            if not self.pressure_force.is_force_stable(
+            if not self.force_sensor.is_force_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
                 return  # Exit early if pressure is enabled and unstable
         elif self.use_force:
-            if not self.force_and_torque.is_force_z_stable(
+            if not self.force_sensor.is_force_z_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
                 return  # Exit early if only force is enabled and unstable
@@ -660,13 +666,13 @@ class RobotControl:
             return False
 
     def get_pressure_sensor_values(self):
-        pressure = self.pressure_force.get_latest_value()
+        pressure = self.force_sensor.get_latest_value()
         if pressure:
             return pressure
         return None
 
     def get_force_sensor_only_Z(self):
-        force_sensor_values = self.force_and_torque.get_latest_value(axis=2)
+        force_sensor_values = self.force_sensor.get_latest_value(axis=2)
         if force_sensor_values:
             return force_sensor_values
         return None
@@ -790,8 +796,14 @@ class RobotControl:
         else:
             is_time_to_tune = False
 
+        # Determine if force feedback is either not available or within acceptable range
+        force_ok = (
+            self.force_sensor is None or 
+            self.force_sensor.is_force_near_setpoint(self.pid_group.get_force_setpoint())
+        )
+
         # Check if the robot is already in the target position and not enough time has passed since the last tuning.
-        if self.target_reached and not is_time_to_tune:
+        if self.target_reached and not is_time_to_tune and force_ok:
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
             return True, ""
@@ -836,7 +848,7 @@ class RobotControl:
 
             return False, warning
 
-        if self.config["use_pressure_sensor"] and not self.pressure_force.ready:
+        if self.config["use_pressure_sensor"] and not self.force_sensor.ready:
             warning = "Error: Pressure force sensor is not connected."
             print(warning)
             return False, warning
@@ -936,7 +948,7 @@ class RobotControl:
         )
 
         if self.use_force:
-            self.force_and_torque.update_force_buffer()
+            self.force_sensor.update_force_buffer()
 
         if self.tracker.m_tracker_to_robot is not None:
             head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(

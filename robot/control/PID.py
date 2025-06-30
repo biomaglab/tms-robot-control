@@ -4,23 +4,23 @@ import time
 class PIDControllerGroup:
     def __init__(self, use_force=False, use_pressure=False):
         self.translation_pids = [
-            ImpedancePIDController(proportional=0.5),  # x
-            ImpedancePIDController(proportional=0.5),  # y
+            ImpedancePIDController(),  # x
+            ImpedancePIDController(),  # y
         ]
 
         if use_pressure:
-            self.stiffness = 0.05
-            self.damping = 0.02
-            pid_z = ImpedancePIDController(proportional=0.5, integral=0.01, derivative=0.0, mode="impedance")
+            self.stiffness_init = 0.05
+            self.damping_init = 0.02
+            pid_z = ImpedancePIDController(proportional=0.1, integral=0.01, derivative=0.0, mode="impedance")
         elif use_force:
-            self.stiffness = 0.1
-            self.damping = 0
+            self.stiffness_init = 0.1
+            self.damping_init = 0
             pid_z = ImpedancePIDController(
                 proportional=0.1,
                 integral=0.0001,
                 derivative=0.0,
-                stiffness=self.stiffness,
-                damping=self.damping,
+                stiffness=self.stiffness_init,
+                damping=self.damping_init,
                 mode="impedance",
             )
         else:
@@ -44,9 +44,9 @@ class PIDControllerGroup:
             self.dynamically_update_stiffness_and_damping(
                 translations[2],
                 force_feedback=force_feedback,
-                min_stiffness=(self.stiffness * 2) / 10,
-                max_stiffness=self.stiffness * 2,
-                damping_ratio=self.damping / self.stiffness,
+                min_stiffness=(self.stiffness_init * 2) / 10,
+                max_stiffness=self.stiffness_init,
+                damping_ratio=self.damping_init / self.stiffness_init,
             )
             self.translation_pids[2].update(
                 translations[2], force_feedback=force_feedback
