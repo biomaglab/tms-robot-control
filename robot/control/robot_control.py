@@ -521,12 +521,8 @@ class RobotControl:
             # print("Warning: force_feedback is None or NaN.")
             return
         force_feedback = np.round(force_feedback, 2)
-        if self.use_pressure:
-            if not self.force_sensor.force_changed(force_feedback):
-                return  
-        elif self.use_force:
-            if not self.force_sensor.force_changed(force_feedback):
-                return
+        if (self.use_pressure or self.use_force) and not self.force_sensor.force_changed(force_feedback):
+            return
 
         # Send message to neuronavigation with force or pressure for GUI.
         if self.remote_control:
