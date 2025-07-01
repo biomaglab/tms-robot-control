@@ -15,13 +15,15 @@ class BufferedForceTorqueSensor:
         self.config = config
         self.robot = robot
         self.force_buffer = deque(maxlen=buffer_size)
-        self._last_z_offset_sent = None
+        self._last_z_offset_sent = 0
+        self._last_force_sent = 0
 
     def read_force_sensor(self):
         if not self.config.get("use_force_sensor", False):
             print("Error: 'use_force_sensor' is not enabled in configuration.")
             return None
-
+        if self.robot is None:
+            return None
         success, values = self.robot.read_force_sensor()
         if not success:
             print("Error: Could not read the force sensor.")
@@ -32,6 +34,9 @@ class BufferedForceTorqueSensor:
     def update_force_buffer(self):
         force_values = self.read_force_sensor()
         if force_values is not None:
+            # Invert the Z component (index 2)
+            force_values = list(force_values)  # ensure it's mutable
+            force_values[2] *= -1
             self.force_buffer.append(force_values)
 
     def get_latest_value(self, axis=None):
@@ -66,12 +71,34 @@ class BufferedForceTorqueSensor:
         Extracts the Z-axis (index 2) force values from the buffer.
         """
         return [reading[2] for reading in self.force_buffer if len(reading) == 6]
-
-    def z_offset_changed(self, z_offset, tolerance=1.0):
+    
+    def force_changed(self, force_feedback, tolerance=0.1):
         """
         Checks whether the new z_offset differs significantly from the last one.
         """
-        return not np.isclose(self._last_z_offset_sent or 0.0, z_offset, atol=tolerance)
+        has_force_changed = not np.isclose(self._last_force_sent or 0.0, force_feedback, atol=tolerance)
+        if has_force_changed:
+            self._last_force_sent = force_feedback
+
+        return has_force_changed
+    
+    def is_force_near_setpoint(self, force_setpoint, threshold=1.5):
+        """
+        Check if the average force from the buffer is within a threshold of the force setpoint.
+
+        Parameters:
+        - get_buffer: callable that returns the recent force readings in the Z-axis
+        - force_setpoint: float, the target force value to compare against
+        - threshold: float, allowable deviation from the setpoint (default: 1.5)
+
+        Returns:
+        - bool: True if the average force is within threshold of the setpoint, False otherwise
+        """
+        force_buffer = self.get_force_z_buffer()
+        if force_buffer is None or len(force_buffer) == 0:
+            return True  # Default to True if no data
+        avg_force = np.mean(force_buffer, axis=0)
+        return abs(avg_force - force_setpoint) <= threshold
 
     def is_force_z_stable(
         self,
@@ -105,7 +132,9 @@ class BufferedForceTorqueSensor:
 
         force_near_setpoint = abs(mean_val - force_setpoint) <= setpoint_tolerance
         force_stable = std_dev < threshold_std
-        z_offset_changed = self.z_offset_changed(z_offset, z_offset_tolerance)
+        z_offset_changed = not np.isclose(
+            self._last_z_offset_sent, z_offset, atol=z_offset_tolerance
+        )  # Avoid sending the same value repeatedly
 
         is_stable = force_stable and force_near_setpoint and z_offset_changed
         if is_stable:
