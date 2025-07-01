@@ -707,6 +707,9 @@ class RobotControl:
 
         # Get current robot height
         robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
+        if robot_pose_z is None:
+            print("Warning: robot_pose_z is None — skipping height check.")
+            return max_safe_height
 
         # Determine the height to move to
         if robot_pose_z < max_safe_height:
