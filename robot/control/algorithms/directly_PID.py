@@ -3,7 +3,6 @@ from enum import Enum
 import numpy as np
 
 from robot.control.color import Color
-from robot.control.PID import PID
 
 
 class MotionSequenceState(Enum):
@@ -29,10 +28,10 @@ class DirectlyPIDAlgorithm:
         self.robot = robot
         self.config = config
 
-        self.default_speed_ratio = config['default_speed_ratio']
-        self.tuning_speed_ratio = config['tuning_speed_ratio']
-        self.translation_threshold = config['translation_threshold']
-        self.rotation_threshold = config['rotation_threshold']
+        self.default_speed_ratio = config["default_speed_ratio"]
+        self.tuning_speed_ratio = config["tuning_speed_ratio"]
+        self.translation_threshold = config["translation_threshold"]
+        self.rotation_threshold = config["rotation_threshold"]
 
         # Unused for now.
         self.robot_config = robot_config
@@ -42,24 +41,37 @@ class DirectlyPIDAlgorithm:
     def reset_state(self):
         self.motion_sequence_state = MotionSequenceState.NOT_INITIATED
 
-    def move_decision(self,
-                      displacement_to_target,
-                      target_pose_in_robot_space_estimated_from_head_pose,
-                      target_pose_in_robot_space_estimated_from_displacement,
-                      robot_pose,
-                      head_center):
+    def move_decision(
+        self,
+        displacement_to_target,
+        target_pose_in_robot_space_estimated_from_head_pose,
+        target_pose_in_robot_space_estimated_from_displacement,
+        robot_pose,
+        head_center,
+    ):
 
         # Compute the maximum translation and rotation to the target.
         max_translation = np.max(np.abs(displacement_to_target[:3]))
         max_rotation = np.max(np.abs(displacement_to_target[3:]))
 
-        if round(robot_pose[2]) < round(self.config['safe_height']):
+        if round(robot_pose[2]) < round(self.config["safe_height"]):
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence. If motion sequence is not initiated, check if it should be.
-            if max_translation > self.translation_threshold or max_rotation > self.rotation_threshold:
+            if (
+                max_translation > self.translation_threshold
+                or max_rotation > self.rotation_threshold
+            ):
                 if max_translation > self.translation_threshold:
-                    print("Translation ({:.2f} mm) exceeds the threshold ({:.2f} mm)".format(max_translation, self.translation_threshold))
+                    print(
+                        "Translation ({:.2f} mm) exceeds the threshold ({:.2f} mm)".format(
+                            max_translation, self.translation_threshold
+                        )
+                    )
                 if max_rotation > self.rotation_threshold:
-                    print("Rotation ({:.2f} deg) exceeds the threshold ({:.2f} deg)".format(max_rotation, self.rotation_threshold))
+                    print(
+                        "Rotation ({:.2f} deg) exceeds the threshold ({:.2f} deg)".format(
+                            max_rotation, self.rotation_threshold
+                        )
+                    )
                 if self.motion_sequence_state == MotionSequenceState.NOT_INITIATED:
                     print("Initiating motion sequence")
                     # Start the motion sequence by moving upward.
@@ -69,7 +81,9 @@ class DirectlyPIDAlgorithm:
 
         # If motion sequence is initiated, continue the sequence, otherwise perform tuning motion.
         if self.motion_sequence_state == MotionSequenceState.MOVE_UPWARD:
-            success = self._move_to_safe_height(target_pose_in_robot_space_estimated_from_displacement)
+            success = self._move_to_safe_height(
+                target_pose_in_robot_space_estimated_from_displacement
+            )
         else:
             success = self._tune(target_pose_in_robot_space_estimated_from_displacement)
 
@@ -81,7 +95,9 @@ class DirectlyPIDAlgorithm:
     def _tune(self, target_pose_in_robot_space):
         print("Initiating tuning motion")
 
-        success = self.robot.dynamic_motion(target_pose_in_robot_space, self.tuning_speed_ratio)
+        success = self.robot.dynamic_motion(
+            target_pose_in_robot_space, self.tuning_speed_ratio
+        )
         return success
 
     def _move_to_safe_height(self, target_pose_in_robot_space=None):
@@ -93,8 +109,8 @@ class DirectlyPIDAlgorithm:
             return False
 
         # Set the safe height
-        actual_pose_z = pose[2] 
-        pose[2] = self.config['safe_height']
+        actual_pose_z = pose[2]
+        pose[2] = self.config["safe_height"]
         # If a target pose is provided, modify Z pose for orientation
         if target_pose_in_robot_space:
             pose[3] = target_pose_in_robot_space[3]
@@ -103,7 +119,11 @@ class DirectlyPIDAlgorithm:
         success = self.robot.dynamic_motion(pose, self.default_speed_ratio)
 
         # Transition to the next state if needed
-        if target_pose_in_robot_space and success and (round(actual_pose_z) >= round(self.config['safe_height'])):
+        if (
+            target_pose_in_robot_space
+            and success
+            and (round(actual_pose_z) >= round(self.config["safe_height"]))
+        ):
             self.motion_sequence_state = self.motion_sequence_state.next()
 
         return success

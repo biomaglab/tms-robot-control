@@ -1,5 +1,6 @@
+import time
 from enum import Enum
-from socket import socket, AF_INET, SOCK_STREAM
+from socket import AF_INET, SOCK_STREAM, socket
 
 
 class MotionState(Enum):
@@ -8,6 +9,7 @@ class MotionState(Enum):
     WAITING_FOR_EXECUTION = 2
     ERROR = 3
     UNKNOWN = 4
+
 
 class ReferenceFrame(Enum):
     ROBOT = 0
@@ -28,6 +30,7 @@ class ElfinConnection:
         """
         self.ip = ip
         self.use_new_api = use_new_api
+        self.servo_started = False
 
         self.connected = False
         self.socket = None
@@ -82,10 +85,10 @@ class ElfinConnection:
         full_request = request + self.REQUEST_ENDING_CHARS
         try:
             # Send the request to the robot.
-            self.socket.sendall(full_request.encode('utf-8'))
+            self.socket.sendall(full_request.encode("utf-8"))
 
             # Receive the response from the robot.
-            response = self.socket.recv(self.RESPONSE_LENGTH).decode('utf-8').split(',')
+            response = self.socket.recv(self.RESPONSE_LENGTH).decode("utf-8").split(",")
 
         except (BrokenPipeError, ConnectionResetError, TimeoutError) as e:
             print("Robot connection error: {}".format(e))
@@ -100,11 +103,13 @@ class ElfinConnection:
         status = response[1]
         error_code = response[2]
 
-        if status == 'OK':
+        if status == "OK":
             success = True
 
-        elif status == 'Fail':
-            print("The command {} returned the error code: {}".format(command, error_code))
+        elif status == "Fail":
+            print(
+                "The command {} returned the error code: {}".format(command, error_code)
+            )
             success = False
 
         else:
@@ -115,7 +120,7 @@ class ElfinConnection:
         #   successful, otherwise element 2 is reserved for the error code. It would
         #   be cleaner if the params started always from element 3 and error code was 0
         #   if there is no error.
-        fetch_params = type(response) != bool and len(response) > 3 and success
+        fetch_params = type(response) is not bool and len(response) > 3 and success
 
         # The elements 2...n-1 are the parameters, where n is the last element.
         params = response[2:-1] if fetch_params else None
@@ -142,36 +147,46 @@ class ElfinConnection:
         request = "GrpStop," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
-    
+
     def enable_assistive_robot(self):
         """
         Enable assistive mode.
 
         :return: True if successful, otherwise False.
         """
-        request = "StartAssistiveMode," + str(self.ROBOT_ID)
+        command = "GrpOpenFreeDriver" if self.use_new_api else "StartAssistiveMode"
+        request = command + "," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
-    
+
     def disable_assistive_robot(self):
         """
         Disable assistive mode.
 
         :return: True if successful, otherwise False.
         """
-        request = "CloseAssistiveMode," + str(self.ROBOT_ID)
+        command = "GrpCloseFreeDriver" if self.use_new_api else "CloseAssistiveMode"
+        request = command + "," + str(self.ROBOT_ID)
         success, _ = self._send_and_receive(request, verbose=True)
         return success
 
     def set_speed_ratio(self, speed_ratio):
         """
-        Sets the speed ratio.
+        Sets the speed ratio if it has changed.
 
-        :param double speed_ratio: The desired speed ratio, range: 0.01-1.
-        :return: True if successful, otherwise False.
+        :param float speed_ratio: Desired speed ratio, range: 0.01–1.0
+        :return: True if successful, otherwise False
         """
-        request = "SetOverride," + str(self.ROBOT_ID) + ',' + str(speed_ratio)
+        if getattr(self, "_last_speed_ratio", None) == speed_ratio:
+            return True  # No need to resend the same speed
+
+        request = "SetOverride," + str(self.ROBOT_ID) + "," + str(speed_ratio)
         success, _ = self._send_and_receive(request)
+
+        if success:
+            self._last_speed_ratio = speed_ratio
+            time.sleep(0.1)  # Allow speed change to take effect
+
         return success
 
     def get_pose(self):
@@ -192,7 +207,11 @@ class ElfinConnection:
         if not success or params is None:
             coordinates = None
         else:
-            coordinates = [float(s) for s in params[6:12]] if self.use_new_api else [float(s) for s in params]
+            coordinates = (
+                [float(s) for s in params[6:12]]
+                if self.use_new_api
+                else [float(s) for s in params]
+            )
 
         return success, coordinates
 
@@ -205,9 +224,50 @@ class ElfinConnection:
         :return: True if successful, otherwise False.
         """
         command = "MoveL" if self.use_new_api else "MoveB"
-        request = command + "," + str(self.ROBOT_ID) + ',' + self.list_to_str(target)
+        request = command + "," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
 
         success, _ = self._send_and_receive(request, verbose=True)
+        return success
+
+    def start_servo(self, servo_time_ms=10, lookahead_time_ms=50):
+        cmd = (
+            "StartServo,"
+            + str(self.ROBOT_ID)
+            + ","
+            + str(servo_time_ms)
+            + ","
+            + str(lookahead_time_ms)
+        )
+        success, _ = self._send_and_receive(cmd)
+        self.servo_started = success
+        return success
+
+    def ensure_servo_started(self):
+        if not getattr(self, "servo_started", False):
+            return self.start_servo()
+        return True
+
+    def move_servo(self, target):
+        if self.use_new_api:
+            if not self.ensure_servo_started():
+                return False
+
+            ucs = [0] * 6
+            tcp = [0] * 6
+            request = (
+                "PushServoP,"
+                + str(self.ROBOT_ID)
+                + ","
+                + self.list_to_str(target)
+                + ","
+                + self.list_to_str(ucs)
+                + ","
+                + self.list_to_str(tcp)
+            )
+        else:
+            request = "MoveB," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
+
+        success, _ = self._send_and_receive(request)
         return success
 
     def read_force_sensor(self):
@@ -288,14 +348,32 @@ class ElfinConnection:
             # XXX: The velocity is set to 300 and the acceleration to 2500. It turns out that the units specified in the API manual
             #   (mm/s and mm/s^2, respectively) are most likely incorrect. It is uncertain what is the actual unit, but these values
             #   seem to work well enough.
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(start_position) + ',' + self.list_to_str(waypoint) + \
-                    ',' + self.list_to_str(target) + ',0,1,0,300,2500,1,TCP,Base,0'
+            request = (
+                "MoveC,"
+                + str(self.ROBOT_ID)
+                + ","
+                + self.list_to_str(start_position)
+                + ","
+                + self.list_to_str(waypoint)
+                + ","
+                + self.list_to_str(target)
+                + ",0,1,0,300,2500,1,TCP,Base,0"
+            )
         else:
             # Always use movement type 0.
-            movement_type_str = '0'
+            movement_type_str = "0"
 
             # Note: The start position is unused in the old version of the Elfin API.
-            request = "MoveC," + str(self.ROBOT_ID) + ',' + self.list_to_str(waypoint[:3]) + ',' + self.list_to_str(target) + ',' + movement_type_str
+            request = (
+                "MoveC,"
+                + str(self.ROBOT_ID)
+                + ","
+                + self.list_to_str(waypoint[:3])
+                + ","
+                + self.list_to_str(target)
+                + ","
+                + movement_type_str
+            )
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success

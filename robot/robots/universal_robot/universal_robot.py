@@ -1,24 +1,22 @@
 from time import sleep
 
-import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from robot.robots.robot import Robot
-
 from robot.robots.universal_robot.command_connection import (
     CommandConnection,
     MotionMode,
 )
-
 from robot.robots.universal_robot.state_connection import (
     StateConnection,
 )
 
-from scipy.spatial.transform import Rotation as R
 
 class UniversalRobot(Robot):
     """
     The class for communicating with Universal robot.
     """
+
     # The typical maximum velocity for Universal Robot is 1 m/s, as described here:
     #
     # https://www.universal-robots.com/media/1827367/05_2023_collective_data-sheet.pdf
@@ -72,14 +70,16 @@ class UniversalRobot(Robot):
         rot = R.from_rotvec(rotvec)
 
         # Convert the rotation matrix to roll, pitch, yaw (in radians)
-        rpy = rot.as_euler('xyz', degrees=True)  # or 'zyx' depending on your convention
+        rpy = rot.as_euler("xyz", degrees=True)  # or 'zyx' depending on your convention
 
         return rpy
 
     # Function to convert RPY to a rotation vector
     def rpy_to_rotvec(self, rpy):
         # Convert RPY angles (in degrees) to a Rotation object
-        rot = R.from_euler('xyz', rpy, degrees=True)  # or 'zyx' depending on your convention
+        rot = R.from_euler(
+            "xyz", rpy, degrees=True
+        )  # or 'zyx' depending on your convention
 
         # Convert the Rotation object to a rotation vector
         rotvec = rot.as_rotvec()
@@ -95,8 +95,15 @@ class UniversalRobot(Robot):
         if not success:
             return success, None
         euler_angles = self.rotvec_to_rpy(pose[3:])
-        return success, [pose[0], pose[1], pose[2], euler_angles[0], euler_angles[1], euler_angles[2]]
-        #return self.state_connection.get_pose()
+        return success, [
+            pose[0],
+            pose[1],
+            pose[2],
+            euler_angles[0],
+            euler_angles[1],
+            euler_angles[2],
+        ]
+        # return self.state_connection.get_pose()
 
     def is_moving(self):
         return self.state_connection.is_moving()
@@ -127,7 +134,7 @@ class UniversalRobot(Robot):
         )
 
     def dynamic_motion(self, target, speed_ratio):
-        #TODO: needs to be tested
+        # TODO: needs to be tested
         acceleration = self.DEFAULT_ACCELERATION
         velocity = self.MAX_VELOCITY * speed_ratio
         time = 0  # When acceleration and velocity are defined, time is not used.

@@ -4,13 +4,13 @@ import sys
 import time
 from threading import Lock
 
-import socketio
 import numpy as np
+import socketio
 from dotenv import load_dotenv
 
 import robot.constants as const
-from robot.control.robot_control import RobotControl, RobotObjective
 from robot.control.color import Color
+from robot.control.robot_control import RobotControl, RobotObjective
 
 
 class RemoteControl:
@@ -21,10 +21,10 @@ class RemoteControl:
         self.__connected = False
         self.__sio = socketio.Client()
 
-        self.__sio.on('connect', self.__on_connect)
-        self.__sio.on('disconnect', self.__on_disconnect)
-        self.__sio.on('to_robot', self.__on_message_receive)
-        self.__sio.on('restart_robot_main_loop', self.__on_restart_main_loop)
+        self.__sio.on("connect", self.__on_connect)
+        self.__sio.on("disconnect", self.__on_disconnect)
+        self.__sio.on("to_robot", self.__on_message_receive)
+        self.__sio.on("restart_robot_main_loop", self.__on_restart_main_loop)
         self.__lock = Lock()
 
     def __on_connect(self):
@@ -77,7 +77,7 @@ class RemoteControl:
 #
 # If not given, use the defaults, as shown below.
 def get_command_line_arguments():
-    default_host = '127.0.0.1'
+    default_host = "127.0.0.1"
     default_port = 5000
     default_robot_id = 'robot_1'
 
@@ -100,26 +100,29 @@ def get_command_line_arguments():
 
     return host, port, robot_id
 
+
 def get_config():
     # Load environment variables from .env file.
     load_dotenv()
 
     # List environment variables.
     env_vars = [
-        'SITE',
-        'ROBOT',
-        'VERBOSE',
-        'MOVEMENT_ALGORITHM',
-        'USE_FORCE_SENSOR',
-        'DWELL_TIME',
-        'SAFE_HEIGHT',
-        'DEFAULT_SPEED_RATIO',
-        'TUNING_SPEED_RATIO',
-        'STOP_ROBOT_IF_HEAD_NOT_VISIBLE',
-        'TUNING_INTERVAL',
-        'WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT',
-        'TRANSLATION_THRESHOLD',
-        'ROTATION_THRESHOLD',
+        "SITE",
+        "ROBOT",
+        "VERBOSE",
+        "MOVEMENT_ALGORITHM",
+        "USE_FORCE_SENSOR",
+        "USE_PRESSURE_SENSOR",
+        "COM_PORT_PRESSURE_SENSOR",
+        "DWELL_TIME",
+        "SAFE_HEIGHT",
+        "DEFAULT_SPEED_RATIO",
+        "TUNING_SPEED_RATIO",
+        "STOP_ROBOT_IF_HEAD_NOT_VISIBLE",
+        "TUNING_INTERVAL",
+        "WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT",
+        "TRANSLATION_THRESHOLD",
+        "ROTATION_THRESHOLD",
     ]
     for var in env_vars:
         if os.getenv(var) is None:
@@ -127,54 +130,66 @@ def get_config():
             return None
 
     # Create configuration dictionary.
-    site = os.getenv('SITE')
-    robot = os.getenv('ROBOT')
-    verbose = os.getenv('VERBOSE').lower() == 'true'
-    movement_algorithm = os.getenv('MOVEMENT_ALGORITHM')
-    dwell_time = float(os.getenv('DWELL_TIME'))
-    use_force_sensor = os.getenv('USE_FORCE_SENSOR').lower() == 'true'
-    safe_height = float(os.getenv('SAFE_HEIGHT'))
-    default_speed_ratio = float(os.getenv('DEFAULT_SPEED_RATIO'))
-    tuning_speed_ratio = float(os.getenv('TUNING_SPEED_RATIO'))
-    stop_robot_if_head_not_visible = os.getenv('STOP_ROBOT_IF_HEAD_NOT_VISIBLE').lower() == 'true'
-    wait_for_keypress_before_movement = os.getenv('WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT').lower() == 'true'
-    translation_threshold = float(os.getenv('TRANSLATION_THRESHOLD'))
-    rotation_threshold = float(os.getenv('ROTATION_THRESHOLD'))
+    site = os.getenv("SITE")
+    robot = os.getenv("ROBOT")
+    verbose = os.getenv("VERBOSE").lower() == "true"
+    movement_algorithm = os.getenv("MOVEMENT_ALGORITHM")
+    dwell_time = float(os.getenv("DWELL_TIME"))
+    use_force_sensor = os.getenv("USE_FORCE_SENSOR").lower() == "true"
+    use_pressure_sensor = os.getenv("USE_PRESSURE_SENSOR").lower() == "true"
+    com_port_pressure_sensor = os.getenv("COM_PORT_PRESSURE_SENSOR")
+    safe_height = float(os.getenv("SAFE_HEIGHT"))
+    default_speed_ratio = float(os.getenv("DEFAULT_SPEED_RATIO"))
+    tuning_speed_ratio = float(os.getenv("TUNING_SPEED_RATIO"))
+    stop_robot_if_head_not_visible = (
+        os.getenv("STOP_ROBOT_IF_HEAD_NOT_VISIBLE").lower() == "true"
+    )
+    wait_for_keypress_before_movement = (
+        os.getenv("WAIT_FOR_KEYPRESS_BEFORE_MOVEMENT").lower() == "true"
+    )
+    translation_threshold = float(os.getenv("TRANSLATION_THRESHOLD"))
+    rotation_threshold = float(os.getenv("ROTATION_THRESHOLD"))
 
     # If tuning interval is not provided, set it to None, otherwise convert to float.
-    tuning_interval = os.getenv('TUNING_INTERVAL')
+    tuning_interval = os.getenv("TUNING_INTERVAL")
     if tuning_interval == "":
         tuning_interval = None
     else:
         tuning_interval = float(tuning_interval)
 
     config = {
-        'site': site,
-        'robot': robot,
-        'verbose': verbose,
-        'movement_algorithm': movement_algorithm,
-        'dwell_time': dwell_time,
-        'use_force_sensor': use_force_sensor,
-        'safe_height': safe_height,
-        'default_speed_ratio': default_speed_ratio,
-        'tuning_speed_ratio': tuning_speed_ratio,
-        'stop_robot_if_head_not_visible': stop_robot_if_head_not_visible,
-        'tuning_interval': tuning_interval,
-        'wait_for_keypress_before_movement': wait_for_keypress_before_movement,
-        'translation_threshold': translation_threshold,
-        'rotation_threshold': rotation_threshold,
+        "site": site,
+        "robot": robot,
+        "verbose": verbose,
+        "movement_algorithm": movement_algorithm,
+        "dwell_time": dwell_time,
+        "use_force_sensor": use_force_sensor,
+        "use_pressure_sensor": use_pressure_sensor,
+        "com_port_pressure_sensor": com_port_pressure_sensor,
+        "safe_height": safe_height,
+        "default_speed_ratio": default_speed_ratio,
+        "tuning_speed_ratio": tuning_speed_ratio,
+        "stop_robot_if_head_not_visible": stop_robot_if_head_not_visible,
+        "tuning_interval": tuning_interval,
+        "wait_for_keypress_before_movement": wait_for_keypress_before_movement,
+        "translation_threshold": translation_threshold,
+        "rotation_threshold": rotation_threshold,
     }
 
     # Print configuration.
     print("Configuration")
     print("")
     for key, value in config.items():
-        key_formatted = key.replace('_', ' ').capitalize()
+        key_formatted = key.replace("_", " ").capitalize()
         print("{}: {}{}{}".format(key_formatted, Color.BOLD, value, Color.END))
 
     print("")
     if wait_for_keypress_before_movement:
-        print("{}Note: The robot only performs a movement when a key is pressed{}".format(Color.BOLD, Color.END))
+        print(
+            "{}Note: The robot only performs a movement when a key is pressed{}".format(
+                Color.BOLD, Color.END
+            )
+        )
         print("")
 
     # Validate configuration.
@@ -192,18 +207,19 @@ def get_config():
 
     return config
 
+
 def main(connection=None):
     config = get_config()
     if config is None:
         exit(1)
 
     # Configure logging.
-    np.set_printoptions(formatter={'float': '{:0.1f}'.format})
+    np.set_printoptions(formatter={"float": "{:0.1f}".format})
 
     # Initialize robot controller
 
-    site = config['site']
-    robot = config['robot']
+    site = config["site"]
+    robot = config["robot"]
 
     site_config = const.SITE_CONFIG[site]
 
@@ -212,6 +228,7 @@ def main(connection=None):
 
     try:
         from .robot_api import RobotApi
+
         robot_control = RobotControl(
             remote_control=None,
             config=config,
@@ -244,26 +261,26 @@ def main(connection=None):
             if len(buf) == 0:
                 pass
 
-            elif any(item in [d['topic'] for d in buf] for item in const.PUB_MESSAGES):
-                topic = [d['topic'] for d in buf]
+            elif any(item in [d["topic"] for d in buf] for item in const.PUB_MESSAGES):
+                topic = [d["topic"] for d in buf]
 
                 for i in range(len(buf)):
                     if topic[i] in const.PUB_MESSAGES:
                         get_function = {
-                            const.FUNCTION_CONNECT_TO_ROBOT: robot_control.OnRobotConnection,
-                            const.FUNCTION_SET_TARGET: robot_control.OnSetTarget,
-                            const.FUNCTION_UNSET_TARGET: robot_control.OnUnsetTarget,
-                            const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.OnSetTrackerFiducials,
-                            const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.OnUpdateTrackerPoses,
-                            const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.OnCreatePoint,
-                            const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.OnResetRobotMatrix,
-                            const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.OnRobotMatrixEstimation,
-                            const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.OnSetRobotTransformationMatrix,
-                            const.FUNCTION_COIL_AT_TARGET: robot_control.OnCoilAtTarget,
-                            const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.OnUpdateDisplacementToTarget,
-                            const.FUNCTION_SET_OBJECTIVE: robot_control.OnSetObjective,
-                            const.FUNCTION_SET_FREE_DRIVE: robot_control.OnSetFreeDrive,
-                            const.FUNCTION_CHECK_CONNECTION: robot_control.OnCheckConnectionRobot,
+                            const.FUNCTION_CONNECT_TO_ROBOT: robot_control.on_robot_connection,
+                            const.FUNCTION_SET_TARGET: robot_control.on_set_target,
+                            const.FUNCTION_UNSET_TARGET: robot_control.on_unset_target,
+                            const.FUNCTION_SET_TRACKER_FIDUCIALS: robot_control.on_set_tracker_fiducials,
+                            const.FUNCTION_UPDATE_TRACKER_POSES: robot_control.on_update_tracker_poses,
+                            const.FUNCTION_COLLECT_COORDINATES_TO_ROBOT_MATRIX: robot_control.on_create_point,
+                            const.FUNCTION_RESET_ROBOT_MATRIX: robot_control.on_reset_robot_matrix,
+                            const.FUNCTION_ROBOT_MATRIX_ESTIMATION: robot_control.on_robot_matrix_estimation,
+                            const.FUNCTION_SET_ROBOT_TRANSFORMATION_MATRIX: robot_control.on_set_robot_transformation_matrix,
+                            const.FUNCTION_COIL_AT_TARGET: robot_control.on_coil_at_target,
+                            const.FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET: robot_control.on_update_displacement_to_target,
+                            const.FUNCTION_SET_OBJECTIVE: robot_control.on_set_objective,
+                            const.FUNCTION_SET_FREE_DRIVE: robot_control.on_set_freedrive,
+                            const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
@@ -273,21 +290,21 @@ def main(connection=None):
             if previous_success != success:
                 # Reset objective if robot update was not successful.
                 robot_control.objective = RobotObjective.NONE
-                robot_control.SendObjectiveToNeuronavigation()
+                robot_control.send_objective_to_neuronavigation()
 
                 if connection_type == "ros":
                     connection.update_robot_status(success)
 
                 elif connection_type == "server":
                     # Send robot status to tms_robot_control via remote control.
-                    topic = 'Robot to Neuronavigation: Update robot status'
-                    data = {'robot_status': success}
+                    topic = "Robot to Neuronavigation: Update robot status"
+                    data = {"robot_status": success}
                     remote_control.send_message(topic, data)
 
             previous_success = success
 
-        time.sleep(robot_config['sleep'])
+        time.sleep(robot_config["sleep"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

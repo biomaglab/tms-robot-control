@@ -12,6 +12,7 @@ dependencies:
     - matplotlib==3.9.0
     - opencv-python==4.10.0.84
     - pynput
+    - pyserial
     - python-dotenv
     - python-socketio==5.11.3
     - uvicorn[standard]==0.30.1

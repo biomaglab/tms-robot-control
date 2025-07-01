@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class Robot(ABC):
     """
     Abstract base class for robot communication.
@@ -124,7 +125,7 @@ class Robot(ABC):
     @abstractmethod
     def dynamic_motion(self, target, speed_ratio):
         """
-        Change the robot movement dynamically/immediately in a linear path to the target in robot's base coordinate system 
+        Change the robot movement dynamically/immediately in a linear path to the target in robot's base coordinate system
         with a given speed.
 
         :param target: The target position in a linear path, as a list of 6 values: [x, y, z, rx, ry, rz].

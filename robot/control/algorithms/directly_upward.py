@@ -38,10 +38,10 @@ class DirectlyUpwardAlgorithm:
         self.robot = robot
         self.config = config
 
-        self.default_speed_ratio = config['default_speed_ratio']
-        self.tuning_speed_ratio = config['tuning_speed_ratio']
-        self.translation_threshold = config['translation_threshold']
-        self.rotation_threshold = config['rotation_threshold']
+        self.default_speed_ratio = config["default_speed_ratio"]
+        self.tuning_speed_ratio = config["tuning_speed_ratio"]
+        self.translation_threshold = config["translation_threshold"]
+        self.rotation_threshold = config["rotation_threshold"]
 
         # Unused for now.
         self.robot_config = robot_config
@@ -51,12 +51,14 @@ class DirectlyUpwardAlgorithm:
     def reset_state(self):
         self.motion_sequence_state = MotionSequenceState.NOT_INITIATED
 
-    def move_decision(self,
-                      displacement_to_target,
-                      target_pose_in_robot_space_estimated_from_head_pose,
-                      target_pose_in_robot_space_estimated_from_displacement,
-                      robot_pose,
-                      head_center):
+    def move_decision(
+        self,
+        displacement_to_target,
+        target_pose_in_robot_space_estimated_from_head_pose,
+        target_pose_in_robot_space_estimated_from_displacement,
+        robot_pose,
+        head_center,
+    ):
 
         # If motion sequence is not initiated, check if it should be.
         if self.motion_sequence_state == MotionSequenceState.NOT_INITIATED:
@@ -66,12 +68,23 @@ class DirectlyUpwardAlgorithm:
             max_rotation = np.max(np.abs(displacement_to_target[3:]))
 
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence.
-            if max_translation > self.translation_threshold or max_rotation > self.rotation_threshold:
+            if (
+                max_translation > self.translation_threshold
+                or max_rotation > self.rotation_threshold
+            ):
 
                 if max_translation > self.translation_threshold:
-                    print("Translation ({:.2f} mm) exceeds the threshold ({:.2f} mm)".format(max_translation, self.translation_threshold))
+                    print(
+                        "Translation ({:.2f} mm) exceeds the threshold ({:.2f} mm)".format(
+                            max_translation, self.translation_threshold
+                        )
+                    )
                 if max_rotation > self.rotation_threshold:
-                    print("Rotation ({:.2f} deg) exceeds the threshold ({:.2f} deg)".format(max_rotation, self.rotation_threshold))
+                    print(
+                        "Rotation ({:.2f} deg) exceeds the threshold ({:.2f} deg)".format(
+                            max_rotation, self.rotation_threshold
+                        )
+                    )
 
                 print("Initiating motion sequence")
 
@@ -80,7 +93,9 @@ class DirectlyUpwardAlgorithm:
 
         # If motion sequence is initiated, continue the sequence, otherwise perform tuning motion.
         if self.motion_sequence_state != MotionSequenceState.NOT_INITIATED:
-            success = self._perform_motion(target_pose_in_robot_space_estimated_from_displacement)
+            success = self._perform_motion(
+                target_pose_in_robot_space_estimated_from_displacement
+            )
         else:
             success = self._tune(target_pose_in_robot_space_estimated_from_displacement)
 
@@ -97,7 +112,9 @@ class DirectlyUpwardAlgorithm:
     def _tune(self, target_pose_in_robot_space):
         print("Initiating tuning motion")
 
-        success = self.robot.move_linear(target_pose_in_robot_space, self.tuning_speed_ratio)
+        success = self.robot.move_linear(
+            target_pose_in_robot_space, self.tuning_speed_ratio
+        )
         return success
 
     def _perform_motion(self, target_pose_in_robot_space):
@@ -106,12 +123,15 @@ class DirectlyUpwardAlgorithm:
         if self.motion_sequence_state == MotionSequenceState.MOVE_UPWARD:
             success = self._move_to_safe_height()
 
-        elif self.motion_sequence_state == MotionSequenceState.MOVE_AND_ROTATE_IN_XY_PLANE:
+        elif (
+            self.motion_sequence_state
+            == MotionSequenceState.MOVE_AND_ROTATE_IN_XY_PLANE
+        ):
             print("")
             print("{}Moving and rotating in XY plane{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = self.config['safe_height']
+            pose[2] = self.config["safe_height"]
             success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_PARTWAY_DOWNWARD:
@@ -119,7 +139,9 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving partway downward{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (self.config['safe_height'] - pose[2])
+            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION * (
+                self.config["safe_height"] - pose[2]
+            )
             success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_TO_TARGET:
@@ -127,7 +149,9 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving to target{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION/3 * (self.config['safe_height'] - pose[2])
+            pose[2] = pose[2] + self.PARTWAY_DOWNWARD_REMAINING_PROPORTION / 3 * (
+                self.config["safe_height"] - pose[2]
+            )
             # We assume to be close to target by this stage. Hence, use tuning speed for the movement.
             success = self.robot.move_linear(pose, self.tuning_speed_ratio)
 
@@ -149,7 +173,7 @@ class DirectlyUpwardAlgorithm:
         if not success:
             return False
 
-        pose[2] = self.config['safe_height']
+        pose[2] = self.config["safe_height"]
         success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         return success

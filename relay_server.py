@@ -20,10 +20,9 @@ import nest_asyncio
 import socketio
 import uvicorn
 
-
 nest_asyncio.apply()
 
-default_host = '127.0.0.1'
+default_host = "127.0.0.1"
 
 if len(sys.argv) == 3:
     host = sys.argv[1]
@@ -32,27 +31,30 @@ elif len(sys.argv) == 2:
     host = default_host
     port = int(sys.argv[1])
 else:
-    print(f'Usage: python {sys.argv[0]} [host] port')
+    print(f"Usage: python {sys.argv[0]} [host] port")
     sys.exit(1)
 
-sio = socketio.AsyncServer(async_mode='asgi')
+sio = socketio.AsyncServer(async_mode="asgi")
 app = socketio.ASGIApp(sio)
+
 
 @sio.event
 def from_neuronavigation(sid, msg):
-    asyncio.create_task(sio.emit('to_robot', msg))
-    print('Forwarding neuronavigation -> robot: %s' % str(msg))
+    asyncio.create_task(sio.emit("to_robot", msg))
+    print("Forwarding neuronavigation -> robot: %s" % str(msg))
+
 
 @sio.event
 def from_robot(sid, msg):
-    asyncio.create_task(sio.emit('to_neuronavigation', msg))
-    print('Forwarding robot -> neuronavigation: %s' % str(msg))
+    asyncio.create_task(sio.emit("to_neuronavigation", msg))
+    print("Forwarding robot -> neuronavigation: %s" % str(msg))
+
 
 @sio.event
 def restart_robot_main_loop(sid):
-    asyncio.create_task(sio.emit('restart_robot_main_loop'))
-    print('Restarting robot main_loop')
+    asyncio.create_task(sio.emit("restart_robot_main_loop"))
+    print("Restarting robot main_loop")
 
 
-if __name__ == '__main__':
-    uvicorn.run(app, host=host, port=port, loop='asyncio')
+if __name__ == "__main__":
+    uvicorn.run(app, host=host, port=port, loop="asyncio")

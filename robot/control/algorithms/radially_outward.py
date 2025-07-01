@@ -24,9 +24,9 @@ class RadiallyOutwardAlgorithm:
 
         # Unused for now.
         self.config = config
-        self.safe_height = config['safe_height']
-        self.default_speed_ratio = config['default_speed_ratio']
-        self.tuning_speed_ratio = config['tuning_speed_ratio']
+        self.safe_height = config["safe_height"]
+        self.default_speed_ratio = config["default_speed_ratio"]
+        self.tuning_speed_ratio = config["tuning_speed_ratio"]
 
         # Reset the state
         self.reset_state()
@@ -37,12 +37,14 @@ class RadiallyOutwardAlgorithm:
         self.linear_out_target = None
         self.arc_motion_target = None
 
-    def move_decision(self,
-                      displacement_to_target,
-                      target_pose_in_robot_space_estimated_from_head_pose,
-                      target_pose_in_robot_space_estimated_from_displacement,
-                      robot_pose,
-                      head_center):
+    def move_decision(
+        self,
+        displacement_to_target,
+        target_pose_in_robot_space_estimated_from_head_pose,
+        target_pose_in_robot_space_estimated_from_displacement,
+        robot_pose,
+        head_center,
+    ):
         """
         There are two types of robot movements.
 
@@ -70,49 +72,84 @@ class RadiallyOutwardAlgorithm:
         success = False
         normalize_force_sensor = False
 
-        distance_threshold_for_arc_motion = self.robot_config['distance_threshold_for_arc_motion']
-        angular_distance_threshold_for_arc_motion = self.robot_config['angular_distance_threshold_for_arc_motion']
+        distance_threshold_for_arc_motion = self.robot_config[
+            "distance_threshold_for_arc_motion"
+        ]
+        angular_distance_threshold_for_arc_motion = self.robot_config[
+            "angular_distance_threshold_for_arc_motion"
+        ]
 
         # Compute the maximum translation and rotation to the target.
         max_translation = np.max(np.abs(displacement_to_target[:3]))
         max_rotation = np.max(np.abs(displacement_to_target[3:]))
 
         # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence.
-        if max_translation > distance_threshold_for_arc_motion or max_rotation > angular_distance_threshold_for_arc_motion:
-            print("Max translation: {:.2f} mm, max rotation: {:.2f} degrees, exceeding the threshold".format(
-                max_translation, max_rotation))
+        if (
+            max_translation > distance_threshold_for_arc_motion
+            or max_rotation > angular_distance_threshold_for_arc_motion
+        ):
+            print(
+                "Max translation: {:.2f} mm, max rotation: {:.2f} degrees, exceeding the threshold".format(
+                    max_translation, max_rotation
+                )
+            )
             print("Initiating motion sequence")
 
-            versor_scale_factor = self.robot_config['versor_scale_factor']
-            middle_arc_scale_factor = self.robot_config['middle_arc_scale_factor']
-            linear_out_target, waypoint, arc_motion_target = robot_process.compute_arc_motion(
-                robot_pose=robot_pose,
-                head_center=head_center,
-                target_pose=target_pose_in_robot_space_estimated_from_head_pose,  #needs to be target_pose_in_robot_space_estimated_from_head_pose!!
-                versor_scale_factor=versor_scale_factor,
-                middle_arc_scale_factor=middle_arc_scale_factor,
+            versor_scale_factor = self.robot_config["versor_scale_factor"]
+            middle_arc_scale_factor = self.robot_config["middle_arc_scale_factor"]
+            linear_out_target, waypoint, arc_motion_target = (
+                robot_process.compute_arc_motion(
+                    robot_pose=robot_pose,
+                    head_center=head_center,
+                    target_pose=target_pose_in_robot_space_estimated_from_head_pose,  # needs to be target_pose_in_robot_space_estimated_from_head_pose!!
+                    versor_scale_factor=versor_scale_factor,
+                    middle_arc_scale_factor=middle_arc_scale_factor,
+                )
             )
             if self.motion_type == MotionType.NORMAL:
                 self.linear_out_target = linear_out_target
                 self.motion_type = MotionType.LINEAR_OUT
 
             if self.motion_type == MotionType.LINEAR_OUT:
-                if np.allclose(np.array(robot_pose), np.array(self.linear_out_target), 0, 10):
+                if np.allclose(
+                    np.array(robot_pose), np.array(self.linear_out_target), 0, 10
+                ):
                     self.motion_type = MotionType.ARC
                     self.arc_motion_target = arc_motion_target
 
             elif self.motion_type == MotionType.ARC:
                 # Check if the target of arc motion has changed enough; if so, update the target.
-                threshold_to_update_arc_motion_target = self.robot_config['threshold_to_update_arc_motion_target']
-                if not np.allclose(np.array(arc_motion_target), np.array(self.arc_motion_target), 0, threshold_to_update_arc_motion_target):
-                    if np.linalg.norm(target_pose_in_robot_space_estimated_from_head_pose[:3] - robot_pose[:3]) >= distance_threshold_for_arc_motion:
+                threshold_to_update_arc_motion_target = self.robot_config[
+                    "threshold_to_update_arc_motion_target"
+                ]
+                if not np.allclose(
+                    np.array(arc_motion_target),
+                    np.array(self.arc_motion_target),
+                    0,
+                    threshold_to_update_arc_motion_target,
+                ):
+                    if (
+                        np.linalg.norm(
+                            target_pose_in_robot_space_estimated_from_head_pose[:3]
+                            - robot_pose[:3]
+                        )
+                        >= distance_threshold_for_arc_motion
+                    ):
                         self.arc_motion_target = arc_motion_target
 
                     # Avoid small arc motion; in that case, it is better to use linear movement.
-                    elif np.linalg.norm(arc_motion_target[:3] - robot_pose[:3]) < distance_threshold_for_arc_motion / 2:
+                    elif (
+                        np.linalg.norm(arc_motion_target[:3] - robot_pose[:3])
+                        < distance_threshold_for_arc_motion / 2
+                    ):
                         self.motion_type = MotionType.NORMAL
 
-                if np.allclose(np.array(robot_pose)[:3], np.array(self.arc_motion_target)[:3], 0, 20):
+                if np.allclose(
+                    np.array(robot_pose)[:3],
+                    np.array(self.arc_motion_target)[:3],
+                    0,
+                    20,
+                ):
                     self.motion_type = MotionType.NORMAL
             else:
                 self.motion_type = MotionType.NORMAL
@@ -120,11 +157,18 @@ class RadiallyOutwardAlgorithm:
             self.motion_type = MotionType.NORMAL
 
         # Check the conditions for tuning.
-        angular_distance_threshold_for_tuning = self.robot_config['angular_distance_threshold_for_tuning']
-        distance_threshold_for_tuning = self.robot_config['distance_threshold_for_tuning']
+        angular_distance_threshold_for_tuning = self.robot_config[
+            "angular_distance_threshold_for_tuning"
+        ]
+        distance_threshold_for_tuning = self.robot_config[
+            "distance_threshold_for_tuning"
+        ]
 
-        close_to_target = np.linalg.norm(displacement_to_target[:3]) < distance_threshold_for_tuning or \
-                          np.linalg.norm(displacement_to_target[3:]) < angular_distance_threshold_for_tuning
+        close_to_target = (
+            np.linalg.norm(displacement_to_target[:3]) < distance_threshold_for_tuning
+            or np.linalg.norm(displacement_to_target[3:])
+            < angular_distance_threshold_for_tuning
+        )
 
         if close_to_target and self.motion_type != MotionType.ARC:
             self.motion_type = MotionType.TUNING

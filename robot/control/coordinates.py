@@ -1,7 +1,7 @@
 import numpy as np
 
-import robot.transformations as tr
 import robot.control.robot_processing as robot_process
+import robot.transformations as tr
 
 
 class RobotPoseStorage:
@@ -9,8 +9,9 @@ class RobotPoseStorage:
     Class to set/send robot pose.
     The class is required to avoid acquisition conflict with different threads (coordinates and navigation)
     """
+
     def __init__(self):
-        self.robot_pose = [None]*6
+        self.robot_pose = [None] * 6
 
     def SetRobotPose(self, robot_pose):
         robot_pose = np.array(robot_pose)
@@ -26,6 +27,7 @@ class Tracker:
     Tracker coordinates are acquired in InVesalius.
     The class is required to avoid acquisition conflict with different threads
     """
+
     def __init__(self):
         self.poses = [None, None, None]
         self.m_tracker_to_robot = None
@@ -66,8 +68,12 @@ class Tracker:
         M_in_robot_space = Y @ M @ tr.inverse_matrix(X)
         M_affine_in_robot_space = affine @ M
 
-        _, angles_as_deg = robot_process.transformation_matrix_to_coordinates(M_in_robot_space, axes='sxyz')
-        translation, _ = robot_process.transformation_matrix_to_coordinates(M_affine_in_robot_space, axes='sxyz')
+        _, angles_as_deg = robot_process.transformation_matrix_to_coordinates(
+            M_in_robot_space, axes="sxyz"
+        )
+        translation, _ = robot_process.transformation_matrix_to_coordinates(
+            M_affine_in_robot_space, axes="sxyz"
+        )
 
         pose_in_robot_space = list(translation) + list(angles_as_deg)
 
@@ -77,7 +83,7 @@ class Tracker:
         M = robot_process.coordinates_to_transformation_matrix(
             position=pose[:3],
             orientation=pose[3:],
-            axes='sxyz',
+            axes="sxyz",
         )
         pose_in_robot_space = self.transform_matrix_to_robot_space(M)
 
