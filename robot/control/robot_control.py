@@ -541,6 +541,11 @@ class RobotControl:
         """
         Sends a z-offset update to the neuronavigation system if the applied force is stable.
         """
+        # displacement_to_target = [x, y, z, rx, ry, rz]
+        # Return early if any components (except Z) are within threshold
+        if self.displacement_to_target is not None:
+            if any(abs(self.displacement_to_target[i]) > 2 for i in [0, 1, 3, 4, 5]):
+                return
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
         if self.use_pressure:
