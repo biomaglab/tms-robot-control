@@ -4,6 +4,7 @@ from enum import Enum
 import numpy as np
 from pynput import keyboard
 
+import robot.constants as const
 import robot.control.coordinates as coordinates
 import robot.control.robot_processing as robot_process
 import robot.robots.dobot.dobot as dobot
@@ -1028,7 +1029,13 @@ class RobotControl:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
-            success, warning = self.handle_objective_track_target()
+            # Check update rate
+            if self.remote_control.get_time_since_last_update() > const.MAX_NAVIGATION_UPDATE_GAP_SECONDS:
+                warning = "Navigation updates too slow or stopped — stopping robot!"
+                print(warning)
+                success = self.handle_objective_move_away_from_head()
+            else:
+                success, warning = self.handle_objective_track_target()
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
             success = self.handle_objective_move_away_from_head()
