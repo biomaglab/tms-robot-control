@@ -353,7 +353,7 @@ class RobotControl:
 
             # Track recent displacement magnitudes
             if not hasattr(self, "displacement_magnitude_history"):
-                self.displacement_magnitude_history = deque(maxlen=100)
+                self.displacement_magnitude_history = deque(maxlen=20)
 
             self.displacement_magnitude_history.append(displacement_magnitude)
 
@@ -367,8 +367,8 @@ class RobotControl:
                 if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
                     print("[!] Robot may be stuck. Displacement magnitude not changing.")
                     self.stop_robot()
-                    self.objective = RobotObjective.NONE
-                    self.send_objective_to_neuronavigation()
+                    #self.objective = RobotObjective.NONE
+                    #self.send_objective_to_neuronavigation()
                     print("ERROR: Robot seems stuck — displacement is not changing over time.")
 
     def on_update_displacement_to_target(self, data):
