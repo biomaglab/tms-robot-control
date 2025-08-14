@@ -1,6 +1,7 @@
 import time
 from enum import Enum
 
+from collections import deque
 import numpy as np
 from pynput import keyboard
 
@@ -84,7 +85,7 @@ class RobotControl:
         self.force_sensor = None
         if self.use_pressure:
             self.force_sensor = BufferedPressureSensorReader(
-                self.config["com_port_pressure_sensor"], 115200, buffer_size=100
+                self.config, 115200, buffer_size=100
             )
             # self.pid_z.set_force_setpoint()
 
@@ -327,6 +328,49 @@ class RobotControl:
 
         return list(translation) + list(angles_as_deg)
 
+    def check_displacement_validity_and_stuck(self, displacement):    
+        self.last_displacement_update_time = time.time()
+
+        self.displacement_to_target_history.append(displacement.copy())
+        if len(self.displacement_to_target_history) >= 20:
+            if all(
+                x == self.displacement_to_target_history[0]
+                for x in self.displacement_to_target_history
+            ):
+                self.stop_robot()
+                self.objective = RobotObjective.NONE
+                self.send_objective_to_neuronavigation()
+                print(
+                    "ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected."
+                )
+            del self.displacement_to_target_history[0]
+        
+        # === STUCK DETECTION LOGIC ===
+        if self.objective == RobotObjective.TRACK_TARGET:
+            # Compute displacement magnitude
+            displacement_vector = np.array(self.displacement_to_target[:3])  # translation part only
+            displacement_magnitude = np.linalg.norm(displacement_vector)
+
+            # Track recent displacement magnitudes
+            if not hasattr(self, "displacement_magnitude_history"):
+                self.displacement_magnitude_history = deque(maxlen=100)
+
+            self.displacement_magnitude_history.append(displacement_magnitude)
+
+            if len(self.displacement_magnitude_history) >= self.displacement_magnitude_history.maxlen:
+                std_dev = np.std(self.displacement_magnitude_history)
+                avg_magnitude = np.mean(self.displacement_magnitude_history)
+
+                STUCK_STD_THRESHOLD = 0.5        # How little movement over time is considered "stuck"
+                MIN_MOVEMENT_THRESHOLD = 1.0     # Don’t trigger if displacement is already near target
+
+                if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
+                    print("[!] Robot may be stuck. Displacement magnitude not changing.")
+                    self.stop_robot()
+                    self.objective = RobotObjective.NONE
+                    self.send_objective_to_neuronavigation()
+                    print("ERROR: Robot seems stuck — displacement is not changing over time.")
+
     def on_update_displacement_to_target(self, data):
         # For the displacement received from the neuronavigation, the following holds:
         #
@@ -373,21 +417,7 @@ class RobotControl:
                 )
             )
 
-        self.last_displacement_update_time = time.time()
-
-        self.displacement_to_target_history.append(displacement.copy())
-        if len(self.displacement_to_target_history) >= 20:
-            if all(
-                x == self.displacement_to_target_history[0]
-                for x in self.displacement_to_target_history
-            ):
-                self.stop_robot()
-                self.objective = RobotObjective.NONE
-                self.send_objective_to_neuronavigation()
-                print(
-                    "ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected."
-                )
-            del self.displacement_to_target_history[0]
+        self.check_displacement_validity_and_stuck(displacement)
 
     def on_coil_at_target(self, data):
         self.target_reached = data["state"]
@@ -1033,7 +1063,7 @@ class RobotControl:
             if self.remote_control.get_time_since_last_update() > const.MAX_NAVIGATION_UPDATE_GAP_SECONDS:
                 warning = "Navigation updates too slow or stopped — stopping robot!"
                 print(warning)
-                success = self.handle_objective_move_away_from_head()
+                success = self.handle_objective_none()
             else:
                 success, warning = self.handle_objective_track_target()
 
