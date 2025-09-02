@@ -377,3 +377,15 @@ class ElfinConnection:
 
         success, _ = self._send_and_receive(request, verbose=True)
         return success
+
+    def power_on_robot(self):
+        request = "GrpPowerOn," + str(self.ROBOT_ID)
+        success, _ = self._send_and_receive(request, verbose=True)
+        return success
+    
+    def clean_errors(self):
+        request = ("GrpReset,"
+                + str(self.ROBOT_ID))
+
+        success, _ = self._send_and_receive(request, verbose=True)
+        return success

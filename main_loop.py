@@ -281,7 +281,9 @@ def main(connection=None):
                             const.FUNCTION_SET_OBJECTIVE: robot_control.on_set_objective,
                             const.FUNCTION_SET_FREE_DRIVE: robot_control.on_set_freedrive,
                             const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
+                            const.FUNCTION_COLLISION_ERROR: robot_control.on_collision_error,
                         }
+                        print(buf[i]["data"])
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot_control.robot:
@@ -304,7 +306,6 @@ def main(connection=None):
             previous_success = success
 
         time.sleep(robot_config["sleep"])
-
 
 if __name__ == "__main__":
     main()

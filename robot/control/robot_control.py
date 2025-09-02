@@ -1036,3 +1036,7 @@ class RobotControl:
         self.update_navigation_variables(warning)
 
         return success
+    
+    def on_collision_error(self, data):
+        if self.robot:
+            self.robot.recover_from_colission()
