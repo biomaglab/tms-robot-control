@@ -229,7 +229,7 @@ class Dobot(Robot):
                 break
             time.sleep(0.001)
     
-    def recover_from_colission(self):
+    def clean_errors(self):
         self.connection.clear_error()
         time.sleep(0.5)
         self.connection.reset_robot()

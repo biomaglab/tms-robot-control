@@ -105,7 +105,7 @@ class Elfin(Robot):
         self.stop_robot()
         self.disconnect()
 
-    def recover_from_colission(self):
+    def clean_errors(self):
         self.connection.stop_robot()
         sleep(0.5)
         self.connection.clean_errors()

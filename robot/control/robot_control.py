@@ -1037,6 +1037,6 @@ class RobotControl:
 
         return success
     
-    def on_collision_error(self, data):
+    def on_clean_errors(self, data):
         if self.robot:
-            self.robot.recover_from_colission()
+            self.robot.clean_errors()

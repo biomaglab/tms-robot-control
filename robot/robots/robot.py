@@ -160,7 +160,7 @@ class Robot(ABC):
         pass
 
     @abstractmethod
-    def recover_from_colission(self):
+    def clean_errors(self):
         """
         Clean robot errors
         """
