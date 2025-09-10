@@ -1040,3 +1040,13 @@ class RobotControl:
     def on_clean_errors(self, data):
         if self.robot:
             self.robot.clean_errors()
+
+    def dynamically_update_calculate_pid_constants(self, data):
+        distance = data["distance"]
+        circle_radius = 60
+        decay_factor = 0.4
+        factor = np.exp(-decay_factor*np.max([0, (distance-(2*1.1*circle_radius))]))
+        self.pid_group.update_all_pid_constante(factor)
+
+
+

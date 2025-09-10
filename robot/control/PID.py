@@ -129,10 +129,20 @@ class PIDControllerGroup:
     def clear(self):
         for pid in self.translation_pids + self.rotation_pids:
             pid.clear()
-
+    
+    def update_all_pid_constante(self, factor):
+        for pid_axis in self.translation_pids[:-1]:
+            pid_axis.set_gains(factor*pid_axis.init_Kp, factor*pid_axis.init_Ki, factor*pid_axis.init_Kd)
+            
+        for pix_angles in self.rotation_pids:
+            pix_angles.set_gains(factor*pid_axis.init_Kp, factor*pid_axis.init_Ki, factor*pid_axis.init_Kd)
 
 class ImpedancePIDController:
     def __init__(self, proportional=0.3, integral=0.01, derivative=0.0, stiffness=0.05, damping=0.02, mode="pid"):
+        self.init_Kp = proportional
+        self.init_Ki = integral
+        self.init_Kd = derivative
+
         self.Kp = proportional
         self.Ki = integral
         self.Kd = derivative
