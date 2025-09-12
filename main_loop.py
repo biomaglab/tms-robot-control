@@ -284,7 +284,6 @@ def main(connection=None):
                             const.FUNCTION_CLEAN_ERRORS: robot_control.on_clean_errors,
                             const.DYNAMICALLY_UPDATE_PID_CONSTANTS: robot_control.dynamically_update_calculate_pid_constants,
                         }
-                        print(buf[i]["data"])
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
         if robot_control.robot:
