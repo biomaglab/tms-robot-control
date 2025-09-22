@@ -104,3 +104,10 @@ class Elfin(Robot):
     def close(self):
         self.stop_robot()
         self.disconnect()
+
+    def clean_errors(self):
+        self.connection.stop_robot()
+        sleep(0.5)
+        self.connection.clean_errors()
+        sleep(1)
+        self.connection.power_on_robot()

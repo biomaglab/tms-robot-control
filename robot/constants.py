@@ -153,6 +153,8 @@ PUB_MESSAGES = [
     "Neuronavigation to Robot: Set objective",
     "Neuronavigation to Robot: Set free drive",
     "Neuronavigation to Robot: Check connection robot",
+    "Neuronavigation to Robot: Reset collision error",
+    "Neuronavigation to Robot: Dynamically update pid constants",
 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
@@ -169,3 +171,6 @@ FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET = 10
 FUNCTION_SET_OBJECTIVE = 11
 FUNCTION_SET_FREE_DRIVE = 12
 FUNCTION_CHECK_CONNECTION = 13
+FUNCTION_CLEAN_ERRORS = 14
+DYNAMICALLY_UPDATE_PID_CONSTANTS = 15
+

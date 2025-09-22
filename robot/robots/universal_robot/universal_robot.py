@@ -194,3 +194,6 @@ class UniversalRobot(Robot):
 
     def disable_free_drive(self):
         pass
+
+    def clean_errors(self):
+        pass

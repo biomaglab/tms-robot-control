@@ -74,6 +74,7 @@ class DobotConnection:
             return response_str
         except ConnectionAbortedError:
             print("ConnectionAbortedError. Unable to read message")
+            self.connected = False
             return ""
 
     def close(self):

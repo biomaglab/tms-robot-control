@@ -228,3 +228,9 @@ class Dobot(Robot):
                 print("break: TIMEOUT_MOTION")
                 break
             time.sleep(0.001)
+    
+    def clean_errors(self):
+        self.connection.clear_error()
+        time.sleep(0.5)
+        self.connection.reset_robot()
+        time.sleep(1)

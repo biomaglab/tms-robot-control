@@ -1036,3 +1036,22 @@ class RobotControl:
         self.update_navigation_variables(warning)
 
         return success
+    
+    def on_clean_errors(self, data):
+        if self.robot:
+            self.robot.clean_errors()
+
+    def dynamically_update_calculate_pid_constants(self, data):
+        distance = data["distance"]
+        distance_threshold = data["distance_threshold"]
+
+        if self.config.get("movement_algorithm") == "directly_PID":
+            decay_factor = 0.15
+            factor = np.exp(-decay_factor*np.max([0, ((1*distance_threshold)-distance)]))
+            self.pid_group.update_all_pid_constante(factor)
+        else:
+            if distance < distance_threshold*1.2:
+                self.stop_robot()
+
+
+

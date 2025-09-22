@@ -14,8 +14,9 @@ from robot.control.robot_control import RobotControl, RobotObjective
 
 
 class RemoteControl:
-    def __init__(self, remote_host):
+    def __init__(self, remote_host, robot_id):
         self.__buffer = []
+        self.__robot_id = robot_id
         self.__remote_host = remote_host
         self.__connected = False
         self.__sio = socketio.Client()
@@ -35,9 +36,11 @@ class RemoteControl:
         self.__connected = False
 
     def __on_message_receive(self, msg):
-        self.__lock.acquire()
-        self.__buffer.append(msg)
-        self.__lock.release()
+        robot_id = msg.get('data', {}).get('robot_ID', None)
+        if robot_id == self.__robot_id:
+            self.__lock.acquire()
+            self.__buffer.append(msg)
+            self.__lock.release()
 
     def __on_restart_main_loop(self):
         """Restarts the current program.
@@ -66,8 +69,9 @@ class RemoteControl:
             time.sleep(1.0)
 
     def send_message(self, topic, data={}):
-        self.__sio.emit("from_robot", {"topic": topic, "data": data})
-
+        robot_id = {'robot_ID': self.__robot_id}
+        data.update(robot_id)
+        self.__sio.emit('from_robot', {'topic' : topic, 'data' : data})
 
 # Run the script like this: python main_loop.py [host] [port].
 #
@@ -75,18 +79,26 @@ class RemoteControl:
 def get_command_line_arguments():
     default_host = "127.0.0.1"
     default_port = 5000
+    default_robot_id = 'robot_1'
 
-    if len(sys.argv) == 3:
+    if len(sys.argv) == 4:
         host = sys.argv[1]
         port = int(sys.argv[2])
-    elif len(sys.argv) == 2:
+        robot_id = sys.argv[3]
+    elif len(sys.argv) == 3:
         host = default_host
         port = int(sys.argv[1])
+        robot_id = sys.argv[2]
+    elif len(sys.argv) == 2:
+        host = default_host
+        port = default_port
+        robot_id = sys.argv[1]
     else:
         host = default_host
         port = default_port
+        robot_id = default_robot_id
 
-    return host, port
+    return host, port, robot_id
 
 
 def get_config():
@@ -228,10 +240,10 @@ def main(connection=None):
         connection_type = "ros"
 
     except:
-        host, port = get_command_line_arguments()
+        host, port, robot_id = get_command_line_arguments()
         # Connect to server
-        url = "http://{}:{}".format(host, port)
-        remote_control = RemoteControl(url)
+        url = 'http://{}:{}'.format(host, port)
+        remote_control = RemoteControl(url, robot_id)
         remote_control.connect()
         robot_control = RobotControl(
             remote_control=remote_control,
@@ -269,6 +281,8 @@ def main(connection=None):
                             const.FUNCTION_SET_OBJECTIVE: robot_control.on_set_objective,
                             const.FUNCTION_SET_FREE_DRIVE: robot_control.on_set_freedrive,
                             const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
+                            const.FUNCTION_CLEAN_ERRORS: robot_control.on_clean_errors,
+                            const.DYNAMICALLY_UPDATE_PID_CONSTANTS: robot_control.dynamically_update_calculate_pid_constants,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
@@ -292,7 +306,6 @@ def main(connection=None):
             previous_success = success
 
         time.sleep(robot_config["sleep"])
-
 
 if __name__ == "__main__":
     main()
