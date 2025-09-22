@@ -1047,7 +1047,7 @@ class RobotControl:
 
         if self.config.get("movement_algorithm") == "directly_PID":
             decay_factor = 0.15
-            factor = np.exp(-decay_factor*np.max([0, (distance-(1*distance_threshold))]))
+            factor = np.exp(-decay_factor*np.max([0, ((1*distance_threshold)-distance)]))
             self.pid_group.update_all_pid_constante(factor)
         else:
             if distance < distance_threshold*1.2:
