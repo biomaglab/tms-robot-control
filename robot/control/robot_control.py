@@ -366,7 +366,7 @@ class RobotControl:
 
                 if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
                     print("[!] Robot may be stuck. Displacement magnitude not changing.")
-                    self.stop_robot()
+                    #self.stop_robot()
                     #self.objective = RobotObjective.NONE
                     #self.send_objective_to_neuronavigation()
                     print("ERROR: Robot seems stuck — displacement is not changing over time.")
@@ -699,7 +699,9 @@ class RobotControl:
 
     def get_pressure_sensor_values(self):
         pressure = self.force_sensor.get_latest_value()
-        if pressure:
+        if pressure is None:
+            return None
+        if not np.isnan(pressure):
             return pressure
         return None
 
