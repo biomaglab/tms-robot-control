@@ -20,7 +20,7 @@ from robot.control.PID import PIDControllerGroup
 from robot.control.robot_state_controller import RobotState, RobotStateController
 from robot.sensors.force_and_torque_sensor import BufferedForceTorqueSensor
 from robot.sensors.pressure_sensor import BufferedPressureSensorReader
-from robot.sensors.fusion_sensors import ContactFusion
+from robot.sensors.fusion_sensors import ContactFusionRLS
 
 
 class RobotObjective(Enum):
@@ -77,10 +77,13 @@ class RobotControl:
         self.use_force = self.config["use_force_sensor"]
         self.force_feedback = None
         self.z_offset = 0
-        self.contact_fusion = ContactFusion(
+        self.contact_fusion = ContactFusionRLS(
             pressure_contact_threshold=self.config.get("pressure_contact_threshold", 0.3),
             force_contact_threshold=self.config.get("force_contact_threshold", 1.0),
-            min_free_space_z_mm=self.config.get("min_free_space_z_mm", 1.0),
+            min_free_space_z_mm=self.config.get("min_free_space_z_mm", 0.5),
+            ema_alpha=self.config.get("fz_bias_alpha", 0.02),
+            rls_lambda=self.config.get("rls_lambda", 0.995),
+            rls_delta=self.config.get("rls_delta", 1000.0),
         )
 
         # Initialize PID controllers
@@ -89,8 +92,9 @@ class RobotControl:
         )
 
         self.force_sensor = None
+        self.pressure_sensor = None
         if self.use_pressure:
-            self.force_sensor = BufferedPressureSensorReader(
+            self.pressure_sensor = BufferedPressureSensorReader(
                 self.config, 115200, buffer_size=100
             )
             # self.pid_z.set_force_setpoint()
@@ -518,7 +522,7 @@ class RobotControl:
 
             self.robot = robot
 
-            if self.use_force and not self.use_pressure:
+            if self.use_force:
                 self.force_sensor = BufferedForceTorqueSensor(
                     self.config, self.robot, buffer_size=100
                 )
@@ -595,7 +599,7 @@ class RobotControl:
             # print("Warning: force_feedback is None or NaN.")
             return
         force_feedback = np.round(force_feedback, 2)
-        if (self.use_pressure or self.use_force) and not self.force_sensor.force_changed(force_feedback):
+        if (self.use_pressure or self.use_force) and not self.pressure_sensor.force_changed(force_feedback):
             return
 
         # Send message to neuronavigation with force or pressure for GUI.
@@ -619,7 +623,7 @@ class RobotControl:
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
         if self.use_pressure:
-            if not self.force_sensor.is_force_stable(
+            if not self.pressure_sensor.is_force_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
                 return  # Exit early if pressure is enabled and unstable
@@ -741,10 +745,10 @@ class RobotControl:
             return False
 
     def get_pressure_sensor_values(self):
-        pressure = self.force_sensor.get_latest_value()
+        pressure = self.pressure_sensor.get_latest_value()
         if pressure is None:
             return None
-        if not np.isnan(pressure):
+        if not np.isnan(pressure).any():
             return pressure
         return None
 
@@ -884,8 +888,8 @@ class RobotControl:
 
         # Determine if force feedback is either not available or within acceptable range
         force_ok = (
-            self.force_sensor is None or 
-            self.force_sensor.is_force_near_setpoint(self.pid_group.get_force_setpoint())
+            self.pressure_sensor is None or 
+            self.pressure_sensor.is_force_near_setpoint(self.pid_group.get_force_setpoint())
         )
 
         # Check if the robot is already in the target position and not enough time has passed since the last tuning.
@@ -934,7 +938,7 @@ class RobotControl:
 
             return False, warning
 
-        if self.config["use_pressure_sensor"] and not self.force_sensor.ready:
+        if self.config["use_pressure_sensor"] and not self.pressure_sensor.ready:
             warning = "Error: Pressure force sensor is not connected."
             print(warning)
             return False, warning
@@ -1082,8 +1086,8 @@ class RobotControl:
         force_feedback, contact, diag = self.contact_fusion.compute_feedback(
             use_pressure=self.use_pressure,
             use_force=self.use_force,
-            get_pressure_fn=self.get_pressure_sensor_values(),
-            get_force_fn=self.get_force_sensor(),
+            get_pressure_fn=self.get_pressure_sensor_values,
+            get_force_fn=self.get_force_sensor,
             robot_pose=robot_pose,
             z_disp_mm=z_disp_mm,
         )
