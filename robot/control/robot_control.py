@@ -1,7 +1,7 @@
 import time
+from collections import deque
 from enum import Enum
 
-from collections import deque
 import numpy as np
 from pynput import keyboard
 
