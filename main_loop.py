@@ -26,6 +26,8 @@ class RemoteControl:
         self.__sio.on("restart_robot_main_loop", self.__on_restart_main_loop)
         self.__lock = Lock()
 
+        self.last_nav_update_time = time.time()  # Track last navigation update
+
     def __on_connect(self):
         print("Connected to {}".format(self.__remote_host))
         self.__connected = True
@@ -37,6 +39,7 @@ class RemoteControl:
     def __on_message_receive(self, msg):
         self.__lock.acquire()
         self.__buffer.append(msg)
+        self.last_nav_update_time = time.time()  # Refresh on any incoming data
         self.__lock.release()
 
     def __on_restart_main_loop(self):
@@ -57,6 +60,9 @@ class RemoteControl:
         self.__buffer = []
         self.__lock.release()
         return res
+
+    def get_time_since_last_update(self):
+        return time.time() - self.last_nav_update_time
 
     def connect(self):
         self.__sio.connect(self.__remote_host)

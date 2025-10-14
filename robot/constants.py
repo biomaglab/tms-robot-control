@@ -2,6 +2,8 @@ DISPLAY_POA = True
 
 TEMP_FILE = "tmp"
 
+MAX_NAVIGATION_UPDATE_GAP_SECONDS = 1
+
 # Site config
 #
 # rx_offset, ry_offset, rz_offset:
