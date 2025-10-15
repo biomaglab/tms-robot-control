@@ -114,6 +114,10 @@ class RobotControl:
         else:
             self.robot.disable_free_drive()
 
+    def on_set_pressure_set_point(self, data):
+        pressure = data["pressure"]
+        self.pid_group.set_force_setpoint(pressure)
+
     def on_set_tracker_fiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
         self.process_tracker.__init__(robot_config=self.robot_config)

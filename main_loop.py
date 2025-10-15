@@ -275,6 +275,7 @@ def main(connection=None):
                             const.FUNCTION_SET_OBJECTIVE: robot_control.on_set_objective,
                             const.FUNCTION_SET_FREE_DRIVE: robot_control.on_set_freedrive,
                             const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
+                            const.FUNCTION_SET_PRESSURE_SET_POINT: robot_control.on_set_pressure_set_point,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 

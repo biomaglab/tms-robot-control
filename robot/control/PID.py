@@ -126,6 +126,9 @@ class PIDControllerGroup:
     def get_force_setpoint(self):
         return self.translation_pids[2].force_setpoint
 
+    def set_force_setpoint(self, pressure):
+        self.translation_pids[2].set_force_setpoint(-pressure)
+
     def clear(self):
         for pid in self.translation_pids + self.rotation_pids:
             pid.clear()
