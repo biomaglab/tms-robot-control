@@ -408,39 +408,47 @@ class RobotControl:
         displacement[3] = -displacement[3]
 
         translation, angles_as_deg = self.on_coil_to_robot_alignment(displacement)
-        # Read combined contact/safety flags
-        diag = getattr(self, "diagnostics", {})
-        cf = diag.get("contact_flags", {})
-        contact = bool(cf.get("contact", False))
-        safety_active = bool(cf.get("safety_active", False))
-        safety_reason = cf.get("safety_reason", "none")  # "none" | "big_contact" | "over_force"
-
-        # Safety behavior: soften and back off slightly in Z
-        if safety_active:
-            if hasattr(self, "pid_group"):
-                self.pid_group.stiffness_init = 0.02
-                self.pid_group.damping_init = 0.03
-            backoff_mm = self.config.get("safety_backoff_mm", 1.0)
-            translation[2] += backoff_mm
-            if self.verbose:
-                print(f"Safety active ({safety_reason}). Backing off Z by {backoff_mm:.2f} mm.")
-
-        # Update PID controllers (pressure-only feedback)
+        # Update PID controllers
         if self.config.get("movement_algorithm") == "directly_PID":
-            # Normal stiffness based on pressure contact (pressure drives control)
-            if contact and not safety_active:
-                # Puck touched → OK to stiffen
-                self.pid_group.stiffness_init = 0.08
-                self.pid_group.damping_init = 0.05
-            elif not safety_active:
+            # Update fused feedback and diagnostics
+            diag = getattr(self, "diagnostics", {})
+            pressure_contact = bool(diag.get("pressure_contact", False))
+            force_contact = bool(diag.get("force_contact", False))
+            shear_ratio = diag.get("shear_ratio", None)
+            moment_ratio = diag.get("moment_ratio", None)
+            # Misalignment heuristics: contact via force but puck not touched,
+            # and shear/moments are substantial relative to normal force.
+            shear_bad = (shear_ratio is not None) and (shear_ratio > self.config.get("shear_ratio_threshold", 0.3))
+            moment_bad = (moment_ratio is not None) and (moment_ratio > self.config.get("moment_ratio_threshold", 0.2))
+            misaligned_contact = force_contact and (not pressure_contact) and (shear_bad or moment_bad)
+
+            if pressure_contact:
+                # Good contact: puck touched → OK to stiffen
+                self.pid_group.stiffness_init = 0.1
+                self.pid_group.damping_init = 0.04
+            elif misaligned_contact:
+                # Bad contact: pressing elsewhere → soften and back off slightly
+                self.pid_group.stiffness_init = 0.02
+                self.pid_group.damping_init = 0.02
+                # Optional: back off Z by a small amount (e.g., 1–2 mm) and pause
+                backoff_mm = self.config.get("misalignment_backoff_mm", 1.0)
+                translation[2] += backoff_mm
+                if self.verbose:
+                    print("Warning: Contact without pressure (shear/moment high). Backing off and holding.")
+                # Optional: stop or switch objective to re-align
+                # self.stop_robot()
+                # self.objective = RobotObjective.REALIGN
+            elif force_contact and not pressure_contact:
+                # Force-only contact but not obviously misaligned → still be cautious
+                self.pid_group.stiffness_init = 0.03
+                self.pid_group.damping_init = 0.03
+            else:
                 # No contact → keep soft
                 self.pid_group.stiffness_init = 0.02
-                self.pid_group.damping_init = 0.03
-            # else: already softened above due to safety
-            # self.force_feedback is the filtered pressure or None
+                self.pid_group.damping_init = 0.02
+
             self.pid_group.update_translation(translation, self.force_feedback)
             self.pid_group.update_rotation(angles_as_deg)
-            # z_offset aligns with current translation Z
             self.z_offset = translation[2]
             translation, angles_as_deg = self.pid_group.get_outputs()
 
@@ -1073,16 +1081,18 @@ class RobotControl:
 
         # Prepare fused feedback
         robot_pose = self.robot_pose_storage.GetRobotPose()
+        z_disp_mm = getattr(self, "z_offset", 0.0)
 
-        feedback, diag = self.contact_monitor.compute(
+        force_feedback, contact, diag = self.contact_fusion.compute_feedback(
             use_pressure=self.use_pressure,
             use_force=self.use_force,
             get_pressure_fn=self.get_pressure_sensor_values,
             get_force_fn=self.get_force_sensor,
             robot_pose=robot_pose,
+            z_disp_mm=z_disp_mm,
         )
 
-        self.force_feedback = feedback  # pressure-only feedback
+        self.force_feedback = force_feedback
         self.diagnostics = diag
 
     def update_navigation_variables(self, warning):

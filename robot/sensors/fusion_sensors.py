@@ -4,236 +4,240 @@ import numpy as np
 
 
 class EMAFilter:
-    def __init__(self, alpha=0.2):
-        self.alpha = float(alpha)
+    def __init__(self, alpha):
+        self.alpha = alpha
+        self.y = None
+
+    def reset(self):
         self.y = None
 
     def update(self, x):
-        if x is None: return self.y
-        x = float(x)
-        self.y = x if self.y is None else (1 - self.alpha) * self.y + self.alpha * x
+        if x is None:
+            return self.y
+        if self.y is None:
+            self.y = float(x)
+        else:
+            self.y = (1 - self.alpha) * self.y + self.alpha * float(x)
         return self.y
+
 
 class MedianFilterN:
     def __init__(self, N=5):
         self.N = max(1, int(N))
         self.buf = []
 
+    def reset(self):
+        self.buf = []
+
     def update(self, x):
-        if x is None: return None
+        if x is None:
+            return None
         self.buf.append(float(x))
-        if len(self.buf) > self.N: self.buf.pop(0)
+        if len(self.buf) > self.N:
+            self.buf.pop(0)
         return float(sorted(self.buf)[len(self.buf)//2])
 
 
-class PressureFirstContact:
-    """
-    Pressure drives control; F/T used only for robust safety/misalignment checks.
-    Cable effects mitigated via:
-      - tool-frame transform
-      - filtering + hysteresis on pressure
-      - slow baselines of Ft and M (EMA) while pressure is low
-      - persistence + dwell time + cooldown
-      - deadbands around baselines
-      - optional proximity gating (only check F/T when near expected contact)
-    """
+class RateLimiter:
+    def __init__(self, max_delta_per_update):
+        self.max_delta = float(max_delta_per_update)
+        self.last = None
 
+    def reset(self):
+        self.last = None
+
+    def limit(self, target):
+        if target is None:
+            return self.last
+        t = float(target)
+        if self.last is None:
+            self.last = t
+            return t
+        delta = t - self.last
+        if delta > self.max_delta:
+            self.last += self.max_delta
+        elif delta < -self.max_delta:
+            self.last -= self.max_delta
+        else:
+            self.last = t
+        return self.last
+
+
+class ContactFusionRLS:
     def __init__(self,
-                 pressure_contact_threshold=0.30,
-                 pressure_release_threshold=0.20,
-                 # F/T thresholds (tool frame):
-                 fz_big_contact=3.0,            # N (compression negative)
-                 ft_hard_limit=6.0,             # N
-                 m_hard_limit=1.0,              # Nm
-                 shear_ratio_threshold=0.5,     # Ft/|Fz| diagnostic
-                 moment_ratio_threshold=0.35,   # |M|/|Fz| diagnostic
-                 # Filtering
-                 pressure_median_N=5,
-                 pressure_lp_alpha=0.2,
-                 baseline_alpha=0.01,           # very slow
-                 # Robustness controls
-                 ft_deadband=0.5,               # N deviation allowed around baseline
-                 m_deadband=0.1,                # Nm deviation allowed around baseline
-                 persistence_frames=4,          # require consecutive frames
-                 dwell_time_s=0.2,              # must persist at least this long
-                 cooldown_s=0.5,                # after triggering, ignore new triggers briefly
-                 proximity_pressure_low=0.10,   # start F/T checks only when pressure above this (near contact), use 0 to disable
-                 ):
-        # Pressure hysteresis
-        self.p_on  = float(pressure_contact_threshold)
-        self.p_off = float(pressure_release_threshold)
+                 pressure_contact_threshold=0.3,
+                 pressure_release_threshold=0.2,
+                 force_contact_threshold=1.0,
+                 force_release_threshold=0.6,
+                 min_free_space_z_mm=0.5,
+                 ema_alpha=0.02,
+                 rls_lambda=0.997,
+                 rls_delta=2000.0,
+                 shear_ratio_threshold=0.3,
+                 moment_ratio_threshold=0.2,
+                 lp_alpha_force=0.1,
+                 lp_alpha_pressure=0.2,
+                 median_N=5):
+        # thresholds + hysteresis
+        self.p_on = pressure_contact_threshold
+        self.p_off = pressure_release_threshold
+        self.f_on = force_contact_threshold
+        self.f_off = force_release_threshold
+        self.min_free_z = min_free_space_z_mm
 
-        # Thresholds
-        self.fz_big_contact = float(fz_big_contact)
-        self.ft_hard_limit  = float(ft_hard_limit)
-        self.m_hard_limit   = float(m_hard_limit)
-        self.shear_ratio_threshold  = float(shear_ratio_threshold)
-        self.moment_ratio_threshold = float(moment_ratio_threshold)
+        # EMA fallback
+        self.ema_alpha = ema_alpha
+        self.fz_bias_ema = 0.0
 
-        # Filters
-        self.p_med = MedianFilterN(pressure_median_N)
-        self.p_lp  = EMAFilter(pressure_lp_alpha)
+        # RLS model
+        self.n_features = 7
+        self.theta = np.zeros((self.n_features, 1))
+        self.P = np.eye(self.n_features) * rls_delta
+        self.rls_lambda = rls_lambda
+        self.samples = 0
 
-        # Baselines (learned when pressure is low)
-        self.Ft_base = EMAFilter(baseline_alpha)
-        self.M_base  = EMAFilter(baseline_alpha)
+        # diagnostics thresholds
+        self.shear_ratio_threshold = shear_ratio_threshold
+        self.moment_ratio_threshold = moment_ratio_threshold
 
-        # Deadbands
-        self.ft_deadband = float(ft_deadband)
-        self.m_deadband  = float(m_deadband)
+        # filters
+        self.lp_force = EMAFilter(lp_alpha_force)
+        self.lp_pressure = EMAFilter(lp_alpha_pressure)
+        self.med_force = MedianFilterN(median_N)
+        self.med_pressure = MedianFilterN(median_N)
 
-        # State
-        self.contact_state = False
-        self.big_contact_inst_frames = 0
-        self.over_force_inst_frames = 0
-        self.persistence_frames = int(persistence_frames)
-        self.dwell_time_s = float(dwell_time_s)
-        self.cooldown_s = float(cooldown_s)
-        self.last_big_contact_start_ts = None
-        self.last_trigger_ts = 0.0  # cooldown timer
+        # state
         self.last_ts = None
+        self.contact_state = False
 
-        # Proximity gating
-        self.proximity_pressure_low = float(proximity_pressure_low)
-
-    def compute(self, use_pressure, use_force, get_pressure_fn, get_force_fn, robot_pose):
+    def compute_feedback(self,
+                         use_pressure,
+                         use_force,
+                         get_pressure_fn,
+                         get_force_fn,
+                         robot_pose,
+                         z_disp_mm):
         ts = time.time()
         self.last_ts = ts
 
-        # Read & filter pressure (0 valid)
-        pressure_raw = get_pressure_fn() if use_pressure else None
-        pressure_med = self.p_med.update(pressure_raw) if pressure_raw is not None else None
-        pressure     = self.p_lp.update(pressure_med)   if pressure_med is not None else None
+        # Pressure
+        pressure_raw = None
+        if use_pressure:
+            try:
+                p = get_pressure_fn()
+                pressure_raw = p if p is not None else None
+            except Exception:
+                pressure_raw = None
 
-        # Pressure contact hysteresis
-        if pressure is not None:
-            self.contact_state = (pressure > self.p_on) if not self.contact_state else (pressure > self.p_off)
-
-        # F/T for checks only
-        Fx=Fy=Fz=Tx=Ty=Tz=None
+        # Force/torque
+        Fx = Fy = Fz = Tx = Ty = Tz = None
         if use_force:
             Fx, Fy, Fz, Tx, Ty, Tz = self._parse_force(get_force_fn, robot_pose)
 
+        # Predict bias from pose (RLS), fallback to EMA if not trained yet
+        fz_bias_pred = 0.0
+        if Fz is not None:
+            phi = self._features_from_pose(robot_pose)
+            fz_bias_pred = float(phi.T @ self.theta) if self.samples > 15 else self.fz_bias_ema
+
+        # Compensated Fz
+        fz_comp_raw = None
+        if Fz is not None:
+            fz_comp_raw = Fz - fz_bias_pred
+
+        # Median + low-pass filtering
+        fz_comp_med = self.med_force.update(fz_comp_raw) if fz_comp_raw is not None else None
+        fz_comp = self.lp_force.update(fz_comp_med) if fz_comp_med is not None else None
+
+        pressure_med = self.med_pressure.update(pressure_raw) if pressure_raw is not None else None
+        pressure = self.lp_pressure.update(pressure_med) if pressure_med is not None else None
+
+        # Hysteretic contact decision
+        pressure_contact = False
+        force_contact = False
+
+        if pressure is not None:
+            pressure_contact = (pressure > self.p_on) if not self.contact_state else (pressure > self.p_off)
+
+        if fz_comp is not None:
+            # compression along tool Z is negative
+            force_contact = (fz_comp < -self.f_on) if not self.contact_state else (fz_comp < -self.f_off)
+
+        self.contact_state = pressure_contact or force_contact
+
+        # Bias update in free-space (on raw Fz to model true preload)
+        no_pressure_contact = (pressure is None) or (pressure <= self.p_off)
+        small_normal = (fz_comp is None) or (abs(fz_comp) < 0.5 * self.f_on)
+        far_enough = abs(z_disp_mm) >= self.min_free_z
+
+        if (Fz is not None) and no_pressure_contact and small_normal and far_enough and not self.contact_state:
+            phi = self._features_from_pose(robot_pose)
+            Pphi = self.P @ phi
+            gain_den = self.rls_lambda + (phi.T @ Pphi)[0, 0]
+            K = Pphi / gain_den
+            y_hat = float(phi.T @ self.theta)
+            err = Fz - y_hat
+            self.theta = self.theta + K * err
+            self.P = (self.P - K @ phi.T @ self.P) / self.rls_lambda
+            self.samples += 1
+
+            self.fz_bias_ema = (1 - self.ema_alpha) * self.fz_bias_ema + self.ema_alpha * Fz
+
+            # Refresh prediction and compensation
+            fz_bias_pred = float(phi.T @ self.theta)
+            fz_comp_raw = Fz - fz_bias_pred
+            fz_comp_med = self.med_force.update(fz_comp_raw)
+            fz_comp = self.lp_force.update(fz_comp_med)
+
+        # Choose feedback (prefer pressure if valid contact; else Fz)
+        if use_pressure and use_force:
+            if pressure is not None:
+                force_feedback = fz_comp if ((not pressure_contact) and force_contact) else pressure
+            else:
+                force_feedback = fz_comp
+        elif use_pressure:
+            force_feedback = pressure
+        elif use_force:
+            force_feedback = fz_comp
+        else:
+            force_feedback = None
+
+        # Diagnostics
         Ft = math.hypot(Fx, Fy) if (Fx is not None and Fy is not None) else None
-        M  = math.sqrt(Tx*Tx + Ty*Ty + Tz*Tz) if (Tx is not None and Ty is not None and Tz is not None) else None
-
-        # Learn slow baselines when pressure is low (free-space/cable only)
-        pressure_low = (pressure is None) or (pressure <= self.p_off)
-        if pressure_low:
-            if Ft is not None: self.Ft_base.update(Ft)
-            if M  is not None: self.M_base.update(M)
-
-        Ft_base = self.Ft_base.y or 0.0
-        M_base  = self.M_base.y  or 0.0
-        Ft_dev  = (Ft - Ft_base) if Ft is not None else None
-        M_dev   = (M  - M_base)  if M  is not None else None
-
-        # Ratios (diagnostics)
-        shear_ratio  = (Ft / abs(Fz)) if (Ft is not None and Fz is not None and abs(Fz) > 1e-6) else None
-        moment_ratio = (M  / abs(Fz)) if (M  is not None and Fz is not None and abs(Fz) > 1e-6) else None
-
-        # Proximity gate: only check F/T if we're somewhat near contact (optional)
-        proximity_ok = (pressure is not None) and (pressure >= self.proximity_pressure_low) if self.proximity_pressure_low > 0 else True
-
-        # Instantaneous big-contact condition (before persistence/dwell/cooldown)
-        big_contact_inst = False
-        if use_force and proximity_ok:
-            comp = (Fz is not None) and (Fz < -self.fz_big_contact)
-            shear_bad  = (shear_ratio  is not None) and (shear_ratio  > self.shear_ratio_threshold)
-            moment_bad = (moment_ratio is not None) and (moment_ratio > self.moment_ratio_threshold)
-
-            # Deviations must exceed deadbands to avoid reacting to cable drift
-            dev_ok = ((Ft_dev is not None and Ft_dev > self.ft_deadband) or
-                      (M_dev  is not None and M_dev  > self.m_deadband))
-
-            big_contact_inst = comp or ((shear_bad or moment_bad) and dev_ok)
-
-        # Persistence & dwell
-        if big_contact_inst:
-            self.big_contact_inst_frames += 1
-            if self.big_contact_inst_frames == 1:
-                self.last_big_contact_start_ts = ts
-        else:
-            self.big_contact_inst_frames = max(0, self.big_contact_inst_frames - 1)
-            if self.big_contact_inst_frames == 0:
-                self.last_big_contact_start_ts = None
-
-        dwell_ok = (self.last_big_contact_start_ts is not None) and ((ts - self.last_big_contact_start_ts) >= self.dwell_time_s)
-        persistence_ok = (self.big_contact_inst_frames >= self.persistence_frames)
-        cooldown_ok = ((ts - self.last_trigger_ts) >= self.cooldown_s)
-
-        big_contact = bool(persistence_ok and dwell_ok and cooldown_ok)
-
-        # Hard safety (limits), with persistence and cooldown too
-        over_force_inst = False
-        if use_force:
-            if Fz is not None and abs(Fz) > self.fz_hard_limit: over_force_inst = True
-            if Ft is not None and Ft > self.ft_hard_limit:      over_force_inst = True
-            if M  is not None and M  > self.m_hard_limit:       over_force_inst = True
-
-        if over_force_inst:
-            self.over_force_inst_frames += 1
-        else:
-            self.over_force_inst_frames = max(0, self.over_force_inst_frames - 1)
-
-        over_force = (self.over_force_inst_frames >= self.persistence_frames) and cooldown_ok
-
-        # If either triggers, start cooldown
-        if big_contact or over_force:
-            self.last_trigger_ts = ts
-
-        # Controller feedback: pressure only
-        feedback = pressure
-
-        # Combined flags for convenience
-        contact = self.contact_state
-        safety_active = bool(big_contact or over_force)
-        safety_reason = "none"
-        if over_force:
-            safety_reason = "over_force"
-        elif big_contact:
-            safety_reason = "big_contact"
+        M = math.sqrt(Tx*Tx + Ty*Ty + Tz*Tz) if (Tx is not None and Ty is not None and Tz is not None) else None
+        shear_ratio = (Ft / abs(fz_comp)) if (Ft is not None and fz_comp is not None and abs(fz_comp) > 1e-6) else None
+        moment_ratio = (M / abs(fz_comp)) if (M is not None and fz_comp is not None and abs(fz_comp) > 1e-6) else None
 
         diag = {
             "ts": ts,
+            "pressure_raw": pressure_raw,
             "pressure": pressure,
-            "contact_pressure": self.contact_state,
-
-            # Wrench values (tool frame)
+            "pressure_contact": pressure_contact,
             "F_tool": {"Fx": Fx, "Fy": Fy, "Fz": Fz},
-            "T_tool": {"Tx": Tx, "Ty": Ty, "Tz": Tz},
-
-            # Magnitudes and baselines
-            "Ft": Ft, "M": M,
-            "Ft_baseline": Ft_base, "M_baseline": M_base,
-            "Ft_dev": Ft_dev, "M_dev": M_dev,
-
-            # Ratios (diagnostics)
-            "shear_ratio": shear_ratio, "moment_ratio": moment_ratio,
-
-            # Instantaneous and persisted safety checks
-            "big_contact_inst": big_contact_inst,
-            "big_contact_frames": self.big_contact_inst_frames,
-            "big_contact": big_contact,
-            "over_force_inst": over_force_inst,
-            "over_force_frames": self.over_force_inst_frames,
-            "over_force": over_force,
-
-            # Combined contact/safety view
-            "contact": contact,                 # same as contact_pressure
-            "safety_active": safety_active,     # big_contact or over_force
-            "safety_reason": safety_reason,     # "none" | "big_contact" | "over_force"
-            "contact_flags": {                  # grouped for convenient logging/UI
-                "contact": contact,
-                "big_contact": big_contact,
-                "over_force": over_force,
-                "safety_active": safety_active,
-                "safety_reason": safety_reason,
-            },
+            "fz_bias_pred": fz_bias_pred,
+            "fz_bias_ema": self.fz_bias_ema,
+            "fz_comp_raw": fz_comp_raw,
+            "fz_comp": fz_comp,
+            "force_contact": force_contact,
+            "contact": self.contact_state,
+            "Ft": Ft,
+            "M": M,
+            "shear_ratio": shear_ratio,
+            "moment_ratio": moment_ratio,
+            "rls_samples": self.samples,
         }
-        return feedback, diag
+        return force_feedback, self.contact_state, diag
 
-    # Helpers
+    # --- helpers ---
+
+    def _features_from_pose(self, robot_pose):
+        x = robot_pose.get("x") if isinstance(robot_pose, dict) else getattr(robot_pose, "x", 0.0)
+        y = robot_pose.get("y") if isinstance(robot_pose, dict) else getattr(robot_pose, "y", 0.0)
+        z = robot_pose.get("z") if isinstance(robot_pose, dict) else getattr(robot_pose, "z", 0.0)
+        rx = robot_pose.get("rx") if isinstance(robot_pose, dict) else getattr(robot_pose, "rx", 0.0)
+        ry = robot_pose.get("ry") if isinstance(robot_pose, dict) else getattr(robot_pose, "ry", 0.0)
+        rz = robot_pose.get("rz") if isinstance(robot_pose, dict) else getattr(robot_pose, "rz", 0.0)
+        return np.array([x, y, z, rx, ry, rz, 1.0], dtype=float).reshape(-1, 1)
 
     def _parse_force(self, get_force_fn, robot_pose):
         try:
@@ -283,9 +287,16 @@ class PressureFirstContact:
         cx, sx = math.cos(rx), math.sin(rx)
         cy, sy = math.cos(ry), math.sin(ry)
         cz, sz = math.cos(rz), math.sin(rz)
-        Rz = np.array([[cz, -sz, 0],[sz, cz, 0],[0,0,1]])
-        Ry = np.array([[cy,0,sy],[0,1,0],[-sy,0,cy]])
-        Rx = np.array([[1,0,0],[0,cx,-sx],[0,sx,cx]])
+
+        Rz = np.array([[cz, -sz, 0],
+                       [sz,  cz, 0],
+                       [ 0,   0, 1]])
+        Ry = np.array([[ cy, 0, sy],
+                       [  0, 1,  0],
+                       [-sy, 0, cy]])
+        Rx = np.array([[1,  0,   0],
+                       [0, cx, -sx],
+                       [0, sx,  cx]])
         R = Rz @ Ry @ Rx
 
         F_b = np.array([Fx_b, Fy_b, Fz_b])
