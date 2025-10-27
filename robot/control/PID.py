@@ -2,7 +2,8 @@ import time
 
 
 class PIDControllerGroup:
-    def __init__(self, use_force=False, use_pressure=False):
+    def __init__(self, use_force=False, use_pressure=False, robot_type=None):
+        self.robot_type = robot_type
         self.translation_pids = [
             ImpedancePIDController(),  # x
             ImpedancePIDController(),  # y
@@ -48,16 +49,17 @@ class PIDControllerGroup:
                 max_stiffness=self.stiffness_init,
                 damping_ratio=self.damping_init / self.stiffness_init,
             )
-            # Adjust PID gains dynamically based on force magnitude
-            force_threshold = 0.1  # Adjust as needed
-            if abs(force_feedback) < force_threshold:
-                # When force is close to zero → higher gain for responsiveness
-                proportional_gain = 0.6
-            else:
-                # Normal operation → lower gain for stability
-                proportional_gain = 0.3
+            if self.robot_type not in ["elfin", "dobot"]:
+                # Adjust PID gains dynamically based on force magnitude
+                force_threshold = 0.1  # Adjust as needed
+                if abs(force_feedback) < force_threshold:
+                    # When force is close to zero → higher gain for responsiveness
+                    proportional_gain = 0.6
+                else:
+                    # Normal operation → lower gain for stability
+                    proportional_gain = 0.3
+                self.translation_pids[2].set_gains(proportional=proportional_gain)
 
-            self.translation_pids[2].set_gains(proportional=proportional_gain)
             self.translation_pids[2].update(
                 translations[2], force_feedback=force_feedback
             )

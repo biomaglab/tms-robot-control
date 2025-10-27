@@ -79,7 +79,7 @@ class RobotControl:
 
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
-            use_force=self.use_force, use_pressure=self.use_pressure
+            use_force=self.use_force, use_pressure=self.use_pressure, robot_type=self.config["robot"],
         )
 
         self.force_sensor = None
