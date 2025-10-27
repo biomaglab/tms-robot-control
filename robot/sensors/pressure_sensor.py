@@ -8,7 +8,7 @@ import serial.tools.list_ports
 
 
 class BufferedPressureSensorReader:
-    def __init__(self, config, baudrate=115200, buffer_size=100, reconnect_interval=5):
+    def __init__(self, config, baudrate=115200, buffer_size=100, reconnect_interval=1):
         self.config = config
         self.port = self.config["com_port_pressure_sensor"]
         self.baudrate = baudrate
@@ -34,13 +34,14 @@ class BufferedPressureSensorReader:
         while not self._stop_event.is_set():
             if not self.ready:
                 self.connect_attempts += 1
-                if self.connect_attempts > 10:
+                if self.connect_attempts > 60:
                     print("[X] Too many failed connection attempts. Giving up.")
                     self._stop_event.set()  # Stop the thread
                     self.config["use_pressure_sensor"] = False
                     return  # Exit the loop/thread
 
                 if self._try_connect():
+                    self.connect_attempts = 0
                     print(f"[✓] Connected to {self.port}")
                 else:
                     print(f"[!] Retrying in {self.reconnect_interval}s...")
