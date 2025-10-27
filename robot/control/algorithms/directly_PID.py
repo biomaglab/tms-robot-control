@@ -1,6 +1,7 @@
 from enum import Enum
 
 import numpy as np
+import time
 
 from robot.control.color import Color
 
@@ -33,8 +34,8 @@ class DirectlyPIDAlgorithm:
         self.translation_threshold = config["translation_threshold"]
         self.rotation_threshold = config["rotation_threshold"]
 
-        # Unused for now.
         self.robot_config = robot_config
+        self.last_time_update = time.time()
 
         self.reset_state()
 
@@ -93,11 +94,34 @@ class DirectlyPIDAlgorithm:
         return success, normalize_force_sensor
 
     def _tune(self, target_pose_in_robot_space):
+        """
+        Executes a tuning motion depending on the robot type.
+
+        For non old-Elfin/Dobot robots, dynamic motion updates occur
+        only every 0.2 seconds. For old-Elfin or Dobot robots, motion
+        updates are executed continuously.
+        """
         print("Initiating tuning motion")
 
-        success = self.robot.dynamic_motion(
-            target_pose_in_robot_space, self.tuning_speed_ratio
-        )
+        robot_type = self.config.get("robot", "").lower()
+
+        # Default success value
+        success = True
+
+        # Different update logic depending on robot type
+        if robot_type not in ["elfin", "dobot"]:
+            # For other robots, limit update rate to every 0.2 s
+            if time.time() - self.last_time_update > 0.2:
+                success = self.robot.dynamic_motion(
+                    target_pose_in_robot_space, self.tuning_speed_ratio
+                )
+                self.last_time_update = time.time()
+        else:
+            # For Elfin or Dobot, allow continuous updates
+            success = self.robot.dynamic_motion(
+                target_pose_in_robot_space, self.tuning_speed_ratio
+            )
+
         return success
 
     def _move_to_safe_height(self, target_pose_in_robot_space=None):

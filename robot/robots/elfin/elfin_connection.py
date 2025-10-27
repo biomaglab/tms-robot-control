@@ -215,18 +215,52 @@ class ElfinConnection:
 
         return success, coordinates
 
-    def move_linear(self, target):
+    def move_linear(self, target, velocity=2000, acc=2500, radius=0, move_type=1,
+                    use_joint=0, seek=0, io_bit=0, io_state=0, cmd_id="ID1",
+                    tcp_name="TCP_5coil", ucs_name="Base"):
         """
-        Moves the robot to the specified space coordinates using linear motion.
+        Moves the robot linearly, supporting both old and new Huayan APIs.
 
-        :param: target: [x, y, z, rx, ry, rz], where x, y, z are the coordinates in mm
-            and rx, ry, rz are the rotation angles in degrees.
-        :return: True if successful, otherwise False.
+        Parameters:
+            target: [x, y, z, rx, ry, rz] – space coordinates in mm and degrees.
+            velocity: double – motion velocity (mm/s for linear, °/s for joint).
+            acc: double – acceleration.
+            radius: double – blending radius (mm).
+            move_type: int – 0 = joint move, 1 = linear move.
+            use_joint: int – 0 = don't use joint coords, 1 = use joint coords.
+            seek: int – 1 enables DI-stop detection.
+            io_bit: int – DI index (0–7), only valid if seek=1.
+            io_state: int – DI state to stop motion (0/1), only valid if seek=1.
+            cmd_id: str – custom waypoint ID.
+            tcp_name: str – tool coordinate system name (default "TCP_5coil").
+            ucs_name: str – user coordinate system name (default "Base").
         """
-        command = "MoveL" if self.use_new_api else "MoveB"
-        request = command + "," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
 
-        success, _ = self._send_and_receive(request, verbose=True)
+        if len(target) != 6:
+            raise ValueError("Target must be [x, y, z, rx, ry, rz]")
+
+        if self.use_new_api:
+            # New API: WayPoint command
+            x, y, z, rx, ry, rz = target
+            # Joint placeholders (dJ1–dJ6)
+            j1 = j2 = j3 = j4 = j5 = j6 = 0
+
+            command = (
+                f"WayPoint,{self.ROBOT_ID},"
+                f"{x},{y},{z},{rx},{ry},{rz},"
+                f"{j1},{j2},{j3},{j4},{j5},{j6},"
+                f"{tcp_name},{ucs_name},"
+                f"{velocity*self._last_speed_ratio},{acc},{radius},"
+                f"{move_type},{use_joint},{seek},{io_bit},{io_state},{cmd_id}"
+            )
+
+        else:
+            # Old API: simpler MoveB command
+            command = "MoveB"
+            command = f"{command},{self.ROBOT_ID},{self.list_to_str(target)}"
+
+        # Send command
+        success, _ = self._send_and_receive(command)
         return success
 
     def start_servo(self, servo_time_ms=10, lookahead_time_ms=50):
