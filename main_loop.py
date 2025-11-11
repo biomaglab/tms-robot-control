@@ -251,6 +251,7 @@ def main(connection=None):
             site_config=site_config,
             robot_config=robot_config,
             connection=None,
+            robot_id=robot_id,
         )
         connection_type = "server"
 

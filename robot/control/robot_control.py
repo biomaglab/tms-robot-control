@@ -27,12 +27,13 @@ class RobotObjective(Enum):
 
 
 class RobotControl:
-    def __init__(self, remote_control, config, site_config, robot_config, connection):
+    def __init__(self, remote_control, config, site_config, robot_config, connection, robot_id):
         self.remote_control = remote_control
         self.config = config
         self.site_config = site_config
         self.robot_config = robot_config
         self.connection = connection
+        self.robot_id = robot_id
 
         # connection status variable, with the statuses: "Connected", "Not Connected", "Trying to connect", "Unable to connect"
         self.status_connection = "Not Connected"
@@ -161,8 +162,12 @@ class RobotControl:
         if len(data) > 1:
             poses = data["poses"]
             visibilities = data["visibilities"]
+            if self.robot_id == 'robot_2':
+                poses[2] = poses[3]
+                visibilities[2] = visibilities[3]
+
             self.tracker.SetCoordinates(
-                np.vstack([poses[0], poses[1], poses[2]]), visibilities
+                np.vstack([poses[0], poses[1], poses[2]]), [visibilities[0], visibilities[1], visibilities[2]]
             )
 
     def on_create_point(self, data):

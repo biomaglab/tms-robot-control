@@ -143,7 +143,7 @@ PUB_MESSAGES = [
     "Neuronavigation to Robot: Set target",
     "Neuronavigation to Robot: Unset target",
     "Neuronavigation to Robot: Set tracker fiducials",
-    "From Neuronavigation: Update tracker poses",
+    "From Neuronavigation to robot: Update tracker poses",
     "Neuronavigation to Robot: Collect coordinates for the robot transformation matrix",
     "Neuronavigation to Robot: Reset coordinates collection for the robot transformation matrix",
     "Neuronavigation to Robot: Estimate robot transformation matrix",
