@@ -135,7 +135,7 @@ class PIDControllerGroup:
             pid_axis.set_gains(factor*pid_axis.init_Kp, factor*pid_axis.init_Ki, factor*pid_axis.init_Kd)
             
         for pix_angles in self.rotation_pids:
-            pix_angles.set_gains(factor*pid_axis.init_Kp, factor*pid_axis.init_Ki, factor*pid_axis.init_Kd)
+            pix_angles.set_gains(factor*pix_angles.init_Kp, factor*pix_angles.init_Ki, factor*pix_angles.init_Kd)
 
 class ImpedancePIDController:
     def __init__(self, proportional=0.3, integral=0.01, derivative=0.0, stiffness=0.05, damping=0.02, mode="pid"):
