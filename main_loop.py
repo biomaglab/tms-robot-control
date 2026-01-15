@@ -201,6 +201,54 @@ def get_config():
 
     return config
 
+def set_config(config: dict, updates: dict):
+    """
+    Update runtime configuration parameters from neuronavigation.
+    Only keys already present in the config dictionary can be updated.
+    Automatically casts values to the correct type.
+    """
+
+    # Allowed editable config keys
+    editable_keys = set(config.keys())
+
+    changed = {}
+    print(updates)
+    print(editable_keys)
+
+    for key, new_value in updates.items():
+        if key not in editable_keys:
+            print(f"[Config] Ignoring unknown config parameter: {key}")
+            continue
+
+        old_value = config[key]
+
+        # --- Convert types dynamically ---
+        if isinstance(old_value, bool):
+            new_value = str(new_value).lower() == "true"
+
+        elif isinstance(old_value, int):
+            new_value = int(new_value)
+
+        elif isinstance(old_value, float):
+            new_value = float(new_value)
+
+        elif new_value == "" and old_value is None:
+            new_value = None
+
+        # Assign new value
+        config[key] = new_value
+        changed[key] = (old_value, new_value)
+
+    # Print changes
+    if changed:
+        print(f"{Color.BOLD}Updated configuration parameters:{Color.END}")
+        for key, (old, new) in changed.items():
+            print(f" - {key}: {old} → {Color.BOLD}{new}{Color.END}")
+    else:
+        print("[Config] No valid configuration parameters updated.")
+
+    return config
+
 
 def main(connection=None):
     config = get_config()
@@ -276,6 +324,11 @@ def main(connection=None):
                             const.FUNCTION_SET_FREE_DRIVE: robot_control.on_set_freedrive,
                             const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
                             const.FUNCTION_SET_PRESSURE_SET_POINT: robot_control.on_set_pressure_set_point,
+                            const.FUNCTION_UPDATE_CONFIG: lambda data: set_config(robot_control.config, data),
+                            const.FUNCTION_REQUEST_CONFIG: lambda _: remote_control.send_message(
+                                "Robot to Neuronavigation: Initial config",
+                                {"config": config},
+                            ),
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 

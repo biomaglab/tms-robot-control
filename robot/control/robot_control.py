@@ -529,9 +529,14 @@ class RobotControl:
         if self.connection:
             self.connection.robot_connection_status(success)
         if self.remote_control:
-            topic = "Robot to Neuronavigation: Robot connection status"
-            data = {"data": self.status_connection}
-            self.remote_control.send_message(topic, data)
+            self.remote_control.send_message(
+                "Robot to Neuronavigation: Initial config",
+                {"config": self.config}
+            )
+            self.remote_control.send_message(
+                "Robot to Neuronavigation: Robot connection status",
+                {"data": self.status_connection}
+            )
 
     def sensor_update_target(self, distance, status):
         # TODO: tune coil tilt based on the torque values
