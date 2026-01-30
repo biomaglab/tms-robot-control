@@ -72,18 +72,16 @@ class RobotControl:
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
 
-        self.use_pressure = self.config["use_pressure_sensor"]
-        self.use_force = self.config["use_force_sensor"]
         self.force_feedback = None
         self.z_offset = 0
 
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
-            use_force=self.use_force, use_pressure=self.use_pressure, robot_type=self.config["robot"],
+            use_force=self.config["use_force_sensor"], use_pressure=self.config["use_pressure_sensor"], robot_type=self.config["robot"],
         )
 
         self.force_sensor = None
-        if self.use_pressure:
+        if self.config["use_pressure_sensor"]:
             self.force_sensor = BufferedPressureSensorReader(
                 self.config, 115200, buffer_size=100
             )
@@ -100,8 +98,6 @@ class RobotControl:
         self.moving_away_from_head = False
 
         self.last_warning = ""
-
-        self.safe_height_defined_by_user = self.config["safe_height"]
 
     def on_robot_connection(self, data):
         robot_ip = data["robot_IP"]
@@ -479,7 +475,7 @@ class RobotControl:
 
             self.robot = robot
 
-            if self.use_force and not self.use_pressure:
+            if self.config["use_force_sensor"] and not self.config["use_pressure_sensor"]:
                 self.force_sensor = BufferedForceTorqueSensor(
                     self.config, self.robot, buffer_size=100
                 )
@@ -561,7 +557,7 @@ class RobotControl:
             # print("Warning: force_feedback is None or NaN.")
             return
         force_feedback = np.round(force_feedback, 2)
-        if (self.use_pressure or self.use_force) and not self.force_sensor.force_changed(force_feedback):
+        if (self.config["use_pressure_sensor"] or self.config["use_force_sensor"]) and not self.force_sensor.force_changed(force_feedback):
             return
 
         # Send message to neuronavigation with force or pressure for GUI.
@@ -584,12 +580,12 @@ class RobotControl:
                 return
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
-        if self.use_pressure:
+        if self.config["use_pressure_sensor"]:
             if not self.force_sensor.is_force_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
                 return  # Exit early if pressure is enabled and unstable
-        elif self.use_force:
+        elif self.config["use_force_sensor"]:
             if not self.force_sensor.is_force_z_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
@@ -741,7 +737,7 @@ class RobotControl:
         head_pose_in_robot_space[2] + 150  # 15 cm above the head
 
         # Determine the maximum safe height
-        max_safe_height = self.safe_height_defined_by_user
+        max_safe_height = self.config["safe_height"]
 
         # Get current robot height
         robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
@@ -993,7 +989,7 @@ class RobotControl:
             self.tracker.head_pose
         )
 
-        if self.use_force:
+        if self.config["use_force_sensor"]:
             self.force_sensor.update_force_buffer()
 
         if self.tracker.m_tracker_to_robot is not None:
@@ -1037,13 +1033,13 @@ class RobotControl:
 
         self.force_feedback = (
             self.get_pressure_sensor_values()
-            if self.use_pressure
-            else self.get_force_sensor_only_Z() if self.use_force else None
+            if self.config["use_pressure_sensor"]
+            else self.get_force_sensor_only_Z() if self.config["use_force_sensor"] else None
         )
 
     def update_navigation_variables(self, warning):
         self.send_warning_to_neuronavigation(warning)
-        if self.use_force or self.use_pressure:
+        if self.config["use_force_sensor"] or self.config["use_pressure_sensor"]:
             self.send_force_sensor_data_to_neuronavigation(self.force_feedback)
             if self.objective == RobotObjective.TRACK_TARGET:
                 self.send_force_stability_to_neuronavigation(self.z_offset)
@@ -1084,3 +1080,49 @@ class RobotControl:
         self.update_navigation_variables(warning)
 
         return success
+    
+    def set_config(self, data: dict):
+        """
+        Update runtime configuration parameters from neuronavigation.
+        Only keys already present in the config dictionary can be updated.
+        Automatically casts values to the correct type.
+        """
+
+        # Allowed editable config keys
+        editable_keys = set(self.config.keys())
+
+        changed = {}
+        print(data)
+        print(editable_keys)
+
+        for key, new_value in data.items():
+            if key not in editable_keys:
+                print(f"[Config] Ignoring unknown config parameter: {key}")
+                continue
+
+            old_value = self.config[key]
+
+            # --- Convert types dynamically ---
+            if isinstance(old_value, bool):
+                new_value = str(new_value).lower() == "true"
+
+            elif isinstance(old_value, int):
+                new_value = int(new_value)
+
+            elif isinstance(old_value, float):
+                new_value = float(new_value)
+
+            elif new_value == "" and old_value is None:
+                new_value = None
+
+            # Assign new value
+            self.config[key] = new_value
+            changed[key] = (old_value, new_value)
+
+        # Print changes
+        if changed:
+            print(f"{Color.BOLD}Updated configuration parameters:{Color.END}")
+            for key, (old, new) in changed.items():
+                print(f" - {key}: {old} → {Color.BOLD}{new}{Color.END}")
+        else:
+            print("[Config] No valid configuration parameters updated.")
