@@ -1,7 +1,7 @@
+import time
 from enum import Enum
 
 import numpy as np
-import time
 
 from robot.control.color import Color
 
