@@ -277,10 +277,8 @@ def main(connection=None):
                             const.FUNCTION_CHECK_CONNECTION: robot_control.on_check_connection_robot,
                             const.FUNCTION_SET_PRESSURE_SET_POINT: robot_control.on_set_pressure_set_point,
                             const.FUNCTION_UPDATE_CONFIG: robot_control.set_config,
-                            const.FUNCTION_REQUEST_CONFIG: lambda _: remote_control.send_message(
-                                "Robot to Neuronavigation: Initial config",
-                                {"config": config},
-                            ),
+                            const.FUNCTION_UPDATE_PID: robot_control.update_pid_values,
+                            const.FUNCTION_REQUEST_CONFIG: robot_control.send_config,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 

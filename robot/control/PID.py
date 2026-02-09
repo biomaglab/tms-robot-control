@@ -145,6 +145,76 @@ class PIDControllerGroup:
         for pid in self.translation_pids + self.rotation_pids:
             pid.clear()
 
+    def reconfigure(self, use_force=False, use_pressure=False, robot_type=None):
+        """
+        Reconfigures the Z-axis controller based on new sensor settings.
+        """
+        self.robot_type = robot_type
+
+        # Re-initialize Z-axis PID based on flags
+        if use_pressure:
+            self.stiffness_init = 0.05
+            self.damping_init = 0.02
+            pid_z = ImpedancePIDController(
+                proportional=0.2, integral=0.01, derivative=0.0, mode="impedance"
+            )
+        elif use_force:
+            self.stiffness_init = 0.1
+            self.damping_init = 0
+            pid_z = ImpedancePIDController(
+                proportional=0.1,
+                integral=0.0001,
+                derivative=0.0,
+                stiffness=self.stiffness_init,
+                damping=self.damping_init,
+                mode="impedance",
+            )
+        else:
+            pid_z = ImpedancePIDController(proportional=0.1)
+
+        # Update the Z-axis controller (index 2)
+        if len(self.translation_pids) > 2:
+            self.translation_pids[2] = pid_z
+        else:
+            self.translation_pids.append(pid_z)
+
+    def update_pid_factors(self, translations_factors: list, rotations_factors: list):
+        for translation, id in enumerate(translations_factors): 
+            self.translation_pids[id].set_gains(proportional=translation.get('kp', None), 
+                                                integral=translation.get('ki', None), 
+                                                derivative=translation.get('kd', None))
+            self.translation_pids[id].set_impedance(stiffness = translation.get('stiffness', None), 
+                                                    damping = translation.get('damping', None))
+
+        for rotation, id in enumerate(rotations_factors):
+            self.rotation_pids[id].set_gains(proportional=rotation.get('kp', None), 
+                                                integral=rotation.get('ki', None), 
+                                                derivative=rotation.get('kd', None))
+            self.rotation_pids[id].set_impedance(stiffness = rotation.get('stiffness', None), 
+                                                    damping =rotation.get('damping', None))
+    
+    def get_pid_factors(self) -> dict:
+        translations = []
+        for pid in self.translation_pids:
+            translations.append({
+                'kp': pid.Kp,
+                'ki': pid.Ki,
+                'kd': pid.Kd,
+                'stiffness': pid.stiffness,
+                'damping': pid.damping
+            })
+        
+        rotations = []
+        for pid in self.rotation_pids:
+            rotations.append({
+                'kp': pid.Kp,
+                'ki': pid.Ki,
+                'kd': pid.Kd,
+                'stiffness': pid.stiffness,
+                'damping': pid.damping
+            })
+        
+        return {'translations': translations, 'rotations': rotations}
 
 class ImpedancePIDController:
     def __init__(self, proportional=0.3, integral=0.01, derivative=0.0, stiffness=0.05, damping=0.02, mode="pid"):
@@ -274,6 +344,8 @@ class ImpedancePIDController:
             self.Kd = derivative
 
     def set_impedance(self, stiffness=None, damping=None):
+        if self.mode == "impedance":
+            return
         if stiffness is not None:
             self.stiffness = stiffness
         if damping is not None:
