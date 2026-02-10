@@ -1176,8 +1176,7 @@ class RobotControl:
         else:
             print("[Config] No valid configuration parameters updated.")
     
-    def update_pid_values(self, data: dict):
-        pids_factors = data.get("pids_factors")
+    def update_pid_values(self, pids_factors: dict):
         if "translations" in pids_factors and "rotations" in pids_factors:
             self.pid_group.update_pid_factors(pids_factors["translations"], pids_factors["rotations"])
 

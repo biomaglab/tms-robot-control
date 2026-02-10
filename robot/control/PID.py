@@ -179,14 +179,14 @@ class PIDControllerGroup:
             self.translation_pids.append(pid_z)
 
     def update_pid_factors(self, translations_factors: list, rotations_factors: list):
-        for translation, id in enumerate(translations_factors): 
+        for id, translation in enumerate(translations_factors): 
             self.translation_pids[id].set_gains(proportional=translation.get('kp', None), 
                                                 integral=translation.get('ki', None), 
                                                 derivative=translation.get('kd', None))
             self.translation_pids[id].set_impedance(stiffness = translation.get('stiffness', None), 
                                                     damping = translation.get('damping', None))
 
-        for rotation, id in enumerate(rotations_factors):
+        for id, rotation in enumerate(rotations_factors):
             self.rotation_pids[id].set_gains(proportional=rotation.get('kp', None), 
                                                 integral=rotation.get('ki', None), 
                                                 derivative=rotation.get('kd', None))
