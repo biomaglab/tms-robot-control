@@ -34,7 +34,7 @@ else:
     print(f"Usage: python {sys.argv[0]} [host] port")
     sys.exit(1)
 
-sio = socketio.AsyncServer(async_mode="asgi")
+sio = socketio.AsyncServer(async_mode="asgi", max_http_buffer_size=500_000_000)
 app = socketio.ASGIApp(sio)
 
 
