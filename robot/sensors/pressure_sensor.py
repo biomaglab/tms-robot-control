@@ -10,7 +10,6 @@ import serial.tools.list_ports
 class BufferedPressureSensorReader:
     def __init__(self, config, baudrate=115200, buffer_size=100, reconnect_interval=1):
         self.config = config
-        self.port = self.config["com_port_pressure_sensor"]
         self.baudrate = baudrate
         self.buffer_size = buffer_size
         self.reconnect_interval = reconnect_interval
@@ -42,7 +41,7 @@ class BufferedPressureSensorReader:
 
                 if self._try_connect():
                     self.connect_attempts = 0
-                    print(f"[✓] Connected to {self.port}")
+                    print(f"[✓] Connected to {self.config['com_port_pressure_sensor']}")
                 else:
                     print(f"[!] Retrying in {self.reconnect_interval}s...")
                     time.sleep(self.reconnect_interval)
@@ -74,11 +73,11 @@ class BufferedPressureSensorReader:
         if not self._verify_port():
             return False
         try:
-            self.serial = serial.Serial(self.port, self.baudrate, timeout=1)
+            self.serial = serial.Serial(self.config['com_port_pressure_sensor'], self.baudrate, timeout=1)
             self.ready = True
             return True
         except serial.SerialException as e:
-            print(f"[!] Failed to open port '{self.port}': {e}")
+            print(f"[!] Failed to open port '{self.config['com_port_pressure_sensor']}': {e}")
             self.ready = False
             return False
 
@@ -101,12 +100,12 @@ class BufferedPressureSensorReader:
     def _verify_port(self):
         """Check if the port exists and is accessible."""
         available_ports = [p.device for p in serial.tools.list_ports.comports()]
-        if self.port not in available_ports:
-            print(f"[!] Port '{self.port}' not found among: {available_ports}")
+        if self.config['com_port_pressure_sensor'] not in available_ports:
+            print(f"[!] Port '{self.config['com_port_pressure_sensor']}' not found among: {available_ports}")
             return False
 
         try:
-            with serial.Serial(self.port, self.baudrate, timeout=1):
+            with serial.Serial(self.config['com_port_pressure_sensor'], self.baudrate, timeout=1):
                 return True
         except serial.SerialException:
             return False

@@ -39,8 +39,6 @@ class RobotControl:
         # connection status variable, with the statuses: "Connected", "Not Connected", "Trying to connect", "Unable to connect"
         self.status_connection = "Not Connected"
 
-        self.verbose = config["verbose"]
-
         self.process_tracker = robot_process.TrackerProcessing(
             robot_config=robot_config,
         )
@@ -81,11 +79,7 @@ class RobotControl:
         )
 
         self.force_sensor = None
-        if self.config["use_pressure_sensor"]:
-            self.force_sensor = BufferedPressureSensorReader(
-                self.config, 115200, buffer_size=100
-            )
-            # self.pid_z.set_force_setpoint()
+        self.setup_sensors()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -407,7 +401,7 @@ class RobotControl:
 
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
-        if self.verbose and self.last_displacement_update_time is not None:
+        if self.config["verbose"] and self.last_displacement_update_time is not None:
             print(
                 "Displacement received: {} (time since last: {:.2f} s)".format(
                     ", ".join(
@@ -475,10 +469,7 @@ class RobotControl:
 
             self.robot = robot
 
-            if self.config["use_force_sensor"] and not self.config["use_pressure_sensor"]:
-                self.force_sensor = BufferedForceTorqueSensor(
-                    self.config, self.robot, buffer_size=100
-                )
+            self.setup_sensors()
 
             movement_algorithm_name = self.config["movement_algorithm"]
             if movement_algorithm_name == "radially_outward":
@@ -731,6 +722,58 @@ class RobotControl:
         topic = "Robot to Neuronavigation: Robot connection status"
         data = {"data": self.status_connection}
         self.remote_control.send_message(topic, data)
+
+    def setup_sensors(self):
+        """
+        Configures or re-configures sensors based on self.config.
+        Handles enabling/disabling pressure and force sensors dynamically.
+        """
+        use_pressure = self.config.get("use_pressure_sensor", False)
+        use_force = self.config.get("use_force_sensor", False)
+
+        # --- Pressure Sensor Management ---
+        if use_pressure:
+            # If not already running a pressure sensor, start one
+            if not isinstance(self.force_sensor, BufferedPressureSensorReader):
+                if self.force_sensor is not None:
+                     # If it was a force sensor (or something else), clear it first
+                     # (Assuming force sensor doesn't need explicit stop, but good practice if it did)
+                     pass
+                print("Enabling Pressure Sensor...")
+                self.force_sensor = BufferedPressureSensorReader(
+                    self.config, 115200, buffer_size=100
+                )
+        else:
+            # If we are using pressure sensor currently, stop it
+            if isinstance(self.force_sensor, BufferedPressureSensorReader):
+                print("Disabling Pressure Sensor...")
+                self.force_sensor.stop()
+                self.force_sensor = None
+        
+        # --- Force/Torque Sensor Management ---
+        # Force sensor is used if enabled AND pressure sensor is NOT used.
+        # (Pressure sensor takes precedence in this logic as per original code structure)
+        if use_force and not use_pressure:
+            if self.robot is not None:
+                 if not isinstance(self.force_sensor, BufferedForceTorqueSensor):
+                    print("Enabling Force/Torque Sensor...")
+                    self.force_sensor = BufferedForceTorqueSensor(
+                        self.config, self.robot, buffer_size=100
+                    )
+            else:
+                # If robot is not connected yet, we can't fully instantiate the FLT sensor
+                # It will be instantiated in connect_to_robot -> setup_sensors
+                pass
+        elif not use_pressure and not use_force:
+             # Neither is enabled
+             self.force_sensor = None
+
+        if self.config["movement_algorithm"] == "directly_PID":
+            self.pid_group.reconfigure(
+            use_force=self.config.get("use_force_sensor", False),
+            use_pressure=self.config.get("use_pressure_sensor", False),
+            robot_type=self.config.get("robot")
+            )
 
     def set_safe_height(self, head_pose_in_robot_space):
         # Define safe heights
@@ -1080,6 +1123,13 @@ class RobotControl:
         self.update_navigation_variables(warning)
 
         return success
+
+    def send_config(self, data):
+        self.remote_control.send_message(
+                    "Robot to Neuronavigation: Initial config",
+                    {"config": self.config,
+                     "pid_factors": self.pid_group.get_pid_factors()},
+                )
     
     def set_config(self, data: dict):
         """
@@ -1092,8 +1142,6 @@ class RobotControl:
         editable_keys = set(self.config.keys())
 
         changed = {}
-        print(data)
-        print(editable_keys)
 
         for key, new_value in data.items():
             if key not in editable_keys:
@@ -1121,8 +1169,14 @@ class RobotControl:
 
         # Print changes
         if changed:
+            self.setup_sensors()
             print(f"{Color.BOLD}Updated configuration parameters:{Color.END}")
             for key, (old, new) in changed.items():
                 print(f" - {key}: {old} → {Color.BOLD}{new}{Color.END}")
         else:
             print("[Config] No valid configuration parameters updated.")
+    
+    def update_pid_values(self, pids_factors: dict):
+        if "translations" in pids_factors and "rotations" in pids_factors:
+            self.pid_group.update_pid_factors(pids_factors["translations"], pids_factors["rotations"])
+
