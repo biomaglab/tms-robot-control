@@ -1127,8 +1127,7 @@ class RobotControl:
     def send_config(self, data):
         self.remote_control.send_message(
                     "Robot to Neuronavigation: Initial config",
-                    {"config": self.config,
-                     "pid_factors": self.pid_group.get_pid_factors()},
+                    {"config": self.config},
                 )
     
     def set_config(self, data: dict):
@@ -1179,4 +1178,8 @@ class RobotControl:
     def update_pid_values(self, pids_factors: dict):
         if "translations" in pids_factors and "rotations" in pids_factors:
             self.pid_group.update_pid_factors(pids_factors["translations"], pids_factors["rotations"])
-
+    
+    def send_pid_factors(self, data):
+        self.remote_control.send_message(
+                "Robot to Dashboard: PID factors",
+                {"pid_factors": self.pid_group.get_pid_factors()})

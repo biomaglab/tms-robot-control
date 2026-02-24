@@ -279,6 +279,7 @@ def main(connection=None):
                             const.FUNCTION_UPDATE_CONFIG: robot_control.set_config,
                             const.FUNCTION_UPDATE_PID: robot_control.update_pid_values,
                             const.FUNCTION_REQUEST_CONFIG: robot_control.send_config,
+                            const.FUNCTION_REQUEST_PID: robot_control.send_pid_factors,
                         }
                         get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
 
