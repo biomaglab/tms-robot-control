@@ -159,6 +159,7 @@ PUB_MESSAGES = [
     "Neuronavigation to Robot: Update config",
     "Neuronavigation to Robot: Update robot control pid factors",
     "Neuronavigation to Robot: Request config",
+    "Dashboard to Robot: Request pid factors",
 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
@@ -179,3 +180,4 @@ FUNCTION_SET_PRESSURE_SET_POINT = 14
 FUNCTION_UPDATE_CONFIG = 15
 FUNCTION_UPDATE_PID = 16
 FUNCTION_REQUEST_CONFIG = 17
+FUNCTION_REQUEST_PID = 18
