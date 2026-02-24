@@ -12,7 +12,7 @@ class PIDControllerGroup:
         if use_pressure:
             self.stiffness_init = 0.05
             self.damping_init = 0.02
-            pid_z = ImpedancePIDController(proportional=0.2, integral=0.01, derivative=0.0, mode="impedance")
+            pid_z = ImpedancePIDController(proportional=0.02, integral=0.01, derivative=0.0, mode="impedance")
         elif use_force:
             self.stiffness_init = 0.1
             self.damping_init = 0
@@ -156,7 +156,7 @@ class PIDControllerGroup:
             self.stiffness_init = 0.05
             self.damping_init = 0.02
             pid_z = ImpedancePIDController(
-                proportional=0.2, integral=0.01, derivative=0.0, mode="impedance"
+                proportional=0.02, integral=0.01, derivative=0.0, mode="impedance"
             )
         elif use_force:
             self.stiffness_init = 0.1
@@ -234,7 +234,7 @@ class ImpedancePIDController:
 
         # Independent setpoints
         self.displacement_setpoint = 0.0  # Used in PID mode (desired displacement)
-        self.force_setpoint = -5.0  # Used in Impedance mode (desired force)
+        self.force_setpoint = -10.0  # Used in Impedance mode (desired force)
 
         self.last_displacement_error = 0.0
         self.last_force_error = 0.0
