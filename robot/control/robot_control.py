@@ -1179,7 +1179,7 @@ class RobotControl:
         if "translations" in pids_factors and "rotations" in pids_factors:
             self.pid_group.update_pid_factors(pids_factors["translations"], pids_factors["rotations"])
     
-    def send_pid_factors(self):
+    def send_pid_factors(self, data):
         self.remote_control.send_message(
                 "Robot to Dashboard: PID factors",
                 {"pid_factors": self.pid_group.get_pid_factors()})
