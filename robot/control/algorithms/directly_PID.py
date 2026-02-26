@@ -134,7 +134,7 @@ class DirectlyPIDAlgorithm:
 
         # Set the safe height
         actual_pose_z = pose[2]
-        pose[2] = self.config["safe_height"]
+        pose[2] = self.config["safe_height"].copy()
         # If a target pose is provided, modify Z pose for orientation
         if target_pose_in_robot_space:
             pose[3] = target_pose_in_robot_space[3]

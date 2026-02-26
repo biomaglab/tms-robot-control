@@ -131,7 +131,7 @@ class DirectlyUpwardAlgorithm:
             print("{}Moving and rotating in XY plane{}".format(Color.BOLD, Color.END))
 
             pose = target_pose_in_robot_space
-            pose[2] = self.config["safe_height"]
+            pose[2] = self.config["safe_height"].copy()
             success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         elif self.motion_sequence_state == MotionSequenceState.MOVE_PARTWAY_DOWNWARD:
@@ -173,7 +173,7 @@ class DirectlyUpwardAlgorithm:
         if not success:
             return False
 
-        pose[2] = self.config["safe_height"]
+        pose[2] = self.config["safe_height"].copy()
         success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         return success

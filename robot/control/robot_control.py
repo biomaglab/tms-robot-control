@@ -780,7 +780,7 @@ class RobotControl:
         head_pose_in_robot_space[2] + 150  # 15 cm above the head
 
         # Determine the maximum safe height
-        max_safe_height = self.config["safe_height"]
+        max_safe_height = self.config["safe_height"].copy()
 
         # Get current robot height
         robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
