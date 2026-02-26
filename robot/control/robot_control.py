@@ -775,27 +775,6 @@ class RobotControl:
             robot_type=self.config.get("robot")
             )
 
-    def set_safe_height(self, head_pose_in_robot_space):
-        # Define safe heights
-        head_pose_in_robot_space[2] + 150  # 15 cm above the head
-
-        # Determine the maximum safe height
-        max_safe_height = self.config["safe_height"]
-
-        # Get current robot height
-        robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
-        if robot_pose_z is None:
-            print("Warning: robot_pose_z is None — skipping height check.")
-            return max_safe_height
-
-        # Determine the height to move to
-        if robot_pose_z < max_safe_height:
-            move_to_height = max_safe_height  # Move to the safe height
-        else:
-            move_to_height = robot_pose_z  # Stay at current height
-
-        return move_to_height
-
     def handle_objective_track_target(self):
         # If target has not been received, return early.
         if not self.target_set:
@@ -1039,7 +1018,6 @@ class RobotControl:
             head_pose_in_robot_space = self.tracker.transform_pose_to_robot_space(
                 head_pose_in_tracker_space_filtered
             )
-            self.config["safe_height"] = self.set_safe_height(head_pose_in_robot_space)
         else:
             # XXX: This doesn't seem correct: if the transformation to robot space is not available, we should not
             #   claim that the head pose in tracker space is in robot space and use it as such.

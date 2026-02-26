@@ -237,7 +237,9 @@ class RadiallyOutwardAlgorithm:
         if not success:
             return False
 
-        pose[2] = self.safe_height
+        # Determine the height to move to, either move to the safe height or stay at current height. Cannot move down.
+        if pose[2] < self.config["safe_height"]:
+            pose[2] = self.config["safe_height"]
         success = self.robot.move_linear(
             target=pose,
             speed_ratio=self.default_speed_ratio,
