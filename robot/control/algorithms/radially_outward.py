@@ -237,7 +237,7 @@ class RadiallyOutwardAlgorithm:
         if not success:
             return False
 
-        pose[2] = self.safe_height.copy()
+        pose[2] = self.safe_height
         success = self.robot.move_linear(
             target=pose,
             speed_ratio=self.default_speed_ratio,
