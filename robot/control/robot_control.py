@@ -1,9 +1,11 @@
 import time
+from collections import deque
 from enum import Enum
 
 import numpy as np
 from pynput import keyboard
 
+import robot.constants as const
 import robot.control.coordinates as coordinates
 import robot.control.robot_processing as robot_process
 import robot.robots.dobot.dobot as dobot
@@ -39,8 +41,6 @@ class RobotControl:
         # connection status variable, with the statuses: "Connected", "Not Connected", "Trying to connect", "Unable to connect"
         self.status_connection = "Not Connected"
 
-        self.verbose = config["verbose"]
-
         self.process_tracker = robot_process.TrackerProcessing(
             robot_config=robot_config,
         )
@@ -72,23 +72,17 @@ class RobotControl:
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
 
-        self.use_pressure = self.config["use_pressure_sensor"]
-        self.use_force = self.config["use_force_sensor"]
         self.force_feedback = None
         self.z_offset = 0
 
         self.repulsion_filed = RepulsionField()
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
-            use_force=self.use_force, use_pressure=self.use_pressure, rep_field=self.repulsion_filed
+            use_force=self.config["use_force_sensor"], use_pressure=self.config["use_pressure, rep_field=self.repulsion_filed_sensor"], robot_type=self.config["robot"], rep_field=self.repulsion_filed
         )
 
         self.force_sensor = None
-        if self.use_pressure:
-            self.force_sensor = BufferedPressureSensorReader(
-                self.config["com_port_pressure_sensor"], 115200, buffer_size=100
-            )
-            # self.pid_z.set_force_setpoint()
+        self.setup_sensors()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
@@ -102,8 +96,6 @@ class RobotControl:
 
         self.last_warning = ""
 
-        self.safe_height_defined_by_user = self.config["safe_height"]
-
     def on_robot_connection(self, data):
         robot_ip = data["robot_IP"]
         self.connect_to_robot(robot_ip)
@@ -114,6 +106,10 @@ class RobotControl:
             self.robot.enable_free_drive()
         else:
             self.robot.disable_free_drive()
+
+    def on_set_pressure_set_point(self, data):
+        pressure = data["pressure"]
+        self.pid_group.set_force_setpoint(pressure)
 
     def on_set_tracker_fiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
@@ -334,6 +330,49 @@ class RobotControl:
 
         return list(translation) + list(angles_as_deg)
 
+    def check_displacement_validity_and_stuck(self, displacement):    
+        self.last_displacement_update_time = time.time()
+
+        self.displacement_to_target_history.append(displacement.copy())
+        if len(self.displacement_to_target_history) >= 20:
+            if all(
+                x == self.displacement_to_target_history[0]
+                for x in self.displacement_to_target_history
+            ):
+                self.stop_robot()
+                self.objective = RobotObjective.NONE
+                self.send_objective_to_neuronavigation()
+                print(
+                    "ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected."
+                )
+            del self.displacement_to_target_history[0]
+        
+        # === STUCK DETECTION LOGIC ===
+        if self.objective == RobotObjective.TRACK_TARGET:
+            # Compute displacement magnitude
+            displacement_vector = np.array(self.displacement_to_target[:3])  # translation part only
+            displacement_magnitude = np.linalg.norm(displacement_vector)
+
+            # Track recent displacement magnitudes
+            if not hasattr(self, "displacement_magnitude_history"):
+                self.displacement_magnitude_history = deque(maxlen=20)
+
+            self.displacement_magnitude_history.append(displacement_magnitude)
+
+            if len(self.displacement_magnitude_history) >= self.displacement_magnitude_history.maxlen:
+                std_dev = np.std(self.displacement_magnitude_history)
+                avg_magnitude = np.mean(self.displacement_magnitude_history)
+
+                STUCK_STD_THRESHOLD = 0.5        # How little movement over time is considered "stuck"
+                MIN_MOVEMENT_THRESHOLD = 1.0     # Don’t trigger if displacement is already near target
+
+                if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
+                    print("[!] Robot may be stuck. Displacement magnitude not changing.")
+                    #self.stop_robot()
+                    #self.objective = RobotObjective.NONE
+                    #self.send_objective_to_neuronavigation()
+                    print("ERROR: Robot seems stuck — displacement is not changing over time.")
+
     def on_update_displacement_to_target(self, data):
         # For the displacement received from the neuronavigation, the following holds:
         #
@@ -374,7 +413,7 @@ class RobotControl:
 
         self.displacement_to_target = list(translation) + list(angles_as_deg)
 
-        if self.verbose and self.last_displacement_update_time is not None:
+        if self.config["verbose"] and self.last_displacement_update_time is not None:
             print(
                 "Displacement received: {} (time since last: {:.2f} s)".format(
                     ", ".join(
@@ -384,21 +423,7 @@ class RobotControl:
                 )
             )
 
-        self.last_displacement_update_time = time.time()
-
-        self.displacement_to_target_history.append(displacement.copy())
-        if len(self.displacement_to_target_history) >= 20:
-            if all(
-                x == self.displacement_to_target_history[0]
-                for x in self.displacement_to_target_history
-            ):
-                self.stop_robot()
-                self.objective = RobotObjective.NONE
-                self.send_objective_to_neuronavigation()
-                print(
-                    "ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected."
-                )
-            del self.displacement_to_target_history[0]
+        self.check_displacement_validity_and_stuck(displacement)
 
     def on_coil_at_target(self, data):
         self.target_reached = data["state"]
@@ -456,10 +481,7 @@ class RobotControl:
 
             self.robot = robot
 
-            if self.use_force and not self.use_pressure:
-                self.force_sensor = BufferedForceTorqueSensor(
-                    self.config, self.robot, buffer_size=100
-                )
+            self.setup_sensors()
 
             movement_algorithm_name = self.config["movement_algorithm"]
             if movement_algorithm_name == "radially_outward":
@@ -506,9 +528,14 @@ class RobotControl:
         if self.connection:
             self.connection.robot_connection_status(success)
         if self.remote_control:
-            topic = "Robot to Neuronavigation: Robot connection status"
-            data = {"data": self.status_connection}
-            self.remote_control.send_message(topic, data)
+            self.remote_control.send_message(
+                "Robot to Neuronavigation: Initial config",
+                {"config": self.config}
+            )
+            self.remote_control.send_message(
+                "Robot to Neuronavigation: Robot connection status",
+                {"data": self.status_connection}
+            )
 
     def sensor_update_target(self, distance, status):
         # TODO: tune coil tilt based on the torque values
@@ -533,7 +560,7 @@ class RobotControl:
             # print("Warning: force_feedback is None or NaN.")
             return
         force_feedback = np.round(force_feedback, 2)
-        if (self.use_pressure or self.use_force) and not self.force_sensor.force_changed(force_feedback):
+        if (self.config["use_pressure_sensor"] or self.config["use_force_sensor"]) and not self.force_sensor.force_changed(force_feedback):
             return
 
         # Send message to neuronavigation with force or pressure for GUI.
@@ -556,12 +583,12 @@ class RobotControl:
                 return
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
-        if self.use_pressure:
+        if self.config["use_pressure_sensor"]:
             if not self.force_sensor.is_force_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
                 return  # Exit early if pressure is enabled and unstable
-        elif self.use_force:
+        elif self.config["use_force_sensor"]:
             if not self.force_sensor.is_force_z_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
@@ -680,7 +707,9 @@ class RobotControl:
 
     def get_pressure_sensor_values(self):
         pressure = self.force_sensor.get_latest_value()
-        if pressure:
+        if pressure is None:
+            return None
+        if not np.isnan(pressure):
             return pressure
         return None
 
@@ -706,12 +735,64 @@ class RobotControl:
         data = {"data": self.status_connection}
         self.remote_control.send_message(topic, data)
 
+    def setup_sensors(self):
+        """
+        Configures or re-configures sensors based on self.config.
+        Handles enabling/disabling pressure and force sensors dynamically.
+        """
+        use_pressure = self.config.get("use_pressure_sensor", False)
+        use_force = self.config.get("use_force_sensor", False)
+
+        # --- Pressure Sensor Management ---
+        if use_pressure:
+            # If not already running a pressure sensor, start one
+            if not isinstance(self.force_sensor, BufferedPressureSensorReader):
+                if self.force_sensor is not None:
+                     # If it was a force sensor (or something else), clear it first
+                     # (Assuming force sensor doesn't need explicit stop, but good practice if it did)
+                     pass
+                print("Enabling Pressure Sensor...")
+                self.force_sensor = BufferedPressureSensorReader(
+                    self.config, 115200, buffer_size=100
+                )
+        else:
+            # If we are using pressure sensor currently, stop it
+            if isinstance(self.force_sensor, BufferedPressureSensorReader):
+                print("Disabling Pressure Sensor...")
+                self.force_sensor.stop()
+                self.force_sensor = None
+        
+        # --- Force/Torque Sensor Management ---
+        # Force sensor is used if enabled AND pressure sensor is NOT used.
+        # (Pressure sensor takes precedence in this logic as per original code structure)
+        if use_force and not use_pressure:
+            if self.robot is not None:
+                 if not isinstance(self.force_sensor, BufferedForceTorqueSensor):
+                    print("Enabling Force/Torque Sensor...")
+                    self.force_sensor = BufferedForceTorqueSensor(
+                        self.config, self.robot, buffer_size=100
+                    )
+            else:
+                # If robot is not connected yet, we can't fully instantiate the FLT sensor
+                # It will be instantiated in connect_to_robot -> setup_sensors
+                pass
+        elif not use_pressure and not use_force:
+             # Neither is enabled
+             self.force_sensor = None
+
+        if self.config["movement_algorithm"] == "directly_PID":
+            self.pid_group.reconfigure(
+            use_force=self.config.get("use_force_sensor", False),
+            use_pressure=self.config.get("use_pressure_sensor", False),
+            robot_type=self.config.get("robot")
+            )
+
     def set_safe_height(self, head_pose_in_robot_space):
         # Define safe heights
         head_pose_in_robot_space[2] + 150  # 15 cm above the head
 
         # Determine the maximum safe height
-        max_safe_height = self.safe_height_defined_by_user
+        max_safe_height = self.config["safe_height"]
 
         # Get current robot height
         robot_pose_z = self.robot_pose_storage.GetRobotPose()[2]
@@ -963,7 +1044,7 @@ class RobotControl:
             self.tracker.head_pose
         )
 
-        if self.use_force:
+        if self.config["use_force_sensor"]:
             self.force_sensor.update_force_buffer()
 
         if self.tracker.m_tracker_to_robot is not None:
@@ -1007,13 +1088,13 @@ class RobotControl:
 
         self.force_feedback = (
             self.get_pressure_sensor_values()
-            if self.use_pressure
-            else self.get_force_sensor_only_Z() if self.use_force else None
+            if self.config["use_pressure_sensor"]
+            else self.get_force_sensor_only_Z() if self.config["use_force_sensor"] else None
         )
 
     def update_navigation_variables(self, warning):
         self.send_warning_to_neuronavigation(warning)
-        if self.use_force or self.use_pressure:
+        if self.config["use_force_sensor"] or self.config["use_pressure_sensor"]:
             self.send_force_sensor_data_to_neuronavigation(self.force_feedback)
             if self.objective == RobotObjective.TRACK_TARGET:
                 self.send_force_stability_to_neuronavigation(self.z_offset)
@@ -1040,7 +1121,13 @@ class RobotControl:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
-            success, warning = self.handle_objective_track_target()
+            # Check update rate
+            if self.remote_control.get_time_since_last_update() > const.MAX_NAVIGATION_UPDATE_GAP_SECONDS:
+                warning = "Navigation updates too slow or stopped — stopping robot!"
+                print(warning)
+                success = self.handle_objective_none()
+            else:
+                success, warning = self.handle_objective_track_target()
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
             success = self.handle_objective_move_away_from_head()
@@ -1081,5 +1168,62 @@ class RobotControl:
         else:
             print("Warning: Received empty config_updates in on_update_repulsion_config")
 
+    def send_config(self, data):
+        self.remote_control.send_message(
+                    "Robot to Neuronavigation: Initial config",
+                    {"config": self.config},
+                )
+    
+    def set_config(self, data: dict):
+        """
+        Update runtime configuration parameters from neuronavigation.
+        Only keys already present in the config dictionary can be updated.
+        Automatically casts values to the correct type.
+        """
 
+        # Allowed editable config keys
+        editable_keys = set(self.config.keys())
 
+        changed = {}
+
+        for key, new_value in data.items():
+            if key not in editable_keys:
+                print(f"[Config] Ignoring unknown config parameter: {key}")
+                continue
+
+            old_value = self.config[key]
+
+            # --- Convert types dynamically ---
+            if isinstance(old_value, bool):
+                new_value = str(new_value).lower() == "true"
+
+            elif isinstance(old_value, int):
+                new_value = int(new_value)
+
+            elif isinstance(old_value, float):
+                new_value = float(new_value)
+
+            elif new_value == "" and old_value is None:
+                new_value = None
+
+            # Assign new value
+            self.config[key] = new_value
+            changed[key] = (old_value, new_value)
+
+        # Print changes
+        if changed:
+            self.setup_sensors()
+            print(f"{Color.BOLD}Updated configuration parameters:{Color.END}")
+            for key, (old, new) in changed.items():
+                print(f" - {key}: {old} → {Color.BOLD}{new}{Color.END}")
+        else:
+            print("[Config] No valid configuration parameters updated.")
+    
+    def update_pid_values(self, pids_factors: dict):
+        if "translations" in pids_factors and "rotations" in pids_factors:
+            self.pid_group.update_pid_factors(pids_factors["translations"], pids_factors["rotations"])
+    
+    def send_pid_factors(self, data):
+        self.remote_control.send_message(
+                "Robot to Dashboard: PID factors",
+                {"pid_factors": self.pid_group.get_pid_factors()})

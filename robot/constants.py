@@ -2,6 +2,8 @@ DISPLAY_POA = True
 
 TEMP_FILE = "tmp"
 
+MAX_NAVIGATION_UPDATE_GAP_SECONDS = 1
+
 # Site config
 #
 # rx_offset, ry_offset, rz_offset:
@@ -164,6 +166,11 @@ PUB_MESSAGES = [
     "Neuronavigation to Robot: Reset collision error",
     "Neuronavigation to Robot: Dynamically update distance coils",
     "Neuronavigation to Robot: Update repulsion field config",
+    "Neuronavigation to Robot: Pressure set point",
+    "Neuronavigation to Robot: Update config",
+    "Neuronavigation to Robot: Update robot control pid factors",
+    "Neuronavigation to Robot: Request config",
+    "Dashboard to Robot: Request pid factors",
 ]
 
 FUNCTION_CONNECT_TO_ROBOT = 0
@@ -183,4 +190,8 @@ FUNCTION_CHECK_CONNECTION = 13
 FUNCTION_CLEAN_ERRORS = 14
 DYNAMICALLY_UPDATE_DISTANCE_COILS = 15
 FUNCTION_UPDATE_REPULSION_CONFIG = 16
-
+FUNCTION_SET_PRESSURE_SET_POINT = 17
+FUNCTION_UPDATE_CONFIG = 18
+FUNCTION_UPDATE_PID = 19
+FUNCTION_REQUEST_CONFIG = 20
+FUNCTION_REQUEST_PID = 21
