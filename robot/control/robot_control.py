@@ -78,7 +78,10 @@ class RobotControl:
         self.repulsion_filed = RepulsionField()
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
-            use_force=self.config["use_force_sensor"], use_pressure=self.config["use_pressure, rep_field=self.repulsion_filed_sensor"], robot_type=self.config["robot"], rep_field=self.repulsion_filed
+            use_force=self.config["use_force_sensor"],
+            use_pressure=self.config["use_pressure_sensor"],
+            robot_type=self.config["robot"],
+            rep_field=self.repulsion_filed
         )
 
         self.force_sensor = None

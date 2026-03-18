@@ -40,10 +40,9 @@ class RemoteControl:
     def __on_message_receive(self, msg):
         robot_id = msg.get('data', {}).get('robot_ID', None)
         if robot_id == self.__robot_id:
-            self.__lock.acquire()
-            self.__buffer.append(msg)
-            self.last_nav_update_time = time.time()  # Refresh on any incoming data
-        self.__lock.release()
+            with self.__lock:
+                self.__buffer.append(msg)
+                self.last_nav_update_time = time.time()  # Refresh on any incoming data
 
     def __on_restart_main_loop(self):
         """Restarts the current program.

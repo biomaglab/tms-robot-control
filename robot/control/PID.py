@@ -153,7 +153,7 @@ class PIDControllerGroup:
     def get_outputs(self):
         # Return two lists, negated outputs for translation and rotation respectively
         trans_out = [-pid.output for pid in self.translation_pids]
-        print("trans_out", trans_out)
+
         trans_out[0] += self.last_repulsion_offset[0]
         trans_out[1] += self.last_repulsion_offset[1]
         trans_out[2] += self.last_repulsion_offset[2]
