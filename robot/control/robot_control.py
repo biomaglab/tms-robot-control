@@ -1145,9 +1145,21 @@ class RobotControl:
 
         if self.config.get("movement_algorithm") == "directly_PID" :
             self.repulsion_filed.update_distance_coils(distance)
-            if self.robot_id == "robot_2":
-                brake_direction[2] = - brake_direction[2]
-            self.repulsion_filed.update_opposite_coil_vector(brake_direction)
+            # brake_direction is received from InVesalius in the Robot's BASE coordinate space.
+            # However, the PID outputs (trans_out) are applied as an offset in the TOOL (End-Effector) coordinate space.
+            # Therefore, we must rotate brake_direction from BASE space to TOOL space.
+            robot_pose = self.robot_pose_storage.GetRobotPose()
+            if robot_pose is not None and len(robot_pose) >= 6:
+                m_robot = robot_process.coordinates_to_transformation_matrix(
+                    position=robot_pose[:3],
+                    orientation=robot_pose[3:],
+                    axes="sxyz",
+                )
+                R_robot = m_robot[:3, :3]
+                # Inverse rotation to go from BASE to TOOL
+                brake_direction = R_robot.T @ brake_direction
+
+            self.repulsion_filed.update_opposite_coil_vector(brake_direction.tolist())
         else:
             if distance < 20: #TODO It's necessary test the same repulsion force algorithm in the others robot moviment algorithm
                 self.stop_robot()
