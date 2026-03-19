@@ -164,10 +164,6 @@ class RobotControl:
             poses = data["poses"]
             visibilities = data["visibilities"]
 
-            if self.robot_id == 'robot_2' and len(poses)> 3:
-                poses[2], poses[3] = poses[3], poses[2]
-                visibilities[2] = visibilities[3]
-
             self.tracker.SetCoordinates(
                 np.vstack([poses[0], poses[1], poses[2]]), [visibilities[0], visibilities[1], visibilities[2]]
             )
@@ -1153,7 +1149,7 @@ class RobotControl:
                 brake_direction[2] = - brake_direction[2]
             self.repulsion_filed.update_opposite_coil_vector(brake_direction)
         else:
-            if distance < 80:
+            if distance < 20: #TODO It's necessary test the same repulsion force algorithm in the others robot moviment algorithm
                 self.stop_robot()
     
     def on_update_repulsion_config(self, data):
