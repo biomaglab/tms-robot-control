@@ -102,5 +102,5 @@ class RepulsionField:
         self.distance_coils = new_distance
 
     def update_opposite_coil_vector(self, brake_direction):
-        self.brake_direction = brake_direction
+        self.brake_direction = np.array(brake_direction)
 
