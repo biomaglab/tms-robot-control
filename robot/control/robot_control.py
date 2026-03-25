@@ -84,14 +84,16 @@ class RobotControl:
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
-        self.last_displacement_update_time = time.time()
-        self.last_robot_status_logging_time = time.time()
-        self.last_tuning_time = time.time()
+        self.last_displacement_update_time = None
+        self.last_tuning_time = None
 
         self.objective = RobotObjective.NONE
         self.moving_away_from_head = False
 
         self.last_warning = ""
+        self.active_warning = None
+        self.warning_timestamp = 0
+        self.warning_duration = 5.0  # seconds on invesalius screen
 
     def on_robot_connection(self, data):
         robot_ip = data["robot_IP"]
@@ -532,15 +534,18 @@ class RobotControl:
         # self.remote_control.send_message(topic, data)
 
     def send_warning_to_neuronavigation(self, warning):
-        # Send warning message to invesalius.
-        # TODO self.connection
-        # if self.connection:
-        #     self.connection.set_warning(warning)
-        if self.remote_control and self.last_warning != "":
+        # Normalize: None means clear
+        normalized = "" if warning is None else warning
+
+        if normalized == self.last_warning:
+            return
+
+        if self.remote_control:
             topic = "Robot to Neuronavigation: Update robot warning"
-            data = {"robot_warning": warning}
+            data = {"robot_warning": normalized}
             self.remote_control.send_message(topic, data)
-        self.last_warning = warning
+
+        self.last_warning = normalized
 
     def send_force_sensor_data_to_neuronavigation(self, force_feedback):
         # Check if force_feedback is NaN (handles both scalars and arrays)
@@ -1069,7 +1074,19 @@ class RobotControl:
         )
 
     def update_navigation_variables(self, warning):
-        self.send_warning_to_neuronavigation(warning)
+        now = time.time()
+        if warning:
+            # New warning → store and timestamp it
+            if warning != self.active_warning:
+                self.active_warning = warning
+                self.warning_timestamp = now
+                self.send_warning_to_neuronavigation(warning)
+        else:
+            # No new warning → keep showing existing one until timeout
+            if self.active_warning and (now - self.warning_timestamp) > self.warning_duration:
+                self.send_warning_to_neuronavigation("")
+                self.active_warning = None
+
         if self.config["use_force_sensor"] or self.config["use_pressure_sensor"]:
             self.send_force_sensor_data_to_neuronavigation(self.force_feedback)
             if self.objective == RobotObjective.TRACK_TARGET:
@@ -1155,7 +1172,7 @@ class RobotControl:
 
         self.update_state_variables()
 
-        warning = ""
+        warning = None
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
 
