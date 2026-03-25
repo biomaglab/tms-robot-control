@@ -2,6 +2,7 @@
 import os
 import sys
 import time
+from collections import deque
 from threading import Lock
 
 import numpy as np
@@ -27,6 +28,7 @@ class RemoteControl:
         self.__lock = Lock()
 
         self.last_nav_update_time = time.time()  # Track last navigation update
+        self._nav_update_intervals = deque(maxlen=50)
 
     def __on_connect(self):
         print("Connected to {}".format(self.__remote_host))
@@ -39,7 +41,11 @@ class RemoteControl:
     def __on_message_receive(self, msg):
         self.__lock.acquire()
         self.__buffer.append(msg)
-        self.last_nav_update_time = time.time()  # Refresh on any incoming data
+        now = time.time()
+        interval = now - self.last_nav_update_time
+        if interval > 0:
+            self._nav_update_intervals.append(interval)
+        self.last_nav_update_time = now  # Refresh on any incoming data
         self.__lock.release()
 
     def __on_restart_main_loop(self):
@@ -63,6 +69,17 @@ class RemoteControl:
 
     def get_time_since_last_update(self):
         return time.time() - self.last_nav_update_time
+
+    def get_nav_update_rate_hz(self, min_samples=5):
+        self.__lock.acquire()
+        intervals = list(self._nav_update_intervals)
+        self.__lock.release()
+        if len(intervals) < min_samples:
+            return None
+        avg_interval = sum(intervals) / len(intervals)
+        if avg_interval <= 0:
+            return None
+        return 1.0 / avg_interval
 
     def connect(self):
         self.__sio.connect(self.__remote_host)
@@ -144,6 +161,31 @@ def get_config():
     translation_threshold = float(os.getenv("TRANSLATION_THRESHOLD"))
     rotation_threshold = float(os.getenv("ROTATION_THRESHOLD"))
 
+    def get_optional_float(var, default=None):
+        value = os.getenv(var)
+        if value is None or value == "":
+            return default
+        return float(value)
+
+    nav_max_update_gap_warn_seconds = get_optional_float(
+        "NAV_MAX_UPDATE_GAP_WARN_SECONDS", const.NAV_MAX_UPDATE_GAP_WARN_SECONDS
+    )
+    nav_max_update_gap_stop_seconds = get_optional_float(
+        "NAV_MAX_UPDATE_GAP_STOP_SECONDS", const.NAV_MAX_UPDATE_GAP_STOP_SECONDS
+    )
+    nav_min_update_rate_warn_hz = get_optional_float(
+        "NAV_MIN_UPDATE_RATE_WARN_HZ", const.NAV_MIN_UPDATE_RATE_WARN_HZ
+    )
+    nav_min_update_rate_stop_hz = get_optional_float(
+        "NAV_MIN_UPDATE_RATE_STOP_HZ", const.NAV_MIN_UPDATE_RATE_STOP_HZ
+    )
+    displacement_stale_warn_seconds = get_optional_float(
+        "DISPLACEMENT_STALE_WARN_SECONDS", const.DISPLACEMENT_STALE_WARN_SECONDS
+    )
+    displacement_stale_stop_seconds = get_optional_float(
+        "DISPLACEMENT_STALE_STOP_SECONDS", const.DISPLACEMENT_STALE_STOP_SECONDS
+    )
+
     # If tuning interval is not provided, set it to None, otherwise convert to float.
     tuning_interval = os.getenv("TUNING_INTERVAL")
     if tuning_interval == "":
@@ -168,6 +210,12 @@ def get_config():
         "wait_for_keypress_before_movement": wait_for_keypress_before_movement,
         "translation_threshold": translation_threshold,
         "rotation_threshold": rotation_threshold,
+        "nav_max_update_gap_warn_seconds": nav_max_update_gap_warn_seconds,
+        "nav_max_update_gap_stop_seconds": nav_max_update_gap_stop_seconds,
+        "nav_min_update_rate_warn_hz": nav_min_update_rate_warn_hz,
+        "nav_min_update_rate_stop_hz": nav_min_update_rate_stop_hz,
+        "displacement_stale_warn_seconds": displacement_stale_warn_seconds,
+        "displacement_stale_stop_seconds": displacement_stale_stop_seconds,
     }
 
     # Print configuration.

@@ -878,15 +878,25 @@ class RobotControl:
         if self.displacement_to_target is None:
             print("Error: Displacement to target is not available")
 
-            # Even though a recent displacement should be always available, it turns out that the 0.3 second time limit
-            # is quite strict. Hence, interpret the lack of displacement as a "good state".
+            # Even though a recent displacement should be always available, interpret the lack of displacement
+            # as a "good state" to avoid false stops.
             return True, ""
 
-        # Ensure that the displacement to target has been updated recently.
-        if time.time() > self.last_displacement_update_time + 0.3:
-            print("Error: No displacement update received for 0.3 seconds")
+        stop_due_to_stale, stale_warning = self.evaluate_displacement_staleness()
+        if stale_warning:
+            print(stale_warning)
+        if stop_due_to_stale:
+            self.stop_robot()
+            self.objective = RobotObjective.NONE
+            self.send_objective_to_neuronavigation()
+            self.movement_algorithm.reset_state()
             self.displacement_to_target = None
-            return True, ""
+            return True, stale_warning
+        if stale_warning:
+            if self.robot_state_controller.get_state() == RobotState.MOVING:
+                self.stop_robot()
+                self.movement_algorithm.reset_state()
+            return True, stale_warning
 
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
@@ -1065,6 +1075,69 @@ class RobotControl:
             if self.objective == RobotObjective.TRACK_TARGET:
                 self.send_force_stability_to_neuronavigation(self.z_offset)
 
+    def evaluate_navigation_stability(self):
+        if not self.remote_control:
+            return False, ""
+
+        gap_seconds = self.remote_control.get_time_since_last_update()
+        warn_gap = self.config.get("nav_max_update_gap_warn_seconds")
+        stop_gap = self.config.get("nav_max_update_gap_stop_seconds")
+        warn_rate = self.config.get("nav_min_update_rate_warn_hz")
+        stop_rate = self.config.get("nav_min_update_rate_stop_hz")
+
+        if stop_gap is not None and gap_seconds > stop_gap:
+            return True, (
+                "Navigation updates stopped (gap {:.2f}s > {:.2f}s).".format(
+                    gap_seconds, stop_gap
+                )
+            )
+
+        if warn_gap is not None and gap_seconds > warn_gap:
+            return False, (
+                "Navigation updates slow (gap {:.2f}s > {:.2f}s).".format(
+                    gap_seconds, warn_gap
+                )
+            )
+
+        rate_hz = self.remote_control.get_nav_update_rate_hz()
+        if rate_hz is not None:
+            if stop_rate is not None and rate_hz < stop_rate:
+                return True, (
+                    "Navigation update rate too low ({:.2f} Hz < {:.2f} Hz).".format(
+                        rate_hz, stop_rate
+                    )
+                )
+            if warn_rate is not None and rate_hz < warn_rate:
+                return False, (
+                    "Navigation update rate low ({:.2f} Hz < {:.2f} Hz).".format(
+                        rate_hz, warn_rate
+                    )
+                )
+
+        return False, ""
+
+    def evaluate_displacement_staleness(self):
+        if self.last_displacement_update_time is None:
+            return False, ""
+
+        gap_seconds = time.time() - self.last_displacement_update_time
+        warn_gap = self.config.get("displacement_stale_warn_seconds")
+        stop_gap = self.config.get("displacement_stale_stop_seconds")
+
+        if stop_gap is not None and gap_seconds > stop_gap:
+            return True, (
+                "Error: No displacement update for {:.2f} seconds.".format(gap_seconds)
+            )
+
+        if warn_gap is not None and gap_seconds > warn_gap:
+            return False, (
+                "Warning: Displacement updates slow ({:.2f} seconds).".format(
+                    gap_seconds
+                )
+            )
+
+        return False, ""
+
     def update(self):
         # Check if the robot is connected.
         if not self.robot.is_connected():
@@ -1087,11 +1160,22 @@ class RobotControl:
             success = self.handle_objective_none()
 
         elif self.objective == RobotObjective.TRACK_TARGET:
-            # Check update rate
-            if self.remote_control.get_time_since_last_update() > const.MAX_NAVIGATION_UPDATE_GAP_SECONDS:
-                warning = "Navigation updates too slow or stopped — stopping robot!"
-                print(warning)
+            should_stop, nav_warning = self.evaluate_navigation_stability()
+            if nav_warning:
+                print(nav_warning)
+            if should_stop:
+                self.stop_robot()
+                self.objective = RobotObjective.NONE
+                self.send_objective_to_neuronavigation()
+                self.movement_algorithm.reset_state()
+                warning = nav_warning
                 success = self.handle_objective_none()
+            elif nav_warning:
+                if self.robot_state_controller.get_state() == RobotState.MOVING:
+                    self.stop_robot()
+                    self.movement_algorithm.reset_state()
+                warning = nav_warning
+                success = True
             else:
                 success, warning = self.handle_objective_track_target()
 
