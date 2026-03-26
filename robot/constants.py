@@ -139,13 +139,21 @@ ROBOT_CONFIG = {
     },
 }
 
+REPULSION_CONFIG = {
+    'strength': 25,           # Gain for the repulsion force.
+    'safety_margin': 22,      # Maximum distance where repulsion activates (in mm).
+    'working_distance': 12.0, # Ideal working distance - repulsion becomes strong below this (in mm).
+    'ema': 0.20,              # Smoothing factor for the offset (0 to 1).
+    'stop_distance': 0.1,     # Emergency stop distance (in mm).
+}
+
 # Publisher messages from invesalius
 PUB_MESSAGES = [
     "Neuronavigation to Robot: Connect to robot",
     "Neuronavigation to Robot: Set target",
     "Neuronavigation to Robot: Unset target",
     "Neuronavigation to Robot: Set tracker fiducials",
-    "From Neuronavigation: Update tracker poses",
+    "From Neuronavigation to robot: Update tracker poses",
     "Neuronavigation to Robot: Collect coordinates for the robot transformation matrix",
     "Neuronavigation to Robot: Reset coordinates collection for the robot transformation matrix",
     "Neuronavigation to Robot: Estimate robot transformation matrix",
@@ -155,6 +163,9 @@ PUB_MESSAGES = [
     "Neuronavigation to Robot: Set objective",
     "Neuronavigation to Robot: Set free drive",
     "Neuronavigation to Robot: Check connection robot",
+    "Neuronavigation to Robot: Reset collision error",
+    "Neuronavigation to Robot: Dynamically update distance coils",
+    "Neuronavigation to Robot: Update repulsion field config",
     "Neuronavigation to Robot: Pressure set point",
     "Neuronavigation to Robot: Update config",
     "Neuronavigation to Robot: Update robot control pid factors",
@@ -176,8 +187,11 @@ FUNCTION_UPDATE_DISPLACEMENT_TO_TARGET = 10
 FUNCTION_SET_OBJECTIVE = 11
 FUNCTION_SET_FREE_DRIVE = 12
 FUNCTION_CHECK_CONNECTION = 13
-FUNCTION_SET_PRESSURE_SET_POINT = 14
-FUNCTION_UPDATE_CONFIG = 15
-FUNCTION_UPDATE_PID = 16
-FUNCTION_REQUEST_CONFIG = 17
-FUNCTION_REQUEST_PID = 18
+FUNCTION_CLEAN_ERRORS = 14
+DYNAMICALLY_UPDATE_DISTANCE_COILS = 15
+FUNCTION_UPDATE_REPULSION_CONFIG = 16
+FUNCTION_SET_PRESSURE_SET_POINT = 17
+FUNCTION_UPDATE_CONFIG = 18
+FUNCTION_UPDATE_PID = 19
+FUNCTION_REQUEST_CONFIG = 20
+FUNCTION_REQUEST_PID = 21

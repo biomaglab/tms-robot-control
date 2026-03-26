@@ -1957,5 +1957,5 @@ def _import_module(name, package=None, warn=True, prefix="_py_", ignore="_"):
 if __name__ == "__main__":
     import doctest
 
-    numpy.set_printoptions(suppress=True, precision=5)
+    numpy.set_printoptions(suppress=False, precision=5)
     doctest.testmod()

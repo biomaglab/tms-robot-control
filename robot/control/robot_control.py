@@ -18,6 +18,7 @@ from robot.control.algorithms.radially_outward import RadiallyOutwardAlgorithm
 from robot.control.color import Color
 from robot.control.PID import PIDControllerGroup
 from robot.control.robot_state_controller import RobotState, RobotStateController
+from robot.control.repulsion import RepulsionField
 from robot.sensors.force_and_torque_sensor import BufferedForceTorqueSensor
 from robot.sensors.pressure_sensor import BufferedPressureSensorReader
 
@@ -29,12 +30,13 @@ class RobotObjective(Enum):
 
 
 class RobotControl:
-    def __init__(self, remote_control, config, site_config, robot_config, connection):
+    def __init__(self, remote_control, config, site_config, robot_config, connection, robot_id):
         self.remote_control = remote_control
         self.config = config
         self.site_config = site_config
         self.robot_config = robot_config
         self.connection = connection
+        self.robot_id = robot_id
 
         # connection status variable, with the statuses: "Connected", "Not Connected", "Trying to connect", "Unable to connect"
         self.status_connection = "Not Connected"
@@ -73,9 +75,13 @@ class RobotControl:
         self.force_feedback = None
         self.z_offset = 0
 
+        self.repulsion_filed = RepulsionField()
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
-            use_force=self.config["use_force_sensor"], use_pressure=self.config["use_pressure_sensor"], robot_type=self.config["robot"],
+            use_force=self.config["use_force_sensor"],
+            use_pressure=self.config["use_pressure_sensor"],
+            robot_type=self.config["robot"],
+            rep_field=self.repulsion_filed
         )
 
         self.force_sensor = None
@@ -157,8 +163,9 @@ class RobotControl:
         if len(data) > 1:
             poses = data["poses"]
             visibilities = data["visibilities"]
+
             self.tracker.SetCoordinates(
-                np.vstack([poses[0], poses[1], poses[2]]), visibilities
+                np.vstack([poses[0], poses[1], poses[2]]), [visibilities[0], visibilities[1], visibilities[2]]
             )
 
     def on_create_point(self, data):
@@ -394,7 +401,11 @@ class RobotControl:
         translation, angles_as_deg = self.on_coil_to_robot_alignment(displacement)
         # Update PID controllers
         if self.config.get("movement_algorithm") == "directly_PID":
-            self.pid_group.update_translation(translation, self.force_feedback)
+            stop_now = self.pid_group.update_translation(translation, self.force_feedback)
+            if stop_now:
+                self.stop_robot()
+                return
+
             self.pid_group.update_rotation(angles_as_deg)
             self.z_offset = translation[2]
             translation, angles_as_deg = self.pid_group.get_outputs()
@@ -1101,6 +1112,50 @@ class RobotControl:
         self.update_navigation_variables(warning)
 
         return success
+    
+    def on_clean_errors(self, data):
+        if self.robot:
+            self.robot.clean_errors()
+
+    def dynamically_update_distances_coils(self, data):
+        distance = data["distance"]
+        brake_direction = np.array(data["brake_vector"])
+
+        if self.config.get("movement_algorithm") == "directly_PID" :
+            self.repulsion_filed.update_distance_coils(distance)
+            # brake_direction is received from InVesalius in the Robot's BASE coordinate space.
+            # However, the PID outputs (trans_out) are applied as an offset in the TOOL (End-Effector) coordinate space.
+            # Therefore, we must rotate brake_direction from BASE space to TOOL space.
+            robot_pose = self.robot_pose_storage.GetRobotPose()
+            if robot_pose is not None and len(robot_pose) >= 6:
+                m_robot = robot_process.coordinates_to_transformation_matrix(
+                    position=robot_pose[:3],
+                    orientation=robot_pose[3:],
+                    axes="sxyz",
+                )
+                R_robot = m_robot[:3, :3]
+                # Inverse rotation to go from BASE to TOOL
+                brake_direction = R_robot.T @ brake_direction
+
+            self.repulsion_filed.update_opposite_coil_vector(brake_direction)
+        else:
+            if distance < 20: #TODO It's necessary test the same repulsion force algorithm in the others robot moviment algorithm
+                self.stop_robot()
+    
+    def on_update_repulsion_config(self, data):
+        """
+        Handler for dynamic RepulsionField configuration updates via Socket.IO.
+        
+        Args:
+            data (dict): Dictionary containing 'config_updates' with parameters to update.
+                        Example: {'config_updates': {'strength': 300, 'safety_margin': 70}}
+        """
+        config_updates = data.get("config_updates", {})
+        if config_updates:
+            print(f"Updating RepulsionField config: {config_updates}")
+            self.repulsion_filed.update_config(config_updates)
+        else:
+            print("Warning: Received empty config_updates in on_update_repulsion_config")
 
     def send_config(self, data):
         self.remote_control.send_message(
