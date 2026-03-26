@@ -1159,7 +1159,7 @@ class RobotControl:
                 # Inverse rotation to go from BASE to TOOL
                 brake_direction = R_robot.T @ brake_direction
 
-            self.repulsion_filed.update_opposite_coil_vector(brake_direction.tolist())
+            self.repulsion_filed.update_opposite_coil_vector(brake_direction)
         else:
             if distance < 20: #TODO It's necessary test the same repulsion force algorithm in the others robot moviment algorithm
                 self.stop_robot()
