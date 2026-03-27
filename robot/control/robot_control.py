@@ -69,6 +69,7 @@ class RobotControl:
 
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
+        self.last_displacement_print_time = time.time()
 
         self.force_feedback = None
         self.z_offset = 0
@@ -92,6 +93,12 @@ class RobotControl:
         self.moving_away_from_head = False
 
         self.last_warning = ""
+
+    def print_every(self, seconds, attr_name, *args):
+        now = time.time()
+        if now - getattr(self, attr_name) >= seconds:
+            print(*args)
+            setattr(self, attr_name, now)
 
     def on_robot_connection(self, data):
         robot_ip = data["robot_IP"]
@@ -891,7 +898,9 @@ class RobotControl:
         robot_pose = self.robot_pose_storage.GetRobotPose()
 
         # Move the robot.
-        print(
+        self.print_every(
+            1.0,
+            "last_displacement_print_time",
             "Moving the robot based on the displacement:",
             np.array(self.displacement_to_target),
         )

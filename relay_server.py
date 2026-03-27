@@ -41,13 +41,13 @@ app = socketio.ASGIApp(sio)
 @sio.event
 def from_neuronavigation(sid, msg):
     asyncio.create_task(sio.emit("to_robot", msg))
-    print("Forwarding neuronavigation -> robot: %s" % str(msg))
+    # print("Forwarding neuronavigation -> robot: %s" % str(msg))
 
 
 @sio.event
 def from_robot(sid, msg):
     asyncio.create_task(sio.emit("to_neuronavigation", msg))
-    print("Forwarding robot -> neuronavigation: %s" % str(msg))
+    # print("Forwarding robot -> neuronavigation: %s" % str(msg))
 
 
 @sio.event
