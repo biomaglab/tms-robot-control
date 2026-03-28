@@ -97,9 +97,8 @@ class DirectlyPIDAlgorithm:
         """
         Executes a tuning motion depending on the robot type.
 
-        For non old-Elfin/Dobot robots, dynamic motion updates occur
-        only every 0.2 seconds. For old-Elfin or Dobot robots, motion
-        updates are executed continuously.
+        For most robots, dynamic motion updates occur only every 0.2 seconds.
+        For Elfin variants and Dobot, motion updates are executed continuously.
         """
         print("Initiating tuning motion")
 
@@ -109,18 +108,18 @@ class DirectlyPIDAlgorithm:
         success = True
 
         # Different update logic depending on robot type
-        if robot_type not in ["elfin", "dobot"]:
+        if robot_type in ["elfin", "elfin_new_api", "dobot"]:
+            # For Elfin variants or Dobot, allow continuous updates
+            success = self.robot.dynamic_motion(
+                target_pose_in_robot_space, self.tuning_speed_ratio
+            )
+        else:
             # For other robots, limit update rate to every 0.2 s
             if time.time() - self.last_time_update > 0.2:
                 success = self.robot.dynamic_motion(
                     target_pose_in_robot_space, self.tuning_speed_ratio
                 )
                 self.last_time_update = time.time()
-        else:
-            # For Elfin or Dobot, allow continuous updates
-            success = self.robot.dynamic_motion(
-                target_pose_in_robot_space, self.tuning_speed_ratio
-            )
 
         return success
 
