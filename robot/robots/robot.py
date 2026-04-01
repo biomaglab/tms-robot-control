@@ -158,3 +158,11 @@ class Robot(ABC):
         Perform necessary cleanup and disconnection procedures for the robot.
         """
         pass
+
+    @abstractmethod
+    def clean_errors(self):
+        """
+        Clean robot errors
+        """
+        pass
+

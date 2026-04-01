@@ -25,7 +25,9 @@ After that, run the InVesalius app.py script (https://github.com/invesalius/inve
 
 Please note that every time InVesalius is started, the main_loop is automatically restarted.
 
+# Using Two Robots
 
+- For instructions on how to operate two or more robots simultaneously, please see the [Multiple Robots Tutorial](docs/multiple_robots.md).
 
 # This work is supported by NeuroMat
 

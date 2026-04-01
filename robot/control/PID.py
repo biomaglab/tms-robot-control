@@ -1,8 +1,9 @@
 import time
+import numpy as np
 
 
 class PIDControllerGroup:
-    def __init__(self, use_force=False, use_pressure=False, robot_type=None):
+    def __init__(self, use_force=False, use_pressure=False, rep_field = None, robot_type=None):
         self.robot_type = robot_type
         self.translation_pids = [
             ImpedancePIDController(),  # x
@@ -35,6 +36,9 @@ class PIDControllerGroup:
             ImpedancePIDController(),  # rz
         ]
 
+        self.rep_field = rep_field
+        self.last_repulsion_offset = np.zeros(3)
+
     def update_translation(self, translations, force_feedback=None):
         # Update x, y
         self.translation_pids[0].update(translations[0])
@@ -65,6 +69,23 @@ class PIDControllerGroup:
             )
         else:
             self.translation_pids[2].update(translations[2])
+
+        stop_now = False
+        if self.rep_field is not None and self.rep_field.safety_margin is not None:
+            # Get delta_time from one of the PIDs
+            dt = self.translation_pids[0].last_delta_time
+
+            # Get distance from the repulsion field object
+            distance = self.rep_field.distance_coils
+            # Compute the braking offset
+            offset_xyz, stop_now = self.rep_field.compute_offset(
+                distance, dt
+            )
+
+            # This offset will be applied in get_outputs()
+            self.last_repulsion_offset = offset_xyz
+
+        return stop_now
 
     def update_rotation(self, angles):
         for pid, angle in zip(self.rotation_pids, angles):
@@ -132,6 +153,11 @@ class PIDControllerGroup:
     def get_outputs(self):
         # Return two lists, negated outputs for translation and rotation respectively
         trans_out = [-pid.output for pid in self.translation_pids]
+
+        trans_out[0] += self.last_repulsion_offset[0]
+        trans_out[1] += self.last_repulsion_offset[1]
+        trans_out[2] += self.last_repulsion_offset[2]
+        
         rot_out = [-pid.output for pid in self.rotation_pids]
         return trans_out, rot_out
 
@@ -144,7 +170,14 @@ class PIDControllerGroup:
     def clear(self):
         for pid in self.translation_pids + self.rotation_pids:
             pid.clear()
-
+    
+    def update_all_pid_constante(self, factor):
+        for pid_axis in self.translation_pids[:-1]:
+            pid_axis.set_gains(factor*pid_axis.init_Kp, factor*pid_axis.init_Ki, factor*pid_axis.init_Kd)
+            
+        for pix_angles in self.rotation_pids:
+            pix_angles.set_gains(factor*pix_angles.init_Kp, factor*pix_angles.init_Ki, factor*pix_angles.init_Kd)
+            
     def reconfigure(self, use_force=False, use_pressure=False, robot_type=None):
         """
         Reconfigures the Z-axis controller based on new sensor settings.
@@ -218,6 +251,10 @@ class PIDControllerGroup:
 
 class ImpedancePIDController:
     def __init__(self, proportional=0.3, integral=0.01, derivative=0.0, stiffness=0.05, damping=0.02, mode="pid"):
+        self.init_Kp = proportional
+        self.init_Ki = integral
+        self.init_Kd = derivative
+
         self.Kp = proportional
         self.Ki = integral
         self.Kd = derivative
@@ -231,6 +268,7 @@ class ImpedancePIDController:
         self.sample_time = 0.0
         self.current_time = time.monotonic()
         self.last_time = self.current_time
+        self.last_delta_time = 0.0
 
         # Independent setpoints
         self.displacement_setpoint = 0.0  # Used in PID mode (desired displacement)
@@ -272,6 +310,7 @@ class ImpedancePIDController:
             return self.output
 
         delta_time = self.sample_time if self.sample_time > 0 else delta_time_actual
+        self.last_delta_time = delta_time
         # Compute displacement error (desired - actual)
         displacement_error = self.displacement_setpoint - feedback_value
 
