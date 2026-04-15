@@ -760,7 +760,6 @@ class RobotControl:
             "on at least one axis (X/Y/Z)."
         )
         print(warning)
-        self.stop_robot()
         self.movement_algorithm.move_away_from_head()
         self.objective = RobotObjective.NONE
         self.send_objective_to_neuronavigation()
