@@ -65,6 +65,7 @@ SITE_CONFIG = {
 # Force and torque sensor:
 #   Force sensor threshold: TODO (in Newtons)
 #   Sensor scale threshold: TODO (as percentage of initial force)
+FORCE_SENSOR_SAFETY_THRESHOLD_N = 20.0
 
 ROBOT_CONFIG = {
     "ur": {

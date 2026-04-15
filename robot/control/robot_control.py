@@ -29,8 +29,6 @@ class RobotObjective(Enum):
 
 
 class RobotControl:
-    FORCE_SENSOR_SAFETY_THRESHOLD_N = 20.0
-
     def __init__(self, remote_control, config, site_config, robot_config, connection):
         self.remote_control = remote_control
         self.config = config
@@ -68,6 +66,7 @@ class RobotControl:
         self.target_set = False
         self.m_target_to_head = None
         self.target_reached = False
+        self._prev_motion_sequence_state = None
 
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
@@ -151,7 +150,6 @@ class RobotControl:
 
         # Reset the state of the movement algorithm to ensure that the next movement starts from a known, well-defined state.
         self.movement_algorithm.reset_state()
-        self._reset_force_sensor_calibration()
 
         if self.config.get("movement_algorithm") == "directly_PID":
             self.pid_group.clear()
@@ -373,15 +371,15 @@ class RobotControl:
                 std_dev = np.std(self.displacement_magnitude_history)
                 avg_magnitude = np.mean(self.displacement_magnitude_history)
 
-                STUCK_STD_THRESHOLD = 0.5        # How little movement over time is considered "stuck"
-                MIN_MOVEMENT_THRESHOLD = 1.0     # Don’t trigger if displacement is already near target
+                STUCK_STD_THRESHOLD = 0.1        # How little movement over time is considered "stuck"
+                MIN_MOVEMENT_THRESHOLD = 3.0     # Don’t trigger if displacement is already near target
 
                 if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
-                    print("[!] Robot may be stuck. Displacement magnitude not changing.")
+                    print("[!] Displacement magnitude not changing.")
                     #self.stop_robot()
                     #self.objective = RobotObjective.NONE
                     #self.send_objective_to_neuronavigation()
-                    print("ERROR: Robot seems stuck — displacement is not changing over time.")
+                    # print("ERROR: Robot seems stuck — displacement is not changing over time.")
 
     def on_update_displacement_to_target(self, data):
         # For the displacement received from the neuronavigation, the following holds:
@@ -726,36 +724,39 @@ class RobotControl:
             and isinstance(self.force_sensor, BufferedForceTorqueSensor)
         )
 
-    def _calibrate_force_sensor_before_downward_motion(self):
+    def _calibrate_force_sensor_before_motion(self):
         if not self._is_force_safety_monitoring_enabled():
             return
 
-        motion_sequence_state = getattr(self.movement_algorithm, "motion_sequence_state", None)
-        state_name = getattr(motion_sequence_state, "name", None)
         algorithm_name = self.config.get("movement_algorithm")
-
-        should_calibrate = (
-            algorithm_name == "directly_PID" and state_name == "MOVE_UPWARD"
+        # Detect start of motion sequence
+        motion_started = (
+            algorithm_name == "directly_PID"
+            and self._prev_motion_sequence_state == RobotObjective.NONE
+            and self.objective != RobotObjective.NONE
         )
 
-        if should_calibrate and not self.force_sensor.is_calibrated():
+        if motion_started:
             success = self.force_sensor.calibrate()
             if success:
-                print("Force sensor calibrated for downward movement safety.")
+                print("Force sensor calibrated at motion start.")
             else:
-                print("Warning: Could not calibrate force sensor before downward movement.")
+                print("Warning: Could not calibrate force sensor.")
+
+        # Update previous state
+        self._prev_motion_sequence_state = self.objective
 
     def _handle_force_sensor_safety(self):
         if not self._is_force_safety_monitoring_enabled():
             return False, ""
 
         if not self.force_sensor.is_force_threshold_exceeded(
-            self.FORCE_SENSOR_SAFETY_THRESHOLD_N
+            const.FORCE_SENSOR_SAFETY_THRESHOLD_N
         ):
             return False, ""
 
         warning = (
-            f"Safety stop: force exceeded {self.FORCE_SENSOR_SAFETY_THRESHOLD_N:.0f} N "
+            f"Safety stop: force exceeded {const.FORCE_SENSOR_SAFETY_THRESHOLD_N:.0f} N "
             "on at least one axis (X/Y/Z)."
         )
         print(warning)
@@ -940,14 +941,6 @@ class RobotControl:
             return True, ""
 
         robot_pose = self.robot_pose_storage.GetRobotPose()
-
-        # Calibrate baseline right before entering downward stage towards target.
-        self._calibrate_force_sensor_before_downward_motion()
-
-        # Force sensor acts only as a safety feature: stop and move up if any axis exceeds threshold.
-        safety_triggered, safety_warning = self._handle_force_sensor_safety()
-        if safety_triggered:
-            return True, safety_warning
 
         # Move the robot.
         self.print_every(
@@ -1145,6 +1138,14 @@ class RobotControl:
         self.robot_state_controller.update()
 
         self.update_state_variables()
+
+        # Calibrate force baseline
+        self._calibrate_force_sensor_before_motion()
+
+        # Force sensor acts only as a safety feature: stop and move up if any axis exceeds threshold.
+        safety_triggered, safety_warning = self._handle_force_sensor_safety()
+        if safety_triggered:
+            return True, safety_warning
 
         warning = ""
         if self.objective == RobotObjective.NONE:

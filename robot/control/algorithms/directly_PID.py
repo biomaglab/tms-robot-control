@@ -100,7 +100,7 @@ class DirectlyPIDAlgorithm:
         For most robots, dynamic motion updates occur only every 0.2 seconds.
         For Elfin variants and Dobot, motion updates are executed continuously.
         """
-        print("Initiating tuning motion")
+        print("Tuning motion")
 
         robot_type = self.config.get("robot", "").lower()
 
