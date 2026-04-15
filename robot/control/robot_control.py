@@ -738,9 +738,15 @@ class RobotControl:
 
         algorithm_name = self.config.get("movement_algorithm")
         # Detect start of motion sequence
+        previous_objective = (
+            RobotObjective.NONE
+            if self._prev_motion_sequence_state is None
+            else self._prev_motion_sequence_state
+        )
+
         motion_started = (
             algorithm_name == "directly_PID"
-            and self._prev_motion_sequence_state == RobotObjective.NONE
+            and previous_objective == RobotObjective.NONE
             and self.objective != RobotObjective.NONE
         )
 
@@ -956,6 +962,8 @@ class RobotControl:
             return True, ""
 
         # Ensure that the displacement to target has been updated recently.
+        if self.last_displacement_update_time is None:
+            self.last_displacement_update_time = time.time()
         if time.time() > self.last_displacement_update_time + 0.3:
             print("Error: No displacement update received for 0.3 seconds")
             self.displacement_to_target = None
