@@ -75,10 +75,11 @@ class RobotControl:
         self.feedback_pressure_sensor = None
         self.z_offset = 0
 
+        self.pressure_pid_active = self.config["use_pressure_sensor"]
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
             # Force sensor is safety-only; PID uses pressure feedback.
-            use_force=False, use_pressure=self.config["use_pressure_sensor"], robot_type=self.config["robot"],
+            use_force=False, use_pressure=self.pressure_pid_active, robot_type=self.config["robot"],
         )
 
         self.force_sensor = None
@@ -100,6 +101,24 @@ class RobotControl:
         self.warning_duration = 10.0  # seconds on invesalius screen
         
         self._force_safety_active = False
+
+    def _set_pressure_pid_active(self, active):
+        active = bool(active and self.config.get("use_pressure_sensor", False))
+        if self.pressure_pid_active == active:
+            return
+
+        self.pressure_pid_active = active
+        self.pid_group.reconfigure(
+            use_force=False,
+            use_pressure=self.pressure_pid_active,
+            robot_type=self.config.get("robot"),
+        )
+        self.pid_group.clear()
+        print(
+            "Pressure-guided PID {}.".format(
+                "enabled" if self.pressure_pid_active else "disabled"
+            )
+        )
 
     def _reset_force_sensor_calibration(self):
         if isinstance(self.force_sensor, BufferedForceTorqueSensor):
@@ -156,6 +175,7 @@ class RobotControl:
         self.movement_algorithm.reset_state()
 
         if self.config.get("movement_algorithm") == "directly_PID":
+            self._set_pressure_pid_active(True)
             self.pid_group.clear()
 
         print("Target set")
@@ -167,6 +187,7 @@ class RobotControl:
         # Reset the objective if the target is unset.
         self.objective = RobotObjective.NONE
         self.send_objective_to_neuronavigation()
+        self._set_pressure_pid_active(self.config.get("use_pressure_sensor", False))
 
         self.m_target_to_head = None
 
@@ -300,6 +321,8 @@ class RobotControl:
         self.movement_algorithm.reset_state()
         self._reset_force_sensor_calibration()
         if self.config.get("movement_algorithm") == "directly_PID":
+            if self.objective == RobotObjective.TRACK_TARGET:
+                self._set_pressure_pid_active(True)
             self.pid_group.clear()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
@@ -414,7 +437,10 @@ class RobotControl:
         translation, angles_as_deg = self.on_coil_to_robot_alignment(displacement)
         # Update PID controllers
         if self.config.get("movement_algorithm") == "directly_PID":
-            self.pid_group.update_translation(translation, self.feedback_pressure_sensor)
+            pressure_feedback = (
+                self.feedback_pressure_sensor if self.pressure_pid_active else None
+            )
+            self.pid_group.update_translation(translation, pressure_feedback)
             self.pid_group.update_rotation(angles_as_deg)
             self.z_offset = translation[2]
             translation, angles_as_deg = self.pid_group.get_outputs()
@@ -598,7 +624,7 @@ class RobotControl:
                 return
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
-        if self.config["use_pressure_sensor"]:
+        if self.pressure_pid_active:
             if self.pressure_sensor is None or not self.pressure_sensor.is_force_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
@@ -608,6 +634,8 @@ class RobotControl:
             topic = "Robot to Neuronavigation: Update z_offset target"
             data = {"z_offset": z_offset}
             self.remote_control.send_message(topic, data)
+        # Use pressure-based PID only until stable target is reached and sent.
+        self._set_pressure_pid_active(False)
 
     def send_objective_to_neuronavigation(self):
         # Send message to tms_robot_control indicating the current objective.
@@ -816,6 +844,8 @@ class RobotControl:
         """
         use_pressure = self.config.get("use_pressure_sensor", False)
         use_force = self.config.get("use_force_sensor", False)
+        if not use_pressure:
+            self.pressure_pid_active = False
 
         # --- Pressure Sensor Management ---
         if use_pressure:
@@ -848,7 +878,7 @@ class RobotControl:
             self.pid_group.reconfigure(
             # Force sensor is safety-only; PID uses pressure feedback.
             use_force=False,
-            use_pressure=self.config.get("use_pressure_sensor", False),
+            use_pressure=self.pressure_pid_active,
             robot_type=self.config.get("robot")
             )
 
@@ -938,7 +968,7 @@ class RobotControl:
             is_time_to_tune = False
 
         # Determine if pressure feedback is either not available or within acceptable range.
-        if self.config["use_pressure_sensor"] and self.pressure_sensor is not None:
+        if self.pressure_pid_active and self.pressure_sensor is not None:
             force_ok = self.pressure_sensor.is_force_near_setpoint(
                 self.pid_group.get_force_setpoint()
             )
@@ -1141,7 +1171,8 @@ class RobotControl:
 
         self.feedback_pressure_sensor = (
             self.get_pressure_sensor_values()
-            if self.config["use_pressure_sensor"] else None
+            if self.config["use_pressure_sensor"]
+            else None
         )
 
     def update_navigation_variables(self, warning):
@@ -1160,7 +1191,7 @@ class RobotControl:
                 self.active_warning = None
         if self.config["use_pressure_sensor"]:
             self.send_force_sensor_data_to_neuronavigation(self.feedback_pressure_sensor)
-            if self.objective == RobotObjective.TRACK_TARGET:
+            if self.objective == RobotObjective.TRACK_TARGET and self.pressure_pid_active:
                 self.send_force_stability_to_neuronavigation(self.z_offset)
 
     def update(self):
