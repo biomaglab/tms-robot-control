@@ -402,7 +402,7 @@ class RobotControl:
                 avg_magnitude = np.mean(self.displacement_magnitude_history)
 
                 STUCK_STD_THRESHOLD = 0.1        # How little movement over time is considered "stuck"
-                MIN_MOVEMENT_THRESHOLD = 3.0     # Don’t trigger if displacement is already near target
+                MIN_MOVEMENT_THRESHOLD = 10.0     # Don’t trigger if displacement is already near target
 
                 if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
                     print("[!] Displacement magnitude not changing.")
