@@ -102,7 +102,7 @@ class RobotControl:
         
         self._force_safety_active = False
         self._force_exceeded_since = None
-        self.force_trigger_delay = 1.0  # seconds required above threshold before triggering
+        self.force_trigger_delay = 0.5  # seconds required above threshold before triggering
 
     def _set_pressure_pid_active(self, active):
         active = bool(active and self.config.get("use_pressure_sensor", False))

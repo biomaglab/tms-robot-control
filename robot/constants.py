@@ -121,7 +121,7 @@ ROBOT_CONFIG = {
         "working_space_radius": 850,
         "sleep": 0.01,
         # Head motion
-        "head_velocity_threshold": 60,
+        "head_velocity_threshold": 120,
         # Tuning motion
         "distance_threshold_for_tuning": 30,
         "angular_distance_threshold_for_tuning": 5,
