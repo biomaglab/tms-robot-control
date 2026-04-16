@@ -101,6 +101,8 @@ class RobotControl:
         self.warning_duration = 10.0  # seconds on invesalius screen
         
         self._force_safety_active = False
+        self._force_exceeded_since = None
+        self.force_trigger_delay = 1.0  # seconds required above threshold before triggering
 
     def _set_pressure_pid_active(self, active):
         active = bool(active and self.config.get("use_pressure_sensor", False))
@@ -113,7 +115,8 @@ class RobotControl:
             use_pressure=self.pressure_pid_active,
             robot_type=self.config.get("robot"),
         )
-        self.pid_group.clear()
+        if active:
+            self.pid_group.clear()
         print(
             "Pressure-guided PID {}.".format(
                 "enabled" if self.pressure_pid_active else "disabled"
@@ -187,7 +190,7 @@ class RobotControl:
         # Reset the objective if the target is unset.
         self.objective = RobotObjective.NONE
         self.send_objective_to_neuronavigation()
-        self._set_pressure_pid_active(self.config.get("use_pressure_sensor", False))
+        self._set_pressure_pid_active(False)
 
         self.m_target_to_head = None
 
@@ -796,28 +799,43 @@ class RobotControl:
             const.FORCE_SENSOR_SAFETY_THRESHOLD_N
         )
 
-        # --- Trigger once ---
-        if force_exceeded and not self._force_safety_active:
-            self._force_safety_active = True
+        now = time.time()
 
-            warning = (
-                f"Safety stop: force exceeded {const.FORCE_SENSOR_SAFETY_THRESHOLD_N:.0f} N "
-                "on at least one axis (X/Y/Z)."
-            )
+        # --- Start timing when threshold first exceeded ---
+        if force_exceeded:
+            if self._force_exceeded_since is None:
+                self._force_exceeded_since = now
 
-            print(warning)
+            elapsed = now - self._force_exceeded_since
 
-            self.movement_algorithm.move_away_from_head()
+            if (
+                    elapsed >= self.force_trigger_delay
+                    and not self._force_safety_active
+            ):
+                self._force_safety_active = True
 
-            self.objective = RobotObjective.NONE
-            self.send_objective_to_neuronavigation()
+                warning = (
+                    f"Safety stop: force exceeded "
+                    f"{const.FORCE_SENSOR_SAFETY_THRESHOLD_N:.0f} N "
+                    f"for {self.force_trigger_delay:.1f}s"
+                )
 
-            return warning
+                print(warning)
+                self._set_pressure_pid_active(False)
+                self.movement_algorithm.move_away_from_head()
 
-        # --- Reset when safe again ---
-        if not force_exceeded and self._force_safety_active:
-            print("Force back within safe limits. Safety released.")
-            self._force_safety_active = False
+                self.objective = RobotObjective.NONE
+                self.send_objective_to_neuronavigation()
+
+                return warning
+
+        else:
+            # Reset timer if force returns to safe range
+            self._force_exceeded_since = None
+
+            if self._force_safety_active:
+                print("Force back within safe limits. Safety released.")
+                self._force_safety_active = False
 
         return None
 

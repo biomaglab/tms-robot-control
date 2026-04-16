@@ -55,7 +55,7 @@ class DirectlyPIDAlgorithm:
         max_translation = np.max(np.abs(displacement_to_target[:3]))
         max_rotation = np.max(np.abs(displacement_to_target[3:]))
 
-        if round(robot_pose[2]) < round(self.config["safe_height"]):
+        if robot_pose[2] < self.config["safe_height"]:
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence. If motion sequence is not initiated, check if it should be.
             if (
                 max_translation > self.translation_threshold
@@ -145,7 +145,7 @@ class DirectlyPIDAlgorithm:
         if (
             target_pose_in_robot_space
             and success
-            and (round(actual_pose_z) >= round(self.config["safe_height"]))
+            and (actual_pose_z >= self.config["safe_height"])
         ):
             self.motion_sequence_state = self.motion_sequence_state.next()
 
@@ -154,4 +154,7 @@ class DirectlyPIDAlgorithm:
     def move_away_from_head(self):
         self.robot.stop_robot()
         success = self._move_to_safe_height()
+        if not success:
+            self.robot.stop_robot()
+
         return success
