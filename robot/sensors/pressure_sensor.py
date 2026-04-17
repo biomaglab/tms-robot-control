@@ -24,6 +24,7 @@ class BufferedPressureSensorReader:
 
         self._last_z_offset_sent = 0
         self._last_force_sent = 0
+        self._last_invalid_data_log_time = 0.0
 
         # Start background thread
         self.thread = threading.Thread(target=self._serial_loop, daemon=True)
@@ -55,7 +56,10 @@ class BufferedPressureSensorReader:
                             -float(line) / 10
                         )  # Rescale to match the force and torque sensor.
                         if not self.started and not self._is_valid(value):
-                            print("[i] Waiting for valid pressure data...")
+                            now = time.time()
+                            if now - self._last_invalid_data_log_time >= 1.0:
+                                print("[i] Waiting for valid pressure data...")
+                                self._last_invalid_data_log_time = now
                             continue  # Ignore invalid/NaN at startup
 
                         with self.lock:
