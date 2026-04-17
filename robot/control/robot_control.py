@@ -75,7 +75,10 @@ class RobotControl:
         self.feedback_pressure_sensor = None
         self.z_offset = 0
 
-        self.pressure_pid_active = self.config["use_pressure_sensor"]
+        # Pressure-guided PID should be enabled only for the "current target acquisition"
+        # phase (new target -> stabilize -> send z_offset). Keep it off by default.
+        self.pressure_pid_active = False
+        self._pressure_pid_done_for_current_target = False
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
             # Force sensor is safety-only; PID uses pressure feedback.
@@ -164,6 +167,8 @@ class RobotControl:
             return
 
         self.target_set = True
+        # New target => allow pressure-guided PID for this acquisition cycle.
+        self._pressure_pid_done_for_current_target = False
 
         target = data["target"]
         target = np.array(target).reshape(4, 4)
@@ -191,6 +196,7 @@ class RobotControl:
         self.objective = RobotObjective.NONE
         self.send_objective_to_neuronavigation()
         self._set_pressure_pid_active(False)
+        self._pressure_pid_done_for_current_target = False
 
         self.m_target_to_head = None
 
@@ -324,8 +330,13 @@ class RobotControl:
         self.movement_algorithm.reset_state()
         self._reset_force_sensor_calibration()
         if self.config.get("movement_algorithm") == "directly_PID":
-            if self.objective == RobotObjective.TRACK_TARGET:
+            # Only enable pressure-guided PID during the acquisition cycle for a fresh
+            # target. Once a stable z_offset has been sent, keep it off until a new
+            # target arrives.
+            if self.objective == RobotObjective.TRACK_TARGET and not self._pressure_pid_done_for_current_target:
                 self._set_pressure_pid_active(True)
+            else:
+                self._set_pressure_pid_active(False)
             self.pid_group.clear()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
@@ -380,6 +391,7 @@ class RobotControl:
                 self.stop_robot()
                 self.objective = RobotObjective.NONE
                 self.send_objective_to_neuronavigation()
+                self._set_pressure_pid_active(False)
                 print(
                     "ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected."
                 )
@@ -637,8 +649,9 @@ class RobotControl:
             topic = "Robot to Neuronavigation: Update z_offset target"
             data = {"z_offset": z_offset}
             self.remote_control.send_message(topic, data)
-        # Use pressure-based PID only until stable target is reached and sent.
-        self._set_pressure_pid_active(False)
+            # Use pressure-based PID only until stable target is reached and sent.
+            self._pressure_pid_done_for_current_target = True
+            self._set_pressure_pid_active(False)
 
     def send_objective_to_neuronavigation(self):
         # Send message to tms_robot_control indicating the current objective.
@@ -694,6 +707,7 @@ class RobotControl:
 
             self.objective = RobotObjective.NONE
             self.send_objective_to_neuronavigation()
+            self._set_pressure_pid_active(False)
 
     def stop_robot(self):
         success = self.robot.stop_robot()
@@ -1074,6 +1088,7 @@ class RobotControl:
             self.objective = RobotObjective.NONE
 
             self.send_objective_to_neuronavigation()
+            self._set_pressure_pid_active(False)
 
             return True
 
