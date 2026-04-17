@@ -10,9 +10,16 @@ class PIDControllerGroup:
         ]
 
         if use_pressure:
-            self.stiffness_init = 0.05
-            self.damping_init = 0.02
-            pid_z = ImpedancePIDController(proportional=0.02, integral=0.01, derivative=0.0, mode="impedance")
+            self.stiffness_init = 0.12
+            self.damping_init = 0.035
+            pid_z = ImpedancePIDController(
+                proportional=0.08,
+                integral=0.02,
+                derivative=0.002,
+                stiffness=self.stiffness_init,
+                damping=self.damping_init,
+                mode="impedance"
+            )
         elif use_force:
             self.stiffness_init = 0.1
             self.damping_init = 0
@@ -46,7 +53,7 @@ class PIDControllerGroup:
                 translations[2],
                 force_feedback=force_feedback,
                 min_stiffness=(self.stiffness_init * 2) / 10,
-                max_stiffness=self.stiffness_init,
+                max_stiffness=self.stiffness_init * 2.5,
                 damping_ratio=self.damping_init / self.stiffness_init,
             )
             if self.robot_type not in ["elfin", "dobot"]:
@@ -114,6 +121,7 @@ class PIDControllerGroup:
             stiffness = min_stiffness
         else:
             # Scale stiffness with displacement
+            z_displacement = max(-5.0, min(5.0, z_displacement))
             normalized_disp = max(0.0, min(z_displacement / max_displacement, 1.0))
             target_stiffness = min_stiffness + normalized_disp * (
                 max_stiffness - min_stiffness
@@ -151,26 +159,55 @@ class PIDControllerGroup:
         """
         self.robot_type = robot_type
 
-        # Re-initialize Z-axis PID based on flags
-        if use_pressure:
-            self.stiffness_init = 0.05
-            self.damping_init = 0.02
-            pid_z = ImpedancePIDController(
-                proportional=0.02, integral=0.01, derivative=0.0, mode="impedance"
-            )
-        elif use_force:
-            self.stiffness_init = 0.1
-            self.damping_init = 0
-            pid_z = ImpedancePIDController(
-                proportional=0.1,
-                integral=0.0001,
-                derivative=0.0,
-                stiffness=self.stiffness_init,
-                damping=self.damping_init,
-                mode="impedance",
-            )
+        # Preserve current Z-PID tuning whenever possible.
+        old_pid_z = self.translation_pids[2] if len(self.translation_pids) > 2 else None
+        if old_pid_z is not None:
+            proportional = old_pid_z.Kp
+            integral = old_pid_z.Ki
+            derivative = old_pid_z.Kd
+            stiffness = old_pid_z.stiffness
+            damping = old_pid_z.damping
+            force_setpoint = old_pid_z.force_setpoint
+            displacement_setpoint = old_pid_z.displacement_setpoint
+            sample_time = old_pid_z.sample_time
+            output_min = old_pid_z.output_min
+            output_max = old_pid_z.output_max
+            enabled = old_pid_z.enabled
+            self.stiffness_init = stiffness
+            self.damping_init = damping
         else:
-            pid_z = ImpedancePIDController(proportional=0.1)
+            # Fallback defaults for first-time configuration.
+            if use_pressure:
+                proportional, integral, derivative = 0.08, 0.02, 0.002
+                self.stiffness_init, self.damping_init = 0.12, 0.035
+            elif use_force:
+                proportional, integral, derivative = 0.1, 0.0001, 0.0
+                self.stiffness_init, self.damping_init = 0.1, 0.0
+            else:
+                proportional, integral, derivative = 0.1, 0.01, 0.0
+                self.stiffness_init, self.damping_init = 0.05, 0.02
+            stiffness = self.stiffness_init
+            damping = self.damping_init
+            force_setpoint = -10.0
+            displacement_setpoint = 0.0
+            sample_time = 0.01
+            output_min, output_max = -2.0, 2.0
+            enabled = True
+
+        mode = "impedance" if use_pressure else "pid"
+        pid_z = ImpedancePIDController(
+            proportional=proportional,
+            integral=integral,
+            derivative=derivative,
+            stiffness=stiffness,
+            damping=damping,
+            mode=mode,
+        )
+        pid_z.set_force_setpoint(force_setpoint)
+        pid_z.set_pid_setpoint(displacement_setpoint)
+        pid_z.set_sample_time(sample_time)
+        pid_z.set_output_limits(output_min, output_max)
+        pid_z.set_enabled(enabled)
 
         # Update the Z-axis controller (index 2)
         if len(self.translation_pids) > 2:
@@ -228,7 +265,7 @@ class ImpedancePIDController:
         if self.mode not in ("pid", "impedance"):
             raise ValueError("mode must be 'pid' or 'impedance'")
 
-        self.sample_time = 0.0
+        self.sample_time = 0.01
         self.current_time = time.monotonic()
         self.last_time = self.current_time
 
@@ -246,8 +283,7 @@ class ImpedancePIDController:
         self.output = 0.0
         self.velocity = 0.0
 
-        self.output_min = -float("inf")
-        self.output_max = float("inf")
+        self.set_output_limits(-2.0, 2.0)
         self.enabled = True
 
     def clear(self):
@@ -272,6 +308,7 @@ class ImpedancePIDController:
             return self.output
 
         delta_time = self.sample_time if self.sample_time > 0 else delta_time_actual
+        delta_time = min(delta_time, 0.05)
         # Compute displacement error (desired - actual)
         displacement_error = self.displacement_setpoint - feedback_value
 
@@ -290,8 +327,12 @@ class ImpedancePIDController:
             self.DTerm = delta_force_error / delta_time if delta_time > 0 else 0.0
 
             # Impedance control: Calculate position correction based on displacement error
+            if abs(self.velocity) < 0.05:
+                damping_effect = 0
+            else:
+                damping_effect = self.damping * self.velocity
             impedance_position_correction = (
-                self.stiffness * displacement_error - self.damping * self.velocity
+                self.stiffness * displacement_error - damping_effect
             )
 
             # Update position correction using force control (PID) and impedance control
@@ -305,7 +346,7 @@ class ImpedancePIDController:
             # Update position based on velocity and acceleration
             acceleration = unclamped_output - self.damping * self.velocity
             self.velocity += acceleration * delta_time
-
+            self.velocity = max(-5.0, min(5.0, self.velocity))
             # Apply position output limits
             self.output = max(self.output_min, min(unclamped_output, self.output_max))
             self.last_force_error = force_error

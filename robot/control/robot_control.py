@@ -66,33 +66,72 @@ class RobotControl:
         self.target_set = False
         self.m_target_to_head = None
         self.target_reached = False
+        self._prev_motion_sequence_state = None
 
         self.displacement_to_target = 6 * [0]
         self.displacement_to_target_history = []
         self.last_displacement_print_time = time.time()
 
-        self.force_feedback = None
+        self.feedback_pressure_sensor = None
         self.z_offset = 0
 
+        # Pressure-guided PID should be enabled only for the "current target acquisition"
+        # phase (new target -> stabilize -> send z_offset). Keep it off by default.
+        self.pressure_pid_active = False
+        self._pressure_pid_done_for_current_target = False
+        # Raw 4x4 target matrix most recently received from neuronavigation (in its own space).
+        # Used to distinguish a true new target from a refinement update (often only Z changes).
+        self._last_nav_target_matrix = None
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
-            use_force=self.config["use_force_sensor"], use_pressure=self.config["use_pressure_sensor"], robot_type=self.config["robot"],
+            # Force sensor is safety-only; PID uses pressure feedback.
+            use_force=False, use_pressure=self.pressure_pid_active, robot_type=self.config["robot"],
         )
 
         self.force_sensor = None
+        self.pressure_sensor = None
         self.setup_sensors()
 
         self.robot_coord_matrix_list = np.zeros((4, 4))[np.newaxis]
         self.coord_coil_matrix_list = np.zeros((4, 4))[np.newaxis]
 
-        self.last_displacement_update_time = time.time()
-        self.last_robot_status_logging_time = time.time()
-        self.last_tuning_time = time.time()
+        self.last_displacement_update_time = None
+        self.last_tuning_time = None
 
         self.objective = RobotObjective.NONE
         self.moving_away_from_head = False
 
         self.last_warning = ""
+        self.active_warning = None
+        self.warning_timestamp = 0
+        self.warning_duration = 10.0  # seconds on invesalius screen
+        
+        self._force_safety_active = False
+        self._force_exceeded_since = None
+        self.force_trigger_delay = 0.5  # seconds required above threshold before triggering
+
+    def _set_pressure_pid_active(self, active):
+        active = bool(active and self.config.get("use_pressure_sensor", False))
+        if self.pressure_pid_active == active:
+            return
+
+        self.pressure_pid_active = active
+        self.pid_group.reconfigure(
+            use_force=False,
+            use_pressure=self.pressure_pid_active,
+            robot_type=self.config.get("robot"),
+        )
+        if active:
+            self.pid_group.clear()
+        print(
+            "Pressure-guided PID {}.".format(
+                "enabled" if self.pressure_pid_active else "disabled"
+            )
+        )
+
+    def _reset_force_sensor_calibration(self):
+        if isinstance(self.force_sensor, BufferedForceTorqueSensor):
+            self.force_sensor.clear_calibration()
 
     def print_every(self, seconds, attr_name, *args):
         now = time.time()
@@ -133,7 +172,39 @@ class RobotControl:
         self.target_set = True
 
         target = data["target"]
-        target = np.array(target).reshape(4, 4)
+        target = np.array(target, dtype=float).reshape(4, 4)
+
+        # InVesalius may send a follow-up set_target right after we send a stable z_offset
+        # (it updates its own target). That update should not re-enable pressure-PID.
+        is_refinement_update = False
+        if self._last_nav_target_matrix is not None:
+            prev = self._last_nav_target_matrix
+            dpos = target[:3, 3] - prev[:3, 3]
+            dx, dy, dz = float(dpos[0]), float(dpos[1]), float(dpos[2])
+
+            # Rotation delta angle (deg) between previous and current target frames.
+            try:
+                r_prev = prev[:3, :3]
+                r_curr = target[:3, :3]
+                r_rel = r_prev.T @ r_curr
+                cos_theta = (np.trace(r_rel) - 1.0) / 2.0
+                cos_theta = float(np.clip(cos_theta, -1.0, 1.0))
+                dtheta_deg = float(np.degrees(np.arccos(cos_theta)))
+            except Exception:
+                dtheta_deg = 999.0
+
+            # Treat as refinement if X/Y and rotation are effectively unchanged.
+            # Allow Z to change (that is the common "update target depth" path).
+            is_refinement_update = (abs(dx) < 0.5) and (abs(dy) < 0.5) and (dtheta_deg < 0.5)
+
+        # Store latest raw target matrix regardless.
+        self._last_nav_target_matrix = target.copy()
+
+        if not is_refinement_update:
+            # True new target => allow pressure-guided PID for this acquisition cycle.
+            self._pressure_pid_done_for_current_target = False
+        else:
+            print("Target updated (refinement), not restarting pressure-guided PID cycle.")
 
         self.m_target_to_head = (
             self.process_tracker.compute_transformation_target_to_head(
@@ -145,16 +216,20 @@ class RobotControl:
         self.movement_algorithm.reset_state()
 
         if self.config.get("movement_algorithm") == "directly_PID":
+            self._set_pressure_pid_active(not self._pressure_pid_done_for_current_target)
             self.pid_group.clear()
 
-        print("Target set")
+        print("Target set" if not is_refinement_update else "Target updated")
 
     def on_unset_target(self, data):
         self.target_set = False
+        self._reset_force_sensor_calibration()
 
         # Reset the objective if the target is unset.
         self.objective = RobotObjective.NONE
         self.send_objective_to_neuronavigation()
+        self._set_pressure_pid_active(False)
+        self._pressure_pid_done_for_current_target = False
 
         self.m_target_to_head = None
 
@@ -286,7 +361,15 @@ class RobotControl:
         # Reset state of the movement algorithm. This is done because we want to ensure that the movement algorithm starts from a
         # known, well-defined state when the objective changes.
         self.movement_algorithm.reset_state()
+        self._reset_force_sensor_calibration()
         if self.config.get("movement_algorithm") == "directly_PID":
+            # Only enable pressure-guided PID during the acquisition cycle for a fresh
+            # target. Once a stable z_offset has been sent, keep it off until a new
+            # target arrives.
+            if self.objective == RobotObjective.TRACK_TARGET and not self._pressure_pid_done_for_current_target:
+                self._set_pressure_pid_active(True)
+            else:
+                self._set_pressure_pid_active(False)
             self.pid_group.clear()
 
         # Send the objective back to neuronavigation. This is a form of acknowledgment; it is used to update the robot-related
@@ -341,6 +424,7 @@ class RobotControl:
                 self.stop_robot()
                 self.objective = RobotObjective.NONE
                 self.send_objective_to_neuronavigation()
+                self._set_pressure_pid_active(False)
                 print(
                     "ERROR: Same coordinates from Neuronavigator. Please check if the tracker device is connected."
                 )
@@ -362,15 +446,15 @@ class RobotControl:
                 std_dev = np.std(self.displacement_magnitude_history)
                 avg_magnitude = np.mean(self.displacement_magnitude_history)
 
-                STUCK_STD_THRESHOLD = 0.5        # How little movement over time is considered "stuck"
-                MIN_MOVEMENT_THRESHOLD = 1.0     # Don’t trigger if displacement is already near target
+                STUCK_STD_THRESHOLD = 0.1        # How little movement over time is considered "stuck"
+                MIN_MOVEMENT_THRESHOLD = 10.0     # Don’t trigger if displacement is already near target
 
                 if avg_magnitude > MIN_MOVEMENT_THRESHOLD and std_dev < STUCK_STD_THRESHOLD:
-                    print("[!] Robot may be stuck. Displacement magnitude not changing.")
+                    print("[!] Displacement magnitude not changing.")
                     #self.stop_robot()
                     #self.objective = RobotObjective.NONE
                     #self.send_objective_to_neuronavigation()
-                    print("ERROR: Robot seems stuck — displacement is not changing over time.")
+                    # print("ERROR: Robot seems stuck — displacement is not changing over time.")
 
     def on_update_displacement_to_target(self, data):
         # For the displacement received from the neuronavigation, the following holds:
@@ -401,7 +485,10 @@ class RobotControl:
         translation, angles_as_deg = self.on_coil_to_robot_alignment(displacement)
         # Update PID controllers
         if self.config.get("movement_algorithm") == "directly_PID":
-            self.pid_group.update_translation(translation, self.force_feedback)
+            pressure_feedback = (
+                self.feedback_pressure_sensor if self.pressure_pid_active else None
+            )
+            self.pid_group.update_translation(translation, pressure_feedback)
             self.pid_group.update_rotation(angles_as_deg)
             self.z_offset = translation[2]
             translation, angles_as_deg = self.pid_group.get_outputs()
@@ -543,25 +630,32 @@ class RobotControl:
         # TODO self.connection
         # if self.connection:
         #     self.connection.set_warning(warning)
-        if self.remote_control and self.last_warning != "":
-            topic = "Robot to Neuronavigation: Update robot warning"
-            data = {"robot_warning": warning}
-            self.remote_control.send_message(topic, data)
-        self.last_warning = warning
-
-    def send_force_sensor_data_to_neuronavigation(self, force_feedback):
-        # Check if force_feedback is NaN (handles both scalars and arrays)
-        if force_feedback is None or np.isnan(force_feedback).any():
-            # print("Warning: force_feedback is None or NaN.")
+        # Normalize: None means clear
+        normalized = "" if warning is None else warning
+        if normalized == self.last_warning:
             return
-        force_feedback = np.round(force_feedback, 2)
-        if (self.config["use_pressure_sensor"] or self.config["use_force_sensor"]) and not self.force_sensor.force_changed(force_feedback):
+        if self.remote_control:
+            topic = "Robot to Neuronavigation: Update robot warning"
+            data = {"robot_warning": normalized}
+            self.remote_control.send_message(topic, data)
+        self.last_warning = normalized
+
+    def send_force_sensor_data_to_neuronavigation(self, feedback_pressure_sensor):
+        # Check if feedback_sensor is NaN (handles both scalars and arrays)
+        if feedback_pressure_sensor is None or np.isnan(feedback_pressure_sensor).any():
+            return
+        feedback_sensor = np.round(feedback_pressure_sensor, 2)
+        feedback_source = None
+        if self.config["use_pressure_sensor"] and self.pressure_sensor is not None:
+            feedback_source = self.pressure_sensor
+
+        if feedback_source is not None and not feedback_source.force_changed(feedback_pressure_sensor):
             return
 
         # Send message to neuronavigation with force or pressure for GUI.
         if self.remote_control:
             topic = "Robot to Neuronavigation: Send force sensor data"
-            data = {"force_feedback": -force_feedback}
+            data = {"force_feedback": -feedback_pressure_sensor}
             self.remote_control.send_message(topic, data)
         # TODO:
         # if self.connection:
@@ -578,21 +672,19 @@ class RobotControl:
                 return
         z_offset = round(z_offset, 2)
         # Check stability with pressure taking priority over force
-        if self.config["use_pressure_sensor"]:
-            if not self.force_sensor.is_force_stable(
+        if self.pressure_pid_active:
+            if self.pressure_sensor is None or not self.pressure_sensor.is_force_stable(
                 self.pid_group.get_force_setpoint(), z_offset
             ):
                 return  # Exit early if pressure is enabled and unstable
-        elif self.config["use_force_sensor"]:
-            if not self.force_sensor.is_force_z_stable(
-                self.pid_group.get_force_setpoint(), z_offset
-            ):
-                return  # Exit early if only force is enabled and unstable
 
         if self.remote_control:
             topic = "Robot to Neuronavigation: Update z_offset target"
             data = {"z_offset": z_offset}
             self.remote_control.send_message(topic, data)
+            # Use pressure-based PID only until stable target is reached and sent.
+            self._pressure_pid_done_for_current_target = True
+            self._set_pressure_pid_active(False)
 
     def send_objective_to_neuronavigation(self):
         # Send message to tms_robot_control indicating the current objective.
@@ -648,6 +740,7 @@ class RobotControl:
 
             self.objective = RobotObjective.NONE
             self.send_objective_to_neuronavigation()
+            self._set_pressure_pid_active(False)
 
     def stop_robot(self):
         success = self.robot.stop_robot()
@@ -701,17 +794,96 @@ class RobotControl:
             return False
 
     def get_pressure_sensor_values(self):
-        pressure = self.force_sensor.get_latest_value()
+        if self.pressure_sensor is None:
+            return None
+
+        pressure = self.pressure_sensor.get_latest_value()
         if pressure is None:
             return None
         if not np.isnan(pressure):
             return pressure
         return None
 
-    def get_force_sensor_only_Z(self):
-        force_sensor_values = self.force_sensor.get_latest_value(axis=2)
-        if force_sensor_values:
-            return force_sensor_values
+    def _is_force_safety_monitoring_enabled(self):
+        return (
+            self.config.get("use_force_sensor", False)
+            and isinstance(self.force_sensor, BufferedForceTorqueSensor)
+        )
+
+    def _calibrate_force_sensor_before_motion(self):
+        if not self._is_force_safety_monitoring_enabled():
+            return
+
+        algorithm_name = self.config.get("movement_algorithm")
+        # Detect start of motion sequence
+        previous_objective = (
+            RobotObjective.NONE
+            if self._prev_motion_sequence_state is None
+            else self._prev_motion_sequence_state
+        )
+
+        motion_started = (
+            algorithm_name == "directly_PID"
+            and previous_objective == RobotObjective.NONE
+            and self.objective != RobotObjective.NONE
+        )
+
+        if motion_started:
+            success = self.force_sensor.calibrate()
+            if success:
+                print("Force sensor calibrated at motion start.")
+            else:
+                print("Warning: Could not calibrate force sensor.")
+
+        # Update previous state
+        self._prev_motion_sequence_state = self.objective
+
+    def _handle_force_sensor_safety(self):
+        if not self._is_force_safety_monitoring_enabled():
+            return None
+
+        force_exceeded = self.force_sensor.is_force_threshold_exceeded(
+            const.FORCE_SENSOR_SAFETY_THRESHOLD_N
+        )
+
+        now = time.time()
+
+        # --- Start timing when threshold first exceeded ---
+        if force_exceeded:
+            if self._force_exceeded_since is None:
+                self._force_exceeded_since = now
+
+            elapsed = now - self._force_exceeded_since
+
+            if (
+                    elapsed >= self.force_trigger_delay
+                    and not self._force_safety_active
+            ):
+                self._force_safety_active = True
+
+                warning = (
+                    f"Safety stop: force exceeded "
+                    f"{const.FORCE_SENSOR_SAFETY_THRESHOLD_N:.0f} N "
+                    f"for {self.force_trigger_delay:.1f}s"
+                )
+
+                print(warning)
+                self._set_pressure_pid_active(False)
+                self.movement_algorithm.move_away_from_head()
+
+                self.objective = RobotObjective.NONE
+                self.send_objective_to_neuronavigation()
+
+                return warning
+
+        else:
+            # Reset timer if force returns to safe range
+            self._force_exceeded_since = None
+
+            if self._force_safety_active:
+                print("Force back within safe limits. Safety released.")
+                self._force_safety_active = False
+
         return None
 
     def reconnect_to_robot(self):
@@ -737,48 +909,41 @@ class RobotControl:
         """
         use_pressure = self.config.get("use_pressure_sensor", False)
         use_force = self.config.get("use_force_sensor", False)
+        if not use_pressure:
+            self.pressure_pid_active = False
 
         # --- Pressure Sensor Management ---
         if use_pressure:
-            # If not already running a pressure sensor, start one
-            if not isinstance(self.force_sensor, BufferedPressureSensorReader):
-                if self.force_sensor is not None:
-                     # If it was a force sensor (or something else), clear it first
-                     # (Assuming force sensor doesn't need explicit stop, but good practice if it did)
-                     pass
+            if not isinstance(self.pressure_sensor, BufferedPressureSensorReader):
                 print("Enabling Pressure Sensor...")
-                self.force_sensor = BufferedPressureSensorReader(
+                self.pressure_sensor = BufferedPressureSensorReader(
                     self.config, 115200, buffer_size=100
                 )
         else:
-            # If we are using pressure sensor currently, stop it
-            if isinstance(self.force_sensor, BufferedPressureSensorReader):
+            if isinstance(self.pressure_sensor, BufferedPressureSensorReader):
                 print("Disabling Pressure Sensor...")
-                self.force_sensor.stop()
-                self.force_sensor = None
-        
+                self.pressure_sensor.stop()
+            self.pressure_sensor = None
+
         # --- Force/Torque Sensor Management ---
-        # Force sensor is used if enabled AND pressure sensor is NOT used.
-        # (Pressure sensor takes precedence in this logic as per original code structure)
-        if use_force and not use_pressure:
+        if use_force:
             if self.robot is not None:
-                 if not isinstance(self.force_sensor, BufferedForceTorqueSensor):
+                if not isinstance(self.force_sensor, BufferedForceTorqueSensor):
                     print("Enabling Force/Torque Sensor...")
                     self.force_sensor = BufferedForceTorqueSensor(
                         self.config, self.robot, buffer_size=100
                     )
             else:
-                # If robot is not connected yet, we can't fully instantiate the FLT sensor
-                # It will be instantiated in connect_to_robot -> setup_sensors
-                pass
-        elif not use_pressure and not use_force:
-             # Neither is enabled
-             self.force_sensor = None
+                # If robot is not connected yet, we can't fully instantiate the FLT sensor.
+                self.force_sensor = None
+        else:
+            self.force_sensor = None
 
         if self.config["movement_algorithm"] == "directly_PID":
             self.pid_group.reconfigure(
-            use_force=self.config.get("use_force_sensor", False),
-            use_pressure=self.config.get("use_pressure_sensor", False),
+            # Force sensor is safety-only; PID uses pressure feedback.
+            use_force=False,
+            use_pressure=self.pressure_pid_active,
             robot_type=self.config.get("robot")
             )
 
@@ -867,11 +1032,13 @@ class RobotControl:
         else:
             is_time_to_tune = False
 
-        # Determine if force feedback is either not available or within acceptable range
-        force_ok = (
-            self.force_sensor is None or 
-            self.force_sensor.is_force_near_setpoint(self.pid_group.get_force_setpoint())
-        )
+        # Determine if pressure feedback is either not available or within acceptable range.
+        if self.pressure_pid_active and self.pressure_sensor is not None:
+            force_ok = self.pressure_sensor.is_force_near_setpoint(
+                self.pid_group.get_force_setpoint()
+            )
+        else:
+            force_ok = True
 
         # Check if the robot is already in the target position and not enough time has passed since the last tuning.
         if self.target_reached and not is_time_to_tune and force_ok:
@@ -890,6 +1057,8 @@ class RobotControl:
             return True, ""
 
         # Ensure that the displacement to target has been updated recently.
+        if self.last_displacement_update_time is None:
+            self.last_displacement_update_time = time.time()
         if time.time() > self.last_displacement_update_time + 0.3:
             print("Error: No displacement update received for 0.3 seconds")
             self.displacement_to_target = None
@@ -921,7 +1090,11 @@ class RobotControl:
 
             return False, warning
 
-        if self.config["use_pressure_sensor"] and not self.force_sensor.ready:
+        if (
+            self.config["use_pressure_sensor"]
+            and self.pressure_sensor is not None
+            and not self.pressure_sensor.ready
+        ):
             warning = "Error: Pressure force sensor is not connected."
             print(warning)
             return False, warning
@@ -948,6 +1121,7 @@ class RobotControl:
             self.objective = RobotObjective.NONE
 
             self.send_objective_to_neuronavigation()
+            self._set_pressure_pid_active(False)
 
             return True
 
@@ -1020,7 +1194,7 @@ class RobotControl:
             self.tracker.head_pose
         )
 
-        if self.config["use_force_sensor"]:
+        if self.config["use_force_sensor"] and self.force_sensor is not None:
             self.force_sensor.update_force_buffer()
 
         if self.tracker.m_tracker_to_robot is not None:
@@ -1061,17 +1235,29 @@ class RobotControl:
             )
         )
 
-        self.force_feedback = (
+        self.feedback_pressure_sensor = (
             self.get_pressure_sensor_values()
             if self.config["use_pressure_sensor"]
-            else self.get_force_sensor_only_Z() if self.config["use_force_sensor"] else None
+            else None
         )
 
     def update_navigation_variables(self, warning):
-        self.send_warning_to_neuronavigation(warning)
-        if self.config["use_force_sensor"] or self.config["use_pressure_sensor"]:
-            self.send_force_sensor_data_to_neuronavigation(self.force_feedback)
-            if self.objective == RobotObjective.TRACK_TARGET:
+        now = time.time()
+        if warning:
+            # New warning → store and timestamp it
+            if warning != self.active_warning:
+                self.active_warning = warning
+                self.warning_timestamp = now
+                print(warning)
+                self.send_warning_to_neuronavigation(warning)
+        else:
+            # No new warning → keep showing existing one until timeout
+            if self.active_warning and (now - self.warning_timestamp) > self.warning_duration:
+                self.send_warning_to_neuronavigation("")
+                self.active_warning = None
+        if self.config["use_pressure_sensor"]:
+            self.send_force_sensor_data_to_neuronavigation(self.feedback_pressure_sensor)
+            if self.objective == RobotObjective.TRACK_TARGET and self.pressure_pid_active:
                 self.send_force_stability_to_neuronavigation(self.z_offset)
 
     def update(self):
@@ -1091,7 +1277,13 @@ class RobotControl:
 
         self.update_state_variables()
 
-        warning = ""
+        warning = None
+
+        # Calibrate force baseline
+        self._calibrate_force_sensor_before_motion()
+        # Force sensor acts only as a safety feature: stop and move up if any axis exceeds threshold.
+        safety_warning = self._handle_force_sensor_safety()
+
         if self.objective == RobotObjective.NONE:
             success = self.handle_objective_none()
 
@@ -1106,6 +1298,9 @@ class RobotControl:
 
         elif self.objective == RobotObjective.MOVE_AWAY_FROM_HEAD:
             success = self.handle_objective_move_away_from_head()
+
+        if self._force_safety_active:
+            warning = safety_warning
 
         self.update_navigation_variables(warning)
 

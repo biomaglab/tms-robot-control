@@ -55,7 +55,7 @@ class DirectlyPIDAlgorithm:
         max_translation = np.max(np.abs(displacement_to_target[:3]))
         max_rotation = np.max(np.abs(displacement_to_target[3:]))
 
-        if round(robot_pose[2]) < round(self.config["safe_height"]):
+        if robot_pose[2] < self.config["safe_height"]:
             # If the maximum translation or rotation to the target is larger than the threshold, initiate the motion sequence. If motion sequence is not initiated, check if it should be.
             if (
                 max_translation > self.translation_threshold
@@ -97,30 +97,27 @@ class DirectlyPIDAlgorithm:
         """
         Executes a tuning motion depending on the robot type.
 
-        For non old-Elfin/Dobot robots, dynamic motion updates occur
-        only every 0.2 seconds. For old-Elfin or Dobot robots, motion
-        updates are executed continuously.
+        For most robots, dynamic motion updates occur only every 0.2 seconds.
+        For Elfin variants and Dobot, motion updates are executed continuously.
         """
-        print("Initiating tuning motion")
-
         robot_type = self.config.get("robot", "").lower()
 
         # Default success value
         success = True
 
         # Different update logic depending on robot type
-        if robot_type not in ["elfin", "dobot"]:
+        if robot_type in ["elfin", "elfin_new_api", "dobot"]:
+            # For Elfin variants or Dobot, allow continuous updates
+            success = self.robot.dynamic_motion(
+                target_pose_in_robot_space, self.tuning_speed_ratio
+            )
+        else:
             # For other robots, limit update rate to every 0.2 s
             if time.time() - self.last_time_update > 0.2:
                 success = self.robot.dynamic_motion(
                     target_pose_in_robot_space, self.tuning_speed_ratio
                 )
                 self.last_time_update = time.time()
-        else:
-            # For Elfin or Dobot, allow continuous updates
-            success = self.robot.dynamic_motion(
-                target_pose_in_robot_space, self.tuning_speed_ratio
-            )
 
         return success
 
@@ -148,7 +145,7 @@ class DirectlyPIDAlgorithm:
         if (
             target_pose_in_robot_space
             and success
-            and (round(actual_pose_z) >= round(self.config["safe_height"]))
+            and (actual_pose_z >= self.config["safe_height"])
         ):
             self.motion_sequence_state = self.motion_sequence_state.next()
 
@@ -157,4 +154,7 @@ class DirectlyPIDAlgorithm:
     def move_away_from_head(self):
         self.robot.stop_robot()
         success = self._move_to_safe_height()
+        if not success:
+            self.robot.stop_robot()
+
         return success

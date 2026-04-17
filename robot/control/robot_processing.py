@@ -446,7 +446,7 @@ class TrackerProcessing:
         """
         self.coord_vel.append(current_ref)
         self.timestamps.append(time.time())
-        if len(self.coord_vel) >= 10:
+        if len(self.coord_vel) >= 50:
             head_velocity, head_distance = estimate_head_velocity(
                 self.coord_vel, self.timestamps
             )
@@ -455,7 +455,7 @@ class TrackerProcessing:
             del self.coord_vel[0]
             del self.timestamps[0]
 
-            if len(self.velocity_vector) >= 5:
+            if len(self.velocity_vector) >= 25:
                 self.velocity_std = np.std(self.velocity_vector)
                 del self.velocity_vector[0]
 
