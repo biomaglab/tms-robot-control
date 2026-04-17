@@ -178,8 +178,8 @@ class PIDControllerGroup:
         else:
             # Fallback defaults for first-time configuration.
             if use_pressure:
-                proportional, integral, derivative = 0.02, 0.01, 0.0
-                self.stiffness_init, self.damping_init = 0.05, 0.02
+                proportional, integral, derivative = 0.08, 0.02, 0.002
+                self.stiffness_init, self.damping_init = 0.12, 0.035
             elif use_force:
                 proportional, integral, derivative = 0.1, 0.0001, 0.0
                 self.stiffness_init, self.damping_init = 0.1, 0.0
