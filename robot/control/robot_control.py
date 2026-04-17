@@ -79,6 +79,9 @@ class RobotControl:
         # phase (new target -> stabilize -> send z_offset). Keep it off by default.
         self.pressure_pid_active = False
         self._pressure_pid_done_for_current_target = False
+        # Raw 4x4 target matrix most recently received from neuronavigation (in its own space).
+        # Used to distinguish a true new target from a refinement update (often only Z changes).
+        self._last_nav_target_matrix = None
         # Initialize PID controllers
         self.pid_group = PIDControllerGroup(
             # Force sensor is safety-only; PID uses pressure feedback.
@@ -167,11 +170,41 @@ class RobotControl:
             return
 
         self.target_set = True
-        # New target => allow pressure-guided PID for this acquisition cycle.
-        self._pressure_pid_done_for_current_target = False
 
         target = data["target"]
-        target = np.array(target).reshape(4, 4)
+        target = np.array(target, dtype=float).reshape(4, 4)
+
+        # InVesalius may send a follow-up set_target right after we send a stable z_offset
+        # (it updates its own target). That update should not re-enable pressure-PID.
+        is_refinement_update = False
+        if self._last_nav_target_matrix is not None:
+            prev = self._last_nav_target_matrix
+            dpos = target[:3, 3] - prev[:3, 3]
+            dx, dy, dz = float(dpos[0]), float(dpos[1]), float(dpos[2])
+
+            # Rotation delta angle (deg) between previous and current target frames.
+            try:
+                r_prev = prev[:3, :3]
+                r_curr = target[:3, :3]
+                r_rel = r_prev.T @ r_curr
+                cos_theta = (np.trace(r_rel) - 1.0) / 2.0
+                cos_theta = float(np.clip(cos_theta, -1.0, 1.0))
+                dtheta_deg = float(np.degrees(np.arccos(cos_theta)))
+            except Exception:
+                dtheta_deg = 999.0
+
+            # Treat as refinement if X/Y and rotation are effectively unchanged.
+            # Allow Z to change (that is the common "update target depth" path).
+            is_refinement_update = (abs(dx) < 0.5) and (abs(dy) < 0.5) and (dtheta_deg < 0.5)
+
+        # Store latest raw target matrix regardless.
+        self._last_nav_target_matrix = target.copy()
+
+        if not is_refinement_update:
+            # True new target => allow pressure-guided PID for this acquisition cycle.
+            self._pressure_pid_done_for_current_target = False
+        else:
+            print("Target updated (refinement), not restarting pressure-guided PID cycle.")
 
         self.m_target_to_head = (
             self.process_tracker.compute_transformation_target_to_head(
@@ -183,10 +216,10 @@ class RobotControl:
         self.movement_algorithm.reset_state()
 
         if self.config.get("movement_algorithm") == "directly_PID":
-            self._set_pressure_pid_active(True)
+            self._set_pressure_pid_active(not self._pressure_pid_done_for_current_target)
             self.pid_group.clear()
 
-        print("Target set")
+        print("Target set" if not is_refinement_update else "Target updated")
 
     def on_unset_target(self, data):
         self.target_set = False
