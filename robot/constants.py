@@ -65,6 +65,7 @@ SITE_CONFIG = {
 # Force and torque sensor:
 #   Force sensor threshold: TODO (in Newtons)
 #   Sensor scale threshold: TODO (as percentage of initial force)
+FORCE_SENSOR_SAFETY_THRESHOLD_N = 30.0
 
 ROBOT_CONFIG = {
     "ur": {
@@ -120,7 +121,7 @@ ROBOT_CONFIG = {
         "working_space_radius": 850,
         "sleep": 0.01,
         # Head motion
-        "head_velocity_threshold": 60,
+        "head_velocity_threshold": 120,
         # Tuning motion
         "distance_threshold_for_tuning": 30,
         "angular_distance_threshold_for_tuning": 5,

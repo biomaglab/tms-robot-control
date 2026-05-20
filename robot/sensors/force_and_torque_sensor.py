@@ -17,6 +17,15 @@ class BufferedForceTorqueSensor:
         self.force_buffer = deque(maxlen=buffer_size)
         self._last_z_offset_sent = 0
         self._last_force_sent = 0
+        self.force_offset_xyz = np.zeros(3, dtype=float)
+        self._is_calibrated = False
+
+    def _normalize_force_values(self, force_values):
+        """Return mutable force array with project-specific axis normalization."""
+        normalized = list(force_values)
+        # Invert Z to match the rest of the control pipeline.
+        normalized[2] *= -1
+        return normalized
 
     def read_force_sensor(self):
         if not self.config.get("use_force_sensor", False):
@@ -34,10 +43,47 @@ class BufferedForceTorqueSensor:
     def update_force_buffer(self):
         force_values = self.read_force_sensor()
         if force_values is not None:
-            # Invert the Z component (index 2)
-            force_values = list(force_values)  # ensure it's mutable
-            force_values[2] *= -1
+            force_values = self._normalize_force_values(force_values)
             self.force_buffer.append(force_values)
+
+    def calibrate(self):
+        """
+        Calibrates force baseline from the latest reading for X/Y/Z axes.
+        """
+        raw_values = self.read_force_sensor()
+        if raw_values is None:
+            return False
+
+        normalized = self._normalize_force_values(raw_values)
+        self.force_offset_xyz = np.array(normalized[:3], dtype=float)
+        self._is_calibrated = True
+        return True
+
+    def clear_calibration(self):
+        self.force_offset_xyz = np.zeros(3, dtype=float)
+        self._is_calibrated = False
+
+    def is_calibrated(self):
+        return self._is_calibrated
+
+    def get_latest_calibrated_xyz(self):
+        if not self.force_buffer:
+            return None
+        latest_xyz = np.array(self.force_buffer[-1][:3], dtype=float)
+        if not self._is_calibrated:
+            return latest_xyz
+        return latest_xyz - self.force_offset_xyz
+
+    def is_force_threshold_exceeded(self, threshold=20.0):
+        """
+        Returns True if |Fx|, |Fy|, or |Fz| exceeds threshold in calibrated frame.
+        """
+        if not self._is_calibrated:
+            return False
+        calibrated_xyz = self.get_latest_calibrated_xyz()
+        if calibrated_xyz is None:
+            return False
+        return np.any(np.abs(calibrated_xyz) > float(threshold))
 
     def get_latest_value(self, axis=None):
         """
