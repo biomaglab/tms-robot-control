@@ -17,7 +17,7 @@ class Elfin(Robot):
             ip=ip,
             use_new_api=use_new_api,
         )
-
+        self.tracking_motion_enabled = False
     # Connection
     def connect(self):
         return self.connection.connect()
@@ -30,11 +30,20 @@ class Elfin(Robot):
 
     # Initialization
     def initialize(self):
+        # For the PushServoP command to work, the TCP needs to be known
+        # The TCP is retried only once, when the system is initialized
+        # If the TCP is changed in the tech pendant while the software is running,
+        # the new TCP will not be updated until the tms-robot-control is restarted
+        if self.connection.use_new_api:
+            _, self.connection.tcp_coordinate_system = self.connection.get_current_tool_csc()
         pass
 
     # Robot state
     def get_pose(self):
         return self.connection.get_pose()
+    
+    def get_current_tool_csc(self):
+        return self.connection.get_current_tool_csc()
 
     def is_moving(self):
         return self.connection.get_motion_state() == MotionState.IN_MOTION
@@ -47,6 +56,12 @@ class Elfin(Robot):
 
     # Movement
     def move_linear(self, target, speed_ratio):
+        success = True
+        if(self.tracking_motion_enabled):
+            success = self.connection.set_pose_tracking_state(False)
+            if success:
+                self.tracking_motion_enabled = False
+                print("Disabled new motion tracking")
         success = self.connection.set_speed_ratio(speed_ratio)
         if not success:
             return False
@@ -68,6 +83,33 @@ class Elfin(Robot):
 
         # Using moveB
         return self.connection.move_linear(target)
+    
+    ######
+    # Elfin API v6.5 functions
+    def tracking_motion (self, displacement, speed_ratio):
+        #set speed and relative position and enable tracking if not enabled
+        if not self.tracking_motion_enabled:
+            if (self.connection.set_pose_tracking_max_motion_limit(speed_ratio) and
+                # distance and rotation relative to target
+                self.connection.set_pose_tracking_target_pos([0,0,0,0,0,0]) and 
+                self.connection.set_pose_tracking_state(True)):
+                    self.tracking_motion_enabled = True
+                    print("New motion tracking enabled")
+        #update speed and update tracking target displacement
+        success1 = self.connection.set_pose_tracking_max_motion_limit(speed_ratio)
+        success2 = self.connection.set_update_tracking_pose(displacement)
+        return success1 and success2
+
+    #tracking has some drift when left enabled when not moving
+    def pause_tracking (self):
+        success = True
+        if self.tracking_motion_enabled:
+            success = self.connection.set_pose_tracking_state(False)
+            if success:
+                self.tracking_motion_enabled = False
+                print("Paused new motion tracking")
+        return success
+    ######
 
     def move_circular(self, start_position, waypoint, target, speed_ratio):
         success = self.connection.set_speed_ratio(speed_ratio)
@@ -85,6 +127,11 @@ class Elfin(Robot):
         return self.connection.move_circular(start_position, waypoint, target)
 
     def stop_robot(self):
+        if self.tracking_motion_enabled:
+            sucess_tracking = self.connection.set_pose_tracking_state(False)
+            if sucess_tracking: 
+                print("New motion tracking disabled.")
+            sleep(0.05)
         success = self.connection.stop_robot()
 
         # After the stop command, it takes some milliseconds for the robot to stop. Wait for that time.

@@ -86,14 +86,14 @@ class DirectlyPIDAlgorithm:
                 target_pose_in_robot_space_estimated_from_displacement
             )
         else:
-            success = self._tune(target_pose_in_robot_space_estimated_from_displacement)
+            success = self._tune(target_pose_in_robot_space_estimated_from_displacement, displacement_to_target)
 
         # TODO: The force sensor is not normalized for now - add some logic here.
         normalize_force_sensor = False
 
         return success, normalize_force_sensor
 
-    def _tune(self, target_pose_in_robot_space):
+    def _tune(self, target_pose_in_robot_space, displacement_to_target):
         """
         Executes a tuning motion depending on the robot type.
 
@@ -109,7 +109,9 @@ class DirectlyPIDAlgorithm:
         success = True
 
         # Different update logic depending on robot type
-        if robot_type not in ["elfin", "dobot"]:
+        if robot_type == "elfin_new_api":
+            success = self.robot.tracking_motion(displacement_to_target, self.tuning_speed_ratio)
+        elif robot_type not in ["elfin", "dobot"]:
             # For other robots, limit update rate to every 0.2 s
             if time.time() - self.last_time_update > 0.2:
                 success = self.robot.dynamic_motion(
@@ -142,7 +144,7 @@ class DirectlyPIDAlgorithm:
             pose[3] = target_pose_in_robot_space[3]
             pose[4] = target_pose_in_robot_space[4]
             pose[5] = target_pose_in_robot_space[5]
-        success = self.robot.dynamic_motion(pose, self.default_speed_ratio)
+        success = self.robot.move_linear(pose, self.default_speed_ratio)
 
         # Transition to the next state if needed
         if (

@@ -875,6 +875,10 @@ class RobotControl:
 
         # Check if the robot is already in the target position and not enough time has passed since the last tuning.
         if self.target_reached and not is_time_to_tune and force_ok:
+            # the new motion tracking control drifts very slighly off target when enabled
+            if (self.config["robot"] == "elfin_new_api"):
+                self.robot.pause_tracking()
+                
             # Return True if the robot is already in the target position; the return value is used to indicate
             # that the robot is in a good state.
             return True, ""

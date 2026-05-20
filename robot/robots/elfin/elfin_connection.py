@@ -31,6 +31,7 @@ class ElfinConnection:
         self.ip = ip
         self.use_new_api = use_new_api
         self.servo_started = False
+        self.tcp_coordinate_system = False
 
         self.connected = False
         self.socket = None
@@ -214,6 +215,34 @@ class ElfinConnection:
             )
 
         return success, coordinates
+    
+    def get_current_tool_csc(self):
+        """
+        Gets the current set tool coordinate system values.
+
+        :return: The success indicator and the current TCP coordinate system.
+
+            The coordinate is a list [x, y, z, rx, ry, rz], where
+
+            x, y, z are the coordinates in mm, and
+            rx, ry, rz are the rotation angles in degrees.
+        """
+        # Note: command message not checked for OLD API, only tested for NEW API
+        command = "ReadCurTCP" if self.use_new_api else "ReadCurTCP"
+        request = command + "," + str(self.ROBOT_ID)
+
+        success, params = self._send_and_receive(request)        
+        if not success or params is None:
+            coordinates = None
+        else:
+            # Note: return message not checked for OLD API, only tested for NEW API
+            coordinates = (
+                [float(s) for s in params]
+                if self.use_new_api
+                else [float(s) for s in params]
+            )
+
+        return success, coordinates
 
     def move_linear(self, target, velocity=2000, acc=2500, radius=0, move_type=1,
                     use_joint=0, seek=0, io_bit=0, io_state=0, cmd_id="ID1",
@@ -263,46 +292,54 @@ class ElfinConnection:
         success, _ = self._send_and_receive(command)
         return success
 
-    def start_servo(self, servo_time_ms=10, lookahead_time_ms=50):
-        cmd = (
-            "StartServo,"
-            + str(self.ROBOT_ID)
-            + ","
-            + str(servo_time_ms)
-            + ","
-            + str(lookahead_time_ms)
-        )
-        success, _ = self._send_and_receive(cmd)
-        self.servo_started = success
-        return success
+    # Servo functions
+    # Doesn't work for us since servo time/cycle overwrites the speed of the robot (direct control of servos)
+    # def start_servo(self, servo_time_ms=1000, lookahead_time_ms=100):
+    #     cmd = (
+    #         "StartServo,"
+    #         + str(self.ROBOT_ID)
+    #         + ","
+    #         + str(servo_time_ms*(1e-3))  # API requests seconds
+    #         + ","
+    #         + str(lookahead_time_ms*(1e-3))  # API requests seconds
+    #     )
+    #     success, _ = self._send_and_receive(cmd)
+    #     self.servo_started = success
+    #     return success
 
-    def ensure_servo_started(self):
-        if not getattr(self, "servo_started", False):
-            return self.start_servo()
-        return True
+    # def ensure_servo_started(self):
+    #     if not getattr(self, "servo_started", False):
+    #         return self.start_servo()
+    #     return True
 
-    def move_servo(self, target):
-        if self.use_new_api:
-            if not self.ensure_servo_started():
-                return False
+    # def move_servo(self, target):
+    #     if self.use_new_api:          
+    #         if not self.ensure_servo_started():
+    #             return False
+    #         if not self.tcp_coordinate_system:
+    #             success, self.tcp_coordinate_system = self.get_current_tool_csc()
+    #             if not success:
+    #                 return False
 
-            ucs = [0] * 6
-            tcp = [0] * 6
-            request = (
-                "PushServoP,"
-                + str(self.ROBOT_ID)
-                + ","
-                + self.list_to_str(target)
-                + ","
-                + self.list_to_str(ucs)
-                + ","
-                + self.list_to_str(tcp)
-            )
-        else:
-            request = "MoveB," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
+    #         ucs = [0] * 6
+    #         request = (
+    #             "PushServoP,"
+    #             + str(self.ROBOT_ID)
+    #             + ","
+    #             + self.list_to_str(target)
+    #             + ","
+    #             + self.list_to_str(ucs)
+    #             + ","
+    #             + self.list_to_str(self.tcp_coordinate_system)
+    #         )
+    #         print(f"Sending target: {request}")
+    #     else:
+    #         request = "MoveB," + str(self.ROBOT_ID) + "," + self.list_to_str(target)
 
-        success, _ = self._send_and_receive(request)
-        return success
+    #     success, _ = self._send_and_receive(request)
+    #     # for testing purposes
+    #     # time.sleep(0.1)
+    #     return success
 
     def read_force_sensor(self):
         """
@@ -315,7 +352,11 @@ class ElfinConnection:
             Fx, Fy, Fz are the forces in N, and
             Mx, My, Mz are the torques in Nm.
         """
-        request = "ReadForceSensorData"
+        if (self.use_new_api):
+            request = ("ReadForceData," 
+                       + str(self.ROBOT_ID))
+        else:
+            request = "ReadForceSensorData"
         success, params = self._send_and_receive(request)
 
         if success and params is not None:
@@ -410,4 +451,143 @@ class ElfinConnection:
             )
 
         success, _ = self._send_and_receive(request, verbose=True)
+        return success   
+    
+    # Pose tracking / position-follow commands, Elfin v6 API
+
+    def set_pose_tracking_max_motion_limit(
+        self,
+        speed_ratio,
+        verbose=False,
+    ):
+        """
+        Sets the velocity for pose tracking / position-follow mode.
+        User speed_ratio to calculate linear velocity in mm/s and orientation velocity in degrees/s.
+        Maximum set to 1000mm/s and 360 degrees/s. 
+
+        :return: True if successful, otherwise False.
+        """
+        #TODO: find a good place to set the maximum speed variables and not use hard-coded values
+        request = (
+            "SetPoseTrackingMaxMotionLimit,"
+            + str(self.ROBOT_ID)
+            + ","
+            + str(speed_ratio*1000)
+            + ","
+            + str(speed_ratio*360)
+        )
+
+        success, _ = self._send_and_receive(request, verbose=verbose)
+        return success
+
+    # Given an error, not sure why, but in the current implementation is not needed
+    def set_pose_tracking_stop_timeout(self, timeout_s, verbose=False):
+        """
+        Sets the pose-tracking stop timeout.
+
+            :param timeout_s: Timeout in seconds.
+            :return: True if successful, otherwise False.
+        """
+        request = (
+            "SetPoseTrackingStopTimeOut,"
+            + str(self.ROBOT_ID)
+            + ","
+            + str(timeout_s)
+        )
+        print(request)
+        success, _ = self._send_and_receive(request, verbose=verbose)
+        return success
+
+    def set_pose_tracking_pid_params(self, params, verbose=False):
+        """
+        Setting real-time control incermental movement PID parameters of the robot.
+        Defaults in the manual are [5,0.1,0,5,0.1,0].
+
+        :param params: List/tuple of PID parameters in the exact order required
+                       by the robot manual.
+        :return: True if successful, otherwise False.
+        """
+        if not params:
+            raise ValueError("params must contain at least one PID parameter")
+
+        request = (
+            "SetPoseTrackingPIDParams,"
+            + str(self.ROBOT_ID)
+            + ","
+            + ",".join(str(p) for p in params)
+        )
+
+        success, _ = self._send_and_receive(request, verbose=verbose)
+        return success
+
+    def set_pose_tracking_target_pos(self, target, verbose=False):
+        """
+        Sets the distance from the targer TCP pose for pose-tracking / position-follow mode.
+        For our use case all should be set to 0.
+        Target pose format follows the common robot Cartesian pose convention:
+            [x,  y,  z,  rx,  ry,  rz]
+
+        where x/y/z are in mm and rx/ry/rz are in degrees
+
+        :param target: [x,  y,  z,  rx,  ry,  rz]
+        :return: True if successful, otherwise False.
+        """
+        if len(target) != 6:
+            raise ValueError("Target must be [x,  y,  z,  rx,  ry,  rz]")
+
+        request = (
+            "SetPoseTrackingTargetPos,"
+            + str(self.ROBOT_ID)
+            + ","
+            + self.list_to_str(target)
+        )
+
+        success, _ = self._send_and_receive(request, verbose=verbose)
+        return success
+    
+    def set_update_tracking_pose(self, target, verbose=False):
+        """
+        Sets the target TCP pose for pose-tracking / position-follow mode relative to the TCP (displacement_to_target).
+
+        Updated target pose format follows the common robot Cartesian pose convention:
+            [x,  y,  z,  rx,  ry,  rz]
+
+        where x/y/z are in mm and rx/ry/rz are in degrees.
+
+        :param target: [x,  y,  z,  rx,  ry,  rz]
+        :return: True if successful, otherwise False.
+        """
+        if len(target) != 6:
+            raise ValueError("Target must be [x,  y,  z,  rx,  ry,  rz]")
+
+        request = (
+            "SetUpdateTrackingPose,"
+            + str(self.ROBOT_ID)
+            + ","
+            + self.list_to_str(target)
+        )
+
+        success, _ = self._send_and_receive(request, verbose=verbose)
+        return success
+
+    def set_pose_tracking_state(self, enabled, verbose=False):
+        """
+        Enables or disables pose-tracking / position-follow mode.
+
+        Assumed command format:
+            SetPoseTrackingState,nRbtID,nState,
+
+        :param enabled: True/1 to enable, False/0 to disable.
+        :return: True if successful, otherwise False.
+        """
+        state = 1 if enabled else 0
+
+        request = (
+            "SetPoseTrackingState,"
+            + str(self.ROBOT_ID)
+            + ","
+            + str(state)
+        )
+
+        success, _ = self._send_and_receive(request, verbose=verbose)
         return success
