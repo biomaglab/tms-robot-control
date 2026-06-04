@@ -282,8 +282,8 @@ class ImpedancePIDController:
 
         self.output = 0.0
         self.velocity = 0.0
-
-        self.set_output_limits(-2.0, 2.0)
+        # essentially controls the current speed of the robot
+        self.set_output_limits(-5.0, 5.0)
         self.enabled = True
 
     def clear(self):

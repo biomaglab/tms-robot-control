@@ -65,7 +65,7 @@ SITE_CONFIG = {
 # Force and torque sensor:
 #   Force sensor threshold: TODO (in Newtons)
 #   Sensor scale threshold: TODO (as percentage of initial force)
-FORCE_SENSOR_SAFETY_THRESHOLD_N = 30.0
+FORCE_SENSOR_SAFETY_THRESHOLD_N = 40.0
 
 ROBOT_CONFIG = {
     "ur": {
@@ -118,7 +118,8 @@ ROBOT_CONFIG = {
         # General
         # Robot working space is defined as 800 mm in Elfin 5 manual. For safety, the value is
         # reduced by 5%. For debugging, feel free to use 1000 mm.
-        "working_space_radius": 850,
+        # Elfin v6 1100 mm.
+        "working_space_radius": 1100,
         "sleep": 0.01,
         # Head motion
         "head_velocity_threshold": 120,
