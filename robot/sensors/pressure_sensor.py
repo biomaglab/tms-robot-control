@@ -78,6 +78,7 @@ class BufferedPressureSensorReader:
             return False
         try:
             self.serial = serial.Serial(self.config['com_port_pressure_sensor'], self.baudrate, timeout=1)
+            time.sleep(1)
             self.ready = True
             return True
         except serial.SerialException as e:
@@ -107,12 +108,13 @@ class BufferedPressureSensorReader:
         if self.config['com_port_pressure_sensor'] not in available_ports:
             print(f"[!] Port '{self.config['com_port_pressure_sensor']}' not found among: {available_ports}")
             return False
-
-        try:
-            with serial.Serial(self.config['com_port_pressure_sensor'], self.baudrate, timeout=1):
-                return True
-        except serial.SerialException:
-            return False
+        else:
+            return True
+        # try:
+        #     with serial.Serial(self.config['com_port_pressure_sensor'], self.baudrate, timeout=1):
+        #         return True
+        # except serial.SerialException:
+        #     return False
 
     def get_latest_value(self):
         with self.lock:

@@ -20,19 +20,8 @@ class PIDControllerGroup:
                 damping=self.damping_init,
                 mode="impedance"
             )
-        elif use_force:
-            self.stiffness_init = 0.1
-            self.damping_init = 0
-            pid_z = ImpedancePIDController(
-                proportional=0.1,
-                integral=0.0001,
-                derivative=0.0,
-                stiffness=self.stiffness_init,
-                damping=self.damping_init,
-                mode="impedance",
-            )
         else:
-            pid_z = ImpedancePIDController(proportional=0.1)
+            pid_z = ImpedancePIDController(proportional=0.7)
 
         self.translation_pids.append(pid_z)
 
@@ -53,7 +42,8 @@ class PIDControllerGroup:
                 translations[2],
                 force_feedback=force_feedback,
                 min_stiffness=(self.stiffness_init * 2) / 10,
-                max_stiffness=self.stiffness_init * 2.5,
+                # max_stiffness=self.stiffness_init * 2.5,
+                max_stiffness=self.stiffness_init,
                 damping_ratio=self.damping_init / self.stiffness_init,
             )
             if self.robot_type not in ["elfin", "dobot"]:
@@ -283,7 +273,7 @@ class ImpedancePIDController:
         self.output = 0.0
         self.velocity = 0.0
         # essentially controls the current speed of the robot
-        self.set_output_limits(-5.0, 5.0)
+        self.set_output_limits(-3.0, 3.0)
         self.enabled = True
 
     def clear(self):
