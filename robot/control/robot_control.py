@@ -1249,6 +1249,19 @@ class RobotControl:
             else None
         )
 
+        # Continuous check: if stability was reached, but force spikes beyond a threshold,
+        # reactivate the PID to retreat and recalculate stability.
+        if self._pressure_pid_done_for_current_target and self.feedback_pressure_sensor is not None:
+            if self.pid_group:
+                setpoint = self.pid_group.get_force_setpoint()
+                spike_multiplier = self.config.get("force_spike_threshold_multiplier", 1.4)
+                if setpoint is not None and self.feedback_pressure_sensor >= spike_multiplier * setpoint:
+                    print(f"[!] Force spike detected ({self.feedback_pressure_sensor:.2f} >= {spike_multiplier} * {setpoint:.2f}). Reactivating pressure PID to retreat.")
+                    self._pressure_pid_done_for_current_target = False
+                    self._set_pressure_pid_active(True)
+                    if self.pressure_sensor:
+                        self.pressure_sensor.buffer.clear()
+
     def update_navigation_variables(self, warning):
         now = time.time()
         if warning:
