@@ -156,6 +156,12 @@ class RobotControl:
         pressure = data["pressure"]
         self.pid_group.set_force_setpoint(pressure)
 
+        # Recalculate stability with the new setpoint
+        self._pressure_pid_done_for_current_target = False
+        self._set_pressure_pid_active(True)
+        if hasattr(self, "pressure_sensor") and self.pressure_sensor:
+            self.pressure_sensor.buffer.clear()
+
     def on_set_tracker_fiducials(self, data):
         # TODO: This shouldn't call the constructor again but instead a separate reset method.
         self.process_tracker.__init__(robot_config=self.robot_config)
