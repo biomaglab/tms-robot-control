@@ -922,7 +922,10 @@ class RobotControl:
             if not isinstance(self.pressure_sensor, BufferedPressureSensorReader):
                 print("Enabling Pressure Sensor...")
                 self.pressure_sensor = BufferedPressureSensorReader(
-                    self.config, 115200, buffer_size=100
+                    self.config, 
+                    115200, 
+                    buffer_size=100, 
+                    sample_interval=self.config.get("pressure_sample_interval", 0.05)
                 )
         else:
             if isinstance(self.pressure_sensor, BufferedPressureSensorReader):

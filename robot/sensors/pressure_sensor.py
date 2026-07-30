@@ -8,11 +8,12 @@ import serial.tools.list_ports
 
 
 class BufferedPressureSensorReader:
-    def __init__(self, config, baudrate=115200, buffer_size=100, reconnect_interval=1):
+    def __init__(self, config, baudrate=115200, buffer_size=100, reconnect_interval=1, sample_interval=0.0):
         self.config = config
         self.baudrate = baudrate
         self.buffer_size = buffer_size
         self.reconnect_interval = reconnect_interval
+        self.sample_interval = sample_interval
         self.connect_attempts = 0  # Track how many times we've tried to connect
 
         self.buffer = deque(maxlen=buffer_size)
@@ -49,6 +50,10 @@ class BufferedPressureSensorReader:
                     continue
 
             try:
+                if self.sample_interval > 0:
+                    self.serial.reset_input_buffer()
+                    self.serial.readline()  # Discard partial line resulting from the flush
+
                 line = self.serial.readline().decode("utf-8", errors="ignore").strip()
                 if line:
                     try:
@@ -67,6 +72,10 @@ class BufferedPressureSensorReader:
                         if not self.started:
                             self.started = True
                             print("[✓] Pressure data started.")
+
+                        if self.sample_interval > 0:
+                            time.sleep(self.sample_interval)
+
                     except ValueError:
                         print(f"[!] Invalid float: {line}")
             except serial.SerialException as e:
