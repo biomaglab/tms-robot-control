@@ -14,9 +14,10 @@ from robot.control.robot_control import RobotControl, RobotObjective
 
 
 class RemoteControl:
-    def __init__(self, remote_host):
+    def __init__(self, remote_host, robot_id=0):
         self.__buffer = []
         self.__remote_host = remote_host
+        self.robot_id = robot_id
         self.__connected = False
         self.__sio = socketio.Client()
 
@@ -71,23 +72,33 @@ class RemoteControl:
             print("Connecting...")
             time.sleep(1.0)
 
-    def send_message(self, topic, data={}):
+    def send_message(self, topic, data=None):
+        if data is None:
+            data = {}
+        data["robot_id"] = self.robot_id
         self.__sio.emit("from_robot", {"topic": topic, "data": data})
 
 
-# Run the script like this: python main_loop.py [host] [port].
+# Run the script like this: python main_loop.py [--robot-id ID] [host] [port].
 #
 # If not given, use the defaults, as shown below.
 def get_command_line_arguments():
     default_host = "127.0.0.1"
     default_port = 5000
 
-    if len(sys.argv) == 3:
-        host = sys.argv[1]
-        port = int(sys.argv[2])
-    elif len(sys.argv) == 2:
+    args = sys.argv[1:]
+    if "--robot-id" in args:
+        idx = args.index("--robot-id")
+        if idx + 1 < len(args):
+            args.pop(idx)
+            args.pop(idx)
+
+    if len(args) == 2:
+        host = args[0]
+        port = int(args[1])
+    elif len(args) == 1:
         host = default_host
-        port = int(sys.argv[1])
+        port = int(args[0])
     else:
         host = default_host
         port = default_port
@@ -203,6 +214,16 @@ def get_config():
 
 
 def main(connection=None):
+    # Parse robot_id from command line arguments
+    robot_id = 0
+    if "--robot-id" in sys.argv:
+        idx = sys.argv.index("--robot-id")
+        if idx + 1 < len(sys.argv):
+            try:
+                robot_id = int(sys.argv[idx + 1])
+            except ValueError:
+                pass
+
     config = get_config()
     if config is None:
         exit(1)
@@ -237,7 +258,7 @@ def main(connection=None):
         host, port = get_command_line_arguments()
         # Connect to server
         url = "http://{}:{}".format(host, port)
-        remote_control = RemoteControl(url)
+        remote_control = RemoteControl(url, robot_id=robot_id)
         remote_control.connect()
         robot_control = RobotControl(
             remote_control=remote_control,
@@ -260,6 +281,19 @@ def main(connection=None):
 
                 for i in range(len(buf)):
                     if topic[i] in const.PUB_MESSAGES:
+                        msg_data = buf[i]["data"]
+                        
+                        msg_robot_id = 0
+                        if isinstance(msg_data, dict):
+                            msg_robot_id = msg_data.get("robot_id", 0)
+                            if msg_robot_id is None:
+                                msg_robot_id = 0
+                            else:
+                                msg_robot_id = int(msg_robot_id)
+                        
+                        if msg_robot_id != robot_id:
+                            continue
+
                         get_function = {
                             const.FUNCTION_CONNECT_TO_ROBOT: robot_control.on_robot_connection,
                             const.FUNCTION_SET_TARGET: robot_control.on_set_target,
@@ -283,7 +317,7 @@ def main(connection=None):
                             const.FUNCTION_SET_COIL_INDEX: robot_control.on_set_coil_index,
                             const.FUNCTION_CLEAN_ERRORS: robot_control.on_clean_errors,
                         }
-                        get_function[const.PUB_MESSAGES.index(topic[i])](buf[i]["data"])
+                        get_function[const.PUB_MESSAGES.index(topic[i])](msg_data)
 
         if robot_control.robot:
             success = robot_control.update()
