@@ -284,9 +284,12 @@ def main(connection=None):
                         msg_data = buf[i]["data"]
 
                         if isinstance(msg_data, dict):
-                            msg_robot_id = msg_data.get("robot_id", -1)
-                            if msg_robot_id != robot_id or topic[i] not in const.PUB_MESSAGES_WL:
-                                continue
+                            msg_robot_id = msg_data.get("robot_id", 0)
+                            if msg_robot_id != robot_id:
+                                if topic[i] in const.PUB_MESSAGES_WL and msg_robot_id == -1:
+                                    pass
+                                else:
+                                    continue
                         else:
                             continue
 
