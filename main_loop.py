@@ -282,16 +282,15 @@ def main(connection=None):
                 for i in range(len(buf)):
                     if topic[i] in const.PUB_MESSAGES:
                         msg_data = buf[i]["data"]
-                        
-                        msg_robot_id = 0
+
                         if isinstance(msg_data, dict):
                             msg_robot_id = msg_data.get("robot_id", 0)
-                            if msg_robot_id is None:
-                                msg_robot_id = 0
-                            else:
-                                msg_robot_id = int(msg_robot_id)
-                        
-                        if msg_robot_id != robot_id:
+                            if msg_robot_id != robot_id:
+                                if topic[i] in const.PUB_MESSAGES_WL and msg_robot_id == -1:
+                                    pass
+                                else:
+                                    continue
+                        else:
                             continue
 
                         get_function = {

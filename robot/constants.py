@@ -140,6 +140,12 @@ ROBOT_CONFIG = {
     },
 }
 
+# Publisher messages from invesalius to any robot
+# It's important these message to be in the PUB_MESSAGES list too
+PUB_MESSAGES_WL = [
+    "From Neuronavigation: Update tracker poses",
+]
+
 # Publisher messages from invesalius
 PUB_MESSAGES = [
     "Neuronavigation to Robot: Connect to robot",
